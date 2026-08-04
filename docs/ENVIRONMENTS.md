@@ -69,25 +69,33 @@ Consequences worth knowing before you set it up:
 > is no separate "Firebase project" to create and no reason to spend your GCP
 > credits twice over. Everything below assumes that is done.
 
-### 1. Create a second hosting site
+### 1. Create the two hosting sites
 
 One Firebase project can serve several sites. Production and staging are two
 sites in the same project, which is why they share a billing account, a service
 account and one set of credits:
 
 ```bash
-firebase hosting:sites:create mybestbuddy-staging
+firebase hosting:sites:create mybestbuddy && firebase hosting:sites:create mybestbuddy-staging
 ```
+
+The project also has a default site named after the project id. We do not use
+it — a site called `mybestbuddy` gives a cleaner fallback URL than
+`influential-bit-411408.web.app`.
 
 Then wire both names to targets:
 
 ```bash
-firebase target:apply hosting production <your-production-site-id> && firebase target:apply hosting staging mybestbuddy-staging
+firebase target:apply hosting production mybestbuddy && firebase target:apply hosting staging mybestbuddy-staging
 ```
 
-That writes the `targets` block in `.firebaserc`. Replace the three
-`REPLACE_WITH_YOUR_*` placeholders there — CI refuses to build `main` or
-`develop` while any of them survive.
+> `target:apply` **adds** a site to a target rather than replacing it, because
+> one target can serve several sites. If you need to re-point a target, clear
+> it first: `firebase target:clear hosting production`.
+
+That writes the `targets` block in `.firebaserc`. CI refuses to build `main` or
+`develop` while any `REPLACE_WITH_YOUR_*` placeholder survives there, so it will
+tell you if a target was missed.
 
 ### 2. Upgrade to Blaze and enable functions
 
@@ -95,13 +103,45 @@ Firebase Console → **Upgrade** → Blaze, attach the billing account holding y
 credits. Set a budget alert while you are there; it costs nothing and removes
 the background worry.
 
-### 3. Point the subdomain
+### 3. About the `.web.app` addresses
+
+Firebase always serves every site on `<site-id>.web.app` and
+`<site-id>.firebaseapp.com`, and **there is no way to turn that off.** No
+console setting, no CLI flag.
+
+That matters here more than on a normal site: a second working URL for a claim
+page helps anyone building a lookalike, and it undercuts the "one canonical
+address" message the launch relies on.
+
+Two things cover it:
+
+- **Production redirects.** `app/src/canonicalHost.ts` bounces any Firebase
+  default domain to `VITE_CANONICAL_HOST`. Not a block — someone with
+  JavaScript disabled still gets the page — but every real visit, shared link
+  and redirect-following crawler lands on the custom domain.
+- **Staging is already sealed.** Its auth gate fronts *all* hosts, so
+  `mybestbuddy-staging.web.app` prompts for the password exactly like the
+  custom domain, and every response carries `X-Robots-Tag: noindex`.
+
+The canonical host differs per environment, which is why it is a build
+variable rather than a constant — pointing staging at the production domain
+would make staging unreachable.
+
+| Environment | `VITE_CANONICAL_HOST` |
+|---|---|
+| production | `mybestbuddy.fun` |
+| staging | `staging.mybestbuddy.fun` |
+
+Both have defaults in the workflows; override with the `CANONICAL_HOST` and
+`STAGING_CANONICAL_HOST` repository variables if the domains ever change.
+
+### 4. Point the subdomain
 
 Firebase Console → Hosting → the **staging** site → Add custom domain →
 `staging.mybestbuddy.fun`. Add the DNS records at your registrar, same as
 production.
 
-### 4. Add the staging secrets
+### 5. Add the staging secrets
 
 **Settings → Secrets and variables → Actions.**
 

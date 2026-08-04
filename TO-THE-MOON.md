@@ -128,8 +128,13 @@ Set these in **Settings → Secrets and variables → Actions**:
 | Secret | `STAGING_PASSWORD` | the staging basic-auth password |
 | Variable | `STAGING_RPC_URL` | a devnet RPC endpoint |
 
-Also replace the three placeholders in `.firebaserc` — the project id and both
-hosting site ids. CI refuses to build `main` or `develop` while any survive.
+`.firebaserc` is already filled in: project `influential-bit-411408`, sites
+`mybestbuddy` and `mybestbuddy-staging`. CI blocks `main` and `develop` if a
+`REPLACE_WITH_YOUR_*` placeholder ever reappears.
+
+> Firebase also serves both sites on `<site-id>.web.app` and cannot be told not
+> to. The app redirects those to the custom domain, and staging's auth gate
+> covers all hosts — see [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) §3.
 
 The site will show "Could not read the distributor". That's correct: the program
 isn't deployed yet, and it proves the site is live and talking to the chain.

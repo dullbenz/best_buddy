@@ -1,13 +1,18 @@
 {
   "projects": {
-    "default": "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID"
+    "default": "influential-bit-411408"
   },
   "targets": {
-    "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID": {
+    "influential-bit-411408": {
       "hosting": {
-        "production": ["REPLACE_WITH_YOUR_PRODUCTION_SITE_ID"],
-        "staging": ["REPLACE_WITH_YOUR_STAGING_SITE_ID"]
+        "staging": [
+          "mybestbuddy-staging"
+        ],
+        "production": [
+          "mybestbuddy"
+        ]
       }
     }
-  }
+  },
+  "etags": {}
 }

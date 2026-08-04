@@ -4,6 +4,7 @@ import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adap
 import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+import { enforceCanonicalHost } from "./canonicalHost";
 import { RPC_URL } from "./config";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import "./styles.css";
@@ -24,6 +25,9 @@ function Root() {
     </ConnectionProvider>
   );
 }
+
+// Bounce Firebase's default domains before anything renders.
+enforceCanonicalHost();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

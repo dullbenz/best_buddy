@@ -42,6 +42,7 @@ jobs:
         env:
           VITE_RPC_URL: ${{ vars.VITE_RPC_URL }}
           VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID }}
+          VITE_CANONICAL_HOST: ${{ vars.CANONICAL_HOST || 'mybestbuddy.fun' }}
         run: |
           if [ -z "$VITE_RPC_URL" ]; then
             echo "::error::Repository variable VITE_RPC_URL is not set. The public RPC returns 403 to browsers, so the dashboard would not load."
