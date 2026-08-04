@@ -1,6 +1,6 @@
 # To the moon — the complete checklist
 
-Everything you personally have to do, start to finish, in order.
+Everything to be done for token launch, start to finish, in order.
 
 This is the master list. Other docs go deeper on individual steps and are linked
 where relevant, but nothing is required that isn't on this page.

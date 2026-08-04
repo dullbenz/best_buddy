@@ -19,3 +19,16 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 [dependencies]
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 anchor-spl = "0.31.1"
+
+# Anchor's `#[program]` and `#[derive(Accounts)]` macros expand to code guarded
+# by cfgs that belong to anchor-lang, not to this crate — so cargo's check-cfg
+# lint flags every one of them as unknown. Declaring them as expected is the
+# supported fix; it silences the noise without disabling the lint, so a genuine
+# typo in one of our own cfgs would still be caught.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("anchor-debug"))',
+    'cfg(feature, values("custom-heap"))',
+    'cfg(feature, values("custom-panic"))',
+    'cfg(target_os, values("solana"))',
+] }
