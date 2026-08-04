@@ -36,11 +36,14 @@ claim opens.
 | `scripts/deploy-init.ts` | initialize → fund → lock, with a dry-run default |
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
 | `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
-| `app/` | claim dApp and public transparency dashboard |
+| `app/` | claim dApp, dashboard, live Verify page and explainer |
 | `docs/DEVNET-REHEARSAL.md` | scripted dress run on devnet — do this first |
 | `docs/DEPLOY.md` | **the step-by-step runbook** |
 | `docs/PRE-COMMITMENT.md` | public tokenomics, to publish before launch |
+| `docs/VERIFY.md` | how anyone can independently verify every claim |
+| `docs/CONTENT.md` | TikTok scripts, X thread, the ask for independent review |
 | `docs/RECEIPTS.md` | evidence dossier template |
+| `docs/CICD.md` | GitHub Actions + Firebase Hosting setup |
 
 ## Quick start
 
@@ -68,9 +71,14 @@ solana program show <PROGRAM_ID>
 ```
 
 `Authority: none` means the code is immutable. Anything else names who can still
-change it. See [docs/PRE-COMMITMENT.md](docs/PRE-COMMITMENT.md) for the plan
-this project commits to, and [docs/DEPLOY.md](docs/DEPLOY.md) steps 2.1a/2.1b for
-how it is carried out.
+change it.
+
+**This project burns the upgrade authority on launch day, before announcing** —
+so the deployed program can never be altered, including by its author. The
+trade-off is real and accepted: no bug can ever be patched, and the contract has
+to keep working until the 2030 signer deadline. The devnet rehearsal and the
+security review are the only safety net. See [docs/DEPLOY.md](docs/DEPLOY.md)
+step 2.6.
 
 ## The two mechanisms worth understanding
 

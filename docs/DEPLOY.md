@@ -69,17 +69,21 @@ so a multisig here protects nobody from anything — **your own wallet is fine.*
 
 **The upgrade authority** can replace the program's code and bypass the config
 lock entirely. By the time it matters the vault holds tokens that old holders
-and influencers have a claim on, so this one is real. Two workable answers:
+and influencers have a claim on, so this one is real.
 
-- **Solo (recommended if you have no multisig):** keep it on your wallet for a
-  short, publicly stated window — **7 days** — then burn it permanently. Short,
-  because during that week people genuinely are trusting you.
-- **With a multisig:** transfer it to a [Squads](https://squads.so) vault at
-  deploy and burn it after ~90 days. Longer window is defensible because no
-  single person can push an upgrade.
+**This project burns it on launch day, before announcing.** No multisig, no
+window, no "we'll burn it later" — `solana program show` reads
+`Authority: none` from the moment anybody hears about the token.
 
-Either way the burn date goes in the pre-commitment document, and anyone can
-check you kept your word with `solana program show`.
+That is the strongest available signal and there is no promise to keep track of.
+It also means **the code can never be fixed**, and it has to keep working until
+the 2030 signer deadline. Two consequences you are accepting:
+
+- The security review (0.6) stops being best practice and becomes the only
+  safety net you have.
+- The devnet rehearsal (0.5) is the last moment a bug is cheap.
+
+Do both properly. After the burn there is no version two.
 
 ### 0.5 Rehearse on devnet
 
@@ -109,6 +113,25 @@ live.
 Edit `docs/PRE-COMMITMENT.md` with your real numbers and publish it publicly —
 site, GitHub, pinned post. **Before launch, not after.** Its entire value is
 that it was published while you could still have chosen differently.
+
+### 0.9 Prepare the transparency material
+
+Three things ship with the launch, not after it:
+
+- **[VERIFY.md](./VERIFY.md)** — fill in every address. It is also rendered live
+  on the site under the **Verify** tab, which runs the checks it can in the
+  visitor's browser and says "could not read" rather than guessing when it
+  cannot.
+- **The How it works tab** — the plain-English explainer in
+  `app/src/components/HowItWorks.tsx`. Read it end to end and make sure it
+  matches what you actually built.
+- **[CONTENT.md](./CONTENT.md)** — TikTok scripts, the X thread, and the ask for
+  independent verification. Check every placeholder is filled and no post
+  promises a price outcome.
+
+The independent-verification ask matters more than any of your own posts. One
+developer with no stake saying "I checked, it holds up" outweighs everything you
+can say about yourself. Post it where technical people actually are.
 
 ---
 
@@ -192,41 +215,21 @@ Costs roughly 3–5 SOL. Verify:
 solana program show <PROGRAM_ID>
 ```
 
-### 2.1a Deal with the upgrade authority
+### 2.1a Do NOT burn yet — verify first
 
-Solana programs are upgradeable by default. Until this is resolved, the keypair
-on your laptop can replace the contract's code with anything — which means
-`lock_config` is a promise rather than a guarantee, and anyone who checks will
-correctly say so. The `Authority` line printed above is the first thing a
-sophisticated holder looks at.
+You are burning the upgrade authority today, but **not on this line.**
 
-**If you have a multisig,** transfer it now, in the same session as the deploy:
+It is tempting to pass `--final` straight to the deploy. Don't. Between
+deploying and finishing `lock_config` there are three transactions and a dozen
+parameters, and if any of them is wrong you want the option to fix the code
+rather than abandoning a program that already holds your tokens.
 
-```bash
-solana program set-upgrade-authority <PROGRAM_ID> --new-upgrade-authority <SQUADS_MULTISIG_VAULT>
-```
+The window between deploy and burn costs you nothing in trust, because **nobody
+knows the token exists yet.** You announce in 2.7, after the burn. Keep this gap
+to minutes, and do not post anything until 2.1b is done.
 
-**If you are solo,** there is nothing to transfer — you keep it for the short
-window you published, and step 2.1b is the whole plan. Say so plainly in the
-announcement rather than leaving people to discover it: *"I hold the upgrade
-authority until [date], then it is burned. Verify with `solana program show`."*
-
-Either way, re-run `solana program show` and confirm the `Authority` line says
-what you told people it says.
-
-### 2.1b Burn it on the date you promised
-
-```bash
-solana program set-upgrade-authority <PROGRAM_ID> --final
-```
-
-This is irreversible. Afterwards `solana program show` reports `Authority: none`
-and the code can never change again — including by you, including to fix a bug.
-That is the point.
-
-Run it through the multisig on the date published in the pre-commitment
-document, post the transaction signature, and let people verify. A promise to
-burn that quietly never happens is worse than never having made it.
+If you find a problem before announcing: deploy a fresh program at a new
+address, eat the ~4 SOL, and carry on. That escape hatch closes at 2.1b.
 
 ### 2.2 Create the coin on pump.fun
 
@@ -263,12 +266,48 @@ RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> CLIFF_DAYS=30 npx ts-node script
 Anyone can call this; it can only produce the terms fixed at init. Do it
 immediately so the dev wallet is visibly empty from the first block.
 
-### 2.6 Route creator fees into bucket 1
+### 2.6 Verify everything, then burn the upgrade authority
+
+**This is the point of no return. Read the checks before running the command.**
+
+Confirm the on-chain state matches your published document exactly:
+
+```bash
+solana program show <PROGRAM_ID> && spl-token balance --address <VAULT_PDA>
+```
+
+Then walk the dashboard locally against mainnet and check, line by line:
+
+- the vault holds the full committed total
+- `locked` reads true
+- both Merkle roots match the published snapshot files
+- both deadlines are the dates you published
+- the dev stream exists, with the right total and cliff
+- the original-signer key matches the 2014 transaction
+
+Anything wrong? Fix it now. You can still redeploy at a new address for ~4 SOL.
+After the next command you cannot.
+
+```bash
+solana program set-upgrade-authority <PROGRAM_ID> --final
+```
+
+Confirm it took:
+
+```bash
+solana program show <PROGRAM_ID>
+```
+
+`Authority` must now read `none`. The code can never change again — not by you,
+not by anyone, not to fix a bug. Save that transaction signature; it goes in the
+announcement.
+
+### 2.7 Route creator fees into bucket 1
 
 In the pump.fun creator dashboard, split creator fees so a meaningful share
 (recommended: 50% or more) goes to the community. Two options:
 
-- **Simplest:** point the split at a wallet the multisig controls, and have it
+- **Simplest:** point the split at a wallet you control, and have it
   periodically call `notify_token_rewards` / `notify_sol_rewards`.
 - **Better if supported:** point it directly at the SOL vault PDA. Lamports sent
   there still need a `notify_sol_rewards` call to be counted, so a small
@@ -277,10 +316,25 @@ In the pump.fun creator dashboard, split creator fees so a meaningful share
 Check pump.fun's current fee-split UI at the time — it changed in January 2026
 and may have changed again.
 
-### 2.7 Announce
+### 2.8 Announce
 
-Post the program ID, the config PDA, the snapshot files, the pre-commitment
-doc, and the receipts dossier — all at once.
+Post all at once: program ID, config PDA, snapshot files, pre-commitment doc,
+receipts dossier, and the burn transaction signature.
+
+Lead with the burn. `Authority: none` is the single most checkable claim you
+have, it takes someone ten seconds to confirm, and it is the exact thing the
+last dev could never have said.
+
+Then, in order:
+
+1. Point people at `mybestbuddy.fun/verify` — the live checks, not your word.
+2. Post the independent-verification ask from [CONTENT.md](./CONTENT.md) where
+   developers and auditors will see it.
+3. Run the TikTok and thread scripts from the same file.
+
+Do not let the announcement be only your own voice. The goal for week one is
+somebody unconnected to you posting "I ran the checks, they hold up." Nothing
+you write yourself substitutes for that.
 
 ---
 
@@ -372,9 +426,10 @@ re-litigate it if it happens.
 - [ ] Devnet rehearsal completed end to end
 - [ ] Security review done and published
 - [ ] Program keypair backed up offline
-- [ ] Upgrade-authority holder decided (solo + 7-day burn, or multisig + 90-day burn)
-- [ ] Upgrade-authority plan published with a dated burn commitment
-- [ ] Upgrade authority transferred to the multisig in the same session as deploy
+- [ ] Pre-commitment doc states the program will be immutable from launch
+- [ ] Pre-commitment doc states the program is immutable from launch
+- [ ] Upgrade authority burned (`--final`) after init and before announcing
+- [ ] `solana program show` confirmed to read `Authority: none`
 - [ ] Receipts dossier published
 - [ ] Pre-commitment document published **before** launch
 - [ ] Snapshot slot chosen retroactively, anchored to a documented event
@@ -383,3 +438,6 @@ re-litigate it if it happens.
 - [ ] Influencer list published with amounts
 - [ ] Dev-buy sized as losable money
 - [ ] No public material promises returns, profit, or price
+- [ ] VERIFY.md filled in with real addresses and published
+- [ ] Verify and How it works tabs live on the site and read end to end
+- [ ] Independent-verification ask posted where technical people will see it

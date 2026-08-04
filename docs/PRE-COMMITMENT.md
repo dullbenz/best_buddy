@@ -202,8 +202,30 @@ solana program show <PROGRAM_ID>
 The `Authority` line is the answer. `none` means the program is immutable and
 its code can never change again, by anyone.
 
-| Period | Upgrade authority | Why |
-|---|---|---|
+**This program is immutable.** The upgrade authority was burned on launch day,
+before the token was announced to anyone. There is no window, no multisig, no
+future date to hold us to — the code that is deployed is the code that will run
+forever.
+
+Burn transaction: `<signature>`
+
+| Period | Upgrade authority |
+|---|---|
+| Before announcement | held briefly by the deployer, to verify setup |
+| From launch onward | **none — permanently immutable** |
+
+We are telling you what this costs, because a project that only tells you the
+upside is selling you something. An immutable program cannot be patched. If
+there is a bug in it, nobody can fix it — not us, not anyone — and it has to
+keep working until the 2030 signer deadline. Our mitigations were a full devnet
+rehearsal and an independent security review (`<link>`), and those were our only
+two shots at it.
+
+We made that trade deliberately. A contract that someone can rewrite is a
+contract you have to trust someone about, and this community has already been
+asked to do that once.
+
+---|---|---|
 | Launch → `<burn date>` | `<the dev's wallet / the n-of-m Squads multisig at address>` | a genuine bug in the opening days has to be fixable; after that it stops being worth what it costs in trust |
 | After `<burn date>` | **none — burned, permanently immutable** | nobody can change the code again, including us |
 

@@ -2,9 +2,13 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useState } from "react";
 import { Claims } from "./components/Claims";
 import { Dashboard } from "./components/Dashboard";
+import { HowItWorks } from "./components/HowItWorks";
 import { Staking } from "./components/Staking";
+import { Verify } from "./components/Verify";
 
-type Tab = "dashboard" | "claims" | "staking";
+type Tab = "dashboard" | "claims" | "staking" | "verify" | "how it works";
+
+const TABS: Tab[] = ["dashboard", "claims", "staking", "verify", "how it works"];
 
 export function App() {
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -20,7 +24,7 @@ export function App() {
       </header>
 
       <nav>
-        {(["dashboard", "claims", "staking"] as Tab[]).map((t) => (
+        {TABS.map((t) => (
           <button
             key={t}
             className={tab === t ? "tab active" : "tab"}
@@ -35,6 +39,8 @@ export function App() {
         {tab === "dashboard" && <Dashboard />}
         {tab === "claims" && <Claims />}
         {tab === "staking" && <Staking />}
+        {tab === "verify" && <Verify />}
+        {tab === "how it works" && <HowItWorks />}
       </main>
 
       <footer>

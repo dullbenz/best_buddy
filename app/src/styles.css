@@ -277,3 +277,86 @@ footer {
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
+
+/* --- Verify page --- */
+.check-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.check-head h2 {
+  margin: 0;
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.badge.pass {
+  color: var(--good);
+  border-color: var(--good);
+}
+
+.badge.fail {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.badge.pending {
+  color: var(--muted);
+}
+
+.cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.cmd code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+  flex: 1;
+}
+
+.cmd button {
+  padding: 4px 10px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--accent);
+}
+
+/* --- How it works --- */
+.prose p {
+  margin: 0 0 12px;
+}
+
+.prose ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.prose li {
+  margin-bottom: 10px;
+}
