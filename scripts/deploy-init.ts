@@ -9,7 +9,7 @@
  *
  * Required environment:
  *   RPC_URL                  Solana RPC endpoint
- *   KEYPAIR                  path to the authority keypair (ideally the multisig signer)
+ *   KEYPAIR                  path to the authority keypair
  *   REWARD_MINT              the new token mint from pump.fun
  *   DEV_WALLET               wallet the dev stream pays to
  *   OLD_ROOT / INF_ROOT      hex Merkle roots (no 0x)

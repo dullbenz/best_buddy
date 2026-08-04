@@ -37,13 +37,20 @@ claim opens.
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
 | `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
 | `app/` | claim dApp, dashboard, live Verify page and explainer |
-| `docs/DEVNET-REHEARSAL.md` | scripted dress run on devnet — do this first |
+| `TO-THE-MOON.md` | **the complete checklist — start here** |
+| `docs/DEVNET-REHEARSAL.md` | scripted dress run on devnet |
 | `docs/DEPLOY.md` | **the step-by-step runbook** |
 | `docs/PRE-COMMITMENT.md` | public tokenomics, to publish before launch |
 | `docs/VERIFY.md` | how anyone can independently verify every claim |
 | `docs/CONTENT.md` | TikTok scripts, X thread, the ask for independent review |
 | `docs/RECEIPTS.md` | evidence dossier template |
 | `docs/CICD.md` | GitHub Actions + Firebase Hosting setup |
+
+## Start here
+
+**[TO-THE-MOON.md](TO-THE-MOON.md) — the complete step-by-step checklist.**
+Everything from first backup to post-launch sweeps, in order. Every other doc
+goes deeper on one part of it.
 
 ## Quick start
 

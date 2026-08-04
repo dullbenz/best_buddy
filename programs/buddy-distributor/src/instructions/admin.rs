@@ -28,8 +28,10 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    /// The Squads multisig (or whatever key the community agrees on) that may
-    /// fund buckets before the lock. It has no power at all afterwards.
+    /// The key allowed to fund buckets before the lock. It has no power at all
+    /// afterwards, and the window is a single short session, so a plain wallet
+    /// is sufficient — the authority that actually matters long-term is the
+    /// program's upgrade authority, which is burned on launch day.
     /// CHECK: stored as a plain key; never signs after `lock_config`.
     pub authority: UncheckedAccount<'info>,
 

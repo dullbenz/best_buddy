@@ -225,17 +225,7 @@ We made that trade deliberately. A contract that someone can rewrite is a
 contract you have to trust someone about, and this community has already been
 asked to do that once.
 
----|---|---|
-| Launch → `<burn date>` | `<the dev's wallet / the n-of-m Squads multisig at address>` | a genuine bug in the opening days has to be fixable; after that it stops being worth what it costs in trust |
-| After `<burn date>` | **none — burned, permanently immutable** | nobody can change the code again, including us |
-
-Pick a short window and say the date out loud. Solo-held: 7 days. Multisig-held:
-up to 90. A vague "we'll burn it eventually" is worth nothing.
-
-We will run the burn publicly on that date and post the transaction. If the
-`Authority` line does not read `none` after `<date + 90 days>`, we did not keep
-our word, and you should treat every other commitment in this document
-accordingly.
+---
 
 **Verify it yourself:**
 

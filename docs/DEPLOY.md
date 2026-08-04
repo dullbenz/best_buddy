@@ -1,10 +1,14 @@
 # Deployment runbook
 
-Everything you have to do, in order, to get this live. Read the whole thing once
-before starting step 1 — several steps are irreversible and a couple of them
-have to happen within minutes of each other.
+The detailed reference for launch mechanics.
 
-Times are rough estimates for one person who has done the devnet rehearsal.
+> **Looking for the full picture?** [TO-THE-MOON.md](../TO-THE-MOON.md) is the
+> master checklist covering setup, rehearsal, preparation, launch and the first
+> month. This file expands on the launch steps within it; the two agree, and if
+> they ever disagree the master checklist is correct.
+
+Read the whole thing once before starting — several steps are irreversible and a
+couple of them happen minutes apart.
 
 ---
 
@@ -58,7 +62,7 @@ into `declare_id!` in `programs/buddy-distributor/src/lib.rs`, then rebuild.
 **Back this keypair up offline.** Losing it means you can never upgrade the
 program; leaking it means someone else can.
 
-### 0.4 Decide who holds the two authorities
+### 0.4 The two authorities
 
 There are two separate powers, and they deserve separate decisions.
 
@@ -135,7 +139,7 @@ can say about yourself. Post it where technical people actually are.
 
 ---
 
-## Phase 1 — Snapshot (day −1)
+## Phase 1 — Snapshot
 
 ### 1.1 Pick a slot that is already in the past
 
@@ -215,7 +219,7 @@ Costs roughly 3–5 SOL. Verify:
 solana program show <PROGRAM_ID>
 ```
 
-### 2.1a Do NOT burn yet — verify first
+### 2.1.1 Do NOT burn yet — verify first
 
 You are burning the upgrade authority today, but **not on this line.**
 
