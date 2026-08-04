@@ -108,8 +108,14 @@ built-in auth — which means upgrading to the Blaze plan. At staging traffic th
 cost rounds to zero and your $300 credit covers it, but you do have to attach
 billing.
 
-Then follow [docs/CICD.md](docs/CICD.md) for the Firebase project, deploy
+Then follow [docs/CICD.md](docs/CICD.md) for the Firebase setup, deploy
 credential, GitHub secrets, and DNS.
+
+> **You already have the project.** A Firebase project *is* a Google Cloud
+> project — same thing, two consoles. So you add Firebase to the GCP project
+> holding your $300 credits rather than creating anything new:
+> `firebase projects:addfirebase <your-gcp-project-id>`. One project, one
+> billing account, no question about whether the credits apply.
 
 Set these in **Settings → Secrets and variables → Actions**:
 

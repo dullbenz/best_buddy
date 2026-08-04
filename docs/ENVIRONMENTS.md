@@ -64,9 +64,16 @@ Consequences worth knowing before you set it up:
 
 ## One-time setup
 
+> **Do [CICD.md](./CICD.md) §2 first** if you have not already. It adds Firebase
+> to your existing Google Cloud project — the two are the same object, so there
+> is no separate "Firebase project" to create and no reason to spend your GCP
+> credits twice over. Everything below assumes that is done.
+
 ### 1. Create a second hosting site
 
-In the same Firebase project:
+One Firebase project can serve several sites. Production and staging are two
+sites in the same project, which is why they share a billing account, a service
+account and one set of credits:
 
 ```bash
 firebase hosting:sites:create mybestbuddy-staging

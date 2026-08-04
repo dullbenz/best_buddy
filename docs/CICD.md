@@ -52,18 +52,50 @@ Rust, so expect roughly 10–25 minutes per push.
 
 ---
 
-## 2. Create the Firebase project
+## 2. Add Firebase to your Google Cloud project
 
-1. Go to [console.firebase.google.com](https://console.firebase.google.com) and
-   sign in with the Google account holding your $300 credits.
-2. **Add project** → name it (e.g. `mybestbuddy`) → you can disable Analytics.
-3. In the left sidebar: **Build → Hosting → Get started**. Click through the CLI
-   steps; you do not need to run them, the workflow handles deployment.
-4. Note your **project ID** (shown in Project settings — it may have a numeric
-   suffix, like `mybestbuddy-4f2a1`).
+**A Firebase project *is* a Google Cloud project.** They are the same object
+seen through two consoles — Firebase is a layer of services switched on over a
+GCP project. The CLI says so plainly: `firebase projects:create` is documented
+as *"creates a new Google Cloud Platform project, then adds Firebase resources
+to the project."*
 
-Put that ID into `.firebaserc`, replacing the placeholder. CI refuses to build
-`main` while the placeholder is still there.
+So you do not need a second project. You already have one, holding your $300
+credits, and you should use it — one project, one billing account, and no doubt
+about whether the credits apply.
+
+```bash
+npm install -g firebase-tools && firebase login
+```
+
+```bash
+firebase projects:addfirebase <your-gcp-project-id>
+```
+
+Find the project id with `gcloud projects list`, or in the Google Cloud console
+next to the project name. It is the id, not the display name — often something
+like `buddy-472013`.
+
+Then enable Hosting: [console.firebase.google.com](https://console.firebase.google.com)
+→ your project → **Build → Hosting → Get started**. Click through the CLI steps
+shown; you do not need to run them, the workflow handles deployment.
+
+<details>
+<summary>If you would rather start a fresh project instead</summary>
+
+```bash
+firebase projects:create mybestbuddy
+```
+
+This creates a *new* GCP project underneath. Your credits live on the billing
+account rather than the project, so they still apply — but you must link the
+same billing account to the new project, or it will bill separately. Reusing
+the project you already have avoids that whole question.
+
+</details>
+
+Put the project id into `.firebaserc`, replacing the placeholder. CI refuses to
+build `main` or `develop` while any placeholder survives.
 
 ---
 
