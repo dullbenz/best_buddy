@@ -280,7 +280,7 @@ describe("buddy-distributor", () => {
       const dest = await claimOldHolder(b, 0);
       assert.equal((await tokenBalance(b.env, dest)).toString(), b.oldHolders[0].amount.toString());
 
-      const config = await b.env.program.account.config.fetch(b.env.configPda);
+      const config = await (b.env.program.account as any).config.fetch(b.env.configPda);
       assert.equal(config.oldHolderClaimed.toString(), b.oldHolders[0].amount.toString());
     });
 
@@ -349,13 +349,13 @@ describe("buddy-distributor", () => {
       await warpBy(b.env.context, 30 * DAY + 1);
       await expectFailure(claimOldHolder(b, 1), "ClaimWindowClosed");
 
-      const before = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const before = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       await b.env.program.methods
         .sweepOldHolders()
         .accountsPartial({ cranker: b.env.payer.publicKey, config: b.env.configPda, pool: b.env.poolPda })
         .signers([b.env.payer])
         .rpc();
-      const after = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const after = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
 
       const expectedSweep = OLD_ALLOC - b.oldHolders[0].amount;
       assert.equal(
@@ -405,7 +405,7 @@ describe("buddy-distributor", () => {
 
       assert.equal((await tokenBalance(b.env, dest)).toString(), "0", "nothing should transfer on claim");
 
-      const stream = await b.env.program.account.stream.fetch(streamPda(inf.keypair.publicKey, b.env.programId));
+      const stream = await (b.env.program.account as any).stream.fetch(streamPda(inf.keypair.publicKey, b.env.programId));
       assert.equal(stream.total.toString(), inf.amount.toString());
       assert.equal(Number(stream.end) - Number(stream.start), 30 * DAY);
     });
@@ -452,13 +452,13 @@ describe("buddy-distributor", () => {
       await warpBy(b.env.context, 3 * DAY + 1);
       await expectFailure(claimInfluencer(b, 1), "ClaimWindowClosed");
 
-      const before = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const before = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       await b.env.program.methods
         .sweepInfluencers()
         .accountsPartial({ cranker: b.env.payer.publicKey, config: b.env.configPda, pool: b.env.poolPda })
         .signers([b.env.payer])
         .rpc();
-      const after = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const after = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
 
       assert.equal(
         (BigInt(after.lifetimeTokenRewards.toString()) - BigInt(before.lifetimeTokenRewards.toString())).toString(),
@@ -526,7 +526,7 @@ describe("buddy-distributor", () => {
         .signers([b.env.payer])
         .rpc();
 
-      const stream = await b.env.program.account.stream.fetch(streamPda(destinationOwner.publicKey, b.env.programId));
+      const stream = await (b.env.program.account as any).stream.fetch(streamPda(destinationOwner.publicKey, b.env.programId));
       assert.equal(stream.total.toString(), SIGNER_ALLOC.toString());
       assert.equal(Number(stream.end) - Number(stream.start), 365 * DAY);
 
@@ -565,7 +565,7 @@ describe("buddy-distributor", () => {
         })
         .signers([b.env.payer])
         .rpc();
-      const stream = await b.env.program.account.stream.fetch(streamPda(destinationOwner.publicKey, b.env.programId));
+      const stream = await (b.env.program.account as any).stream.fetch(streamPda(destinationOwner.publicKey, b.env.programId));
       assert.equal(stream.total.toString(), SIGNER_ALLOC.toString());
     });
 
@@ -632,13 +632,13 @@ describe("buddy-distributor", () => {
         "ClaimWindowClosed"
       );
 
-      const before = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const before = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       await b.env.program.methods
         .sweepOriginalSigner()
         .accountsPartial({ cranker: b.env.payer.publicKey, config: b.env.configPda, pool: b.env.poolPda })
         .signers([b.env.payer])
         .rpc();
-      const after = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const after = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
 
       assert.equal(
         (BigInt(after.lifetimeTokenRewards.toString()) - BigInt(before.lifetimeTokenRewards.toString())).toString(),
@@ -677,7 +677,7 @@ describe("buddy-distributor", () => {
 
       assert.equal((await tokenBalance(b.env, acct)).toString(), (300n * UNIT).toString(), "base half paid out");
 
-      const pos = await b.env.program.account.stakePosition.fetch(stakePda(staker.publicKey, b.env.programId));
+      const pos = await (b.env.program.account as any).stakePosition.fetch(stakePda(staker.publicKey, b.env.programId));
       assert.equal(pos.escrowToken.toString(), (300n * UNIT).toString(), "boost half escrowed");
     });
 
@@ -710,7 +710,7 @@ describe("buddy-distributor", () => {
 
       await warpBy(b.env.context, 90 * DAY + 1);
       await withdrawEscrow();
-      const pos = await b.env.program.account.stakePosition.fetch(stakePda(staker.publicKey, b.env.programId));
+      const pos = await (b.env.program.account as any).stakePosition.fetch(stakePda(staker.publicKey, b.env.programId));
       assert.equal(pos.escrowToken.toString(), "0");
     });
 
@@ -743,13 +743,13 @@ describe("buddy-distributor", () => {
         .rpc();
 
       const afterClaim = await tokenBalance(b.env, attacker.acct);
-      const posBefore = await b.env.program.account.stakePosition.fetch(
+      const posBefore = await (b.env.program.account as any).stakePosition.fetch(
         stakePda(attacker.staker.publicKey, b.env.programId)
       );
       const escrowed = BigInt(posBefore.escrowToken.toString());
       assert.isAbove(Number(escrowed), 0, "boost must have accrued");
 
-      const poolBefore = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const poolBefore = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
 
       await b.env.program.methods
         .emergencyExit()
@@ -777,7 +777,7 @@ describe("buddy-distributor", () => {
         "attacker gets 90% of principal and not one unit of the escrow"
       );
 
-      const poolAfter = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const poolAfter = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       const redistributed =
         BigInt(poolAfter.lifetimeTokenRewards.toString()) - BigInt(poolBefore.lifetimeTokenRewards.toString());
       const expectedRedistribution = escrowed + (1_000n * UNIT) / 10n;
@@ -880,7 +880,7 @@ describe("buddy-distributor", () => {
 
       // Flexible weight equals the amount, so the whole 500 was base — nothing
       // was ever escrowed.
-      const pos = await b.env.program.account.stakePosition.fetch(positionPda);
+      const pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
       assert.equal(pos.escrowToken.toString(), "0");
       assert.equal((await tokenBalance(b.env, acct)).toString(), (1_500n * UNIT).toString());
     });
@@ -927,12 +927,12 @@ describe("buddy-distributor", () => {
       const donor = await makeStaker(b.env, 4_000n * UNIT);
       await notifyTokens(b.env, donor.staker, donor.acct, 4_000n * UNIT);
 
-      const flexPos = await b.env.program.account.stakePosition.fetch(stakePda(flex.staker.publicKey, b.env.programId));
-      const lockedPos = await b.env.program.account.stakePosition.fetch(
+      const flexPos = await (b.env.program.account as any).stakePosition.fetch(stakePda(flex.staker.publicKey, b.env.programId));
+      const lockedPos = await (b.env.program.account as any).stakePosition.fetch(
         stakePda(locked.staker.publicKey, b.env.programId)
       );
       // Settlement is lazy, so read the pool accumulator and compute expectations.
-      const pool = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      const pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       assert.equal(pool.totalWeight.toString(), (4_000n * UNIT).toString());
 
       // Flexible: 1/4 of 4000 = 1000, all of it base.
@@ -974,7 +974,7 @@ describe("buddy-distributor", () => {
         (1_000n * UNIT).toString(),
         "locked staker's immediately-claimable part equals the 1.0x base"
       );
-      const lockedAfter = await b.env.program.account.stakePosition.fetch(
+      const lockedAfter = await (b.env.program.account as any).stakePosition.fetch(
         stakePda(locked.staker.publicKey, b.env.programId)
       );
       assert.equal(lockedAfter.escrowToken.toString(), (2_000n * UNIT).toString(), "the 2.0x boost is escrowed");
@@ -985,7 +985,7 @@ describe("buddy-distributor", () => {
       const donor = await makeStaker(b.env, 1_000n * UNIT);
       await notifyTokens(b.env, donor.staker, donor.acct, 1_000n * UNIT);
 
-      let pool = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      let pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       assert.equal(pool.pendingTokenRewards.toString(), (1_000n * UNIT).toString(), "buffered, not dropped");
       assert.equal(pool.accTokenPerWeight.toString(), "0");
 
@@ -997,7 +997,7 @@ describe("buddy-distributor", () => {
         .accountsPartial({ pool: b.env.poolPda })
         .rpc();
 
-      pool = await b.env.program.account.stakePool.fetch(b.env.poolPda);
+      pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       assert.equal(pool.pendingTokenRewards.toString(), "0");
       assert.isAbove(Number(pool.accTokenPerWeight.toString()), 0);
     });

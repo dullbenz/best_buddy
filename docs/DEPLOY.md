@@ -58,26 +58,37 @@ into `declare_id!` in `programs/buddy-distributor/src/lib.rs`, then rebuild.
 **Back this keypair up offline.** Losing it means you can never upgrade the
 program; leaking it means someone else can.
 
-### 0.4 Set up the multisig
+### 0.4 Decide who holds the two authorities
 
-Create a [Squads](https://squads.so) multisig with community members you trust
-and use its vault address as `authority`. It only has power before the config
-lock, but that window is exactly when someone could redirect allocations.
+There are two separate powers, and they deserve separate decisions.
+
+**The config authority** runs `initialize`, `fund_vault` and `lock_config`. In a
+solo launch that is one script, roughly thirty seconds, moving your own
+dev-bought tokens into a contract. No community money exists in the vault yet,
+so a multisig here protects nobody from anything — **your own wallet is fine.**
+
+**The upgrade authority** can replace the program's code and bypass the config
+lock entirely. By the time it matters the vault holds tokens that old holders
+and influencers have a claim on, so this one is real. Two workable answers:
+
+- **Solo (recommended if you have no multisig):** keep it on your wallet for a
+  short, publicly stated window — **7 days** — then burn it permanently. Short,
+  because during that week people genuinely are trusting you.
+- **With a multisig:** transfer it to a [Squads](https://squads.so) vault at
+  deploy and burn it after ~90 days. Longer window is defensible because no
+  single person can push an upgrade.
+
+Either way the burn date goes in the pre-commitment document, and anyone can
+check you kept your word with `solana program show`.
 
 ### 0.5 Rehearse on devnet
 
-```bash
-solana config set --url devnet && solana airdrop 5
-```
+Follow [DEVNET-REHEARSAL.md](./DEVNET-REHEARSAL.md) — a scripted dress run on
+the free practice network with fake money.
 
-```bash
-~/.avm/bin/anchor-0.31.1 deploy --provider.cluster devnet
-```
-
-Then run through the entire mainnet sequence below with a throwaway SPL token.
-Claim as an old holder, stake, exit early, let an influencer window expire, run
-a sweep. **Do not skip this.** The first time you run these commands should not
-be the time real money is involved.
+**Do not skip this.** The first time you run these commands should not be the
+time real money is involved, and if you are burning the upgrade authority it is
+the last point at which a bug is still fixable.
 
 ### 0.6 Get a security review
 
@@ -103,11 +114,27 @@ that it was published while you could still have chosen differently.
 
 ## Phase 1 — Snapshot (day −1)
 
-### 1.1 Announce the slot in advance
+### 1.1 Pick a slot that is already in the past
 
-Post the slot number or exact UTC time you will snapshot at, at least 24h
-ahead. Announcing after the fact is indistinguishable from picking a
-favourable moment.
+Do **not** announce a future snapshot time. Telling the internet "old Buddy
+holders get an airdrop, snapshot in 24 hours" is an instruction to go buy the
+old token: you would pump it, hand restitution to farmers instead of the people
+who were actually wronged, and route the extra trading fees straight to the dev
+you are trying to strand.
+
+Snapshot retroactively instead, and choose the slot for a reason that has
+nothing to do with price — so that "you cherry-picked the moment" has an answer:
+
+> "Snapshot taken at slot 312,845,001 — the block containing the creator's final
+> sell transaction, `<solscan link>`."
+
+Other defensible anchors: the block of the last official project communication,
+or midnight UTC on the day the socials went dark. Whatever you pick, state the
+reasoning next to the number.
+
+This gets you both properties: farming is impossible because the moment has
+already passed, and the choice is justified by a documented event rather than by
+you. The published CSV lets anyone re-derive the same result.
 
 ### 1.2 Fill in the exclusions
 
@@ -165,28 +192,29 @@ Costs roughly 3–5 SOL. Verify:
 solana program show <PROGRAM_ID>
 ```
 
-### 2.1a Hand the upgrade authority to the multisig — same session
+### 2.1a Deal with the upgrade authority
 
-**Do not skip this, and do not leave it for later.**
-
-Solana programs are upgradeable by default. Until you do this, the keypair on
-your laptop can replace the contract's code with anything — which means
+Solana programs are upgradeable by default. Until this is resolved, the keypair
+on your laptop can replace the contract's code with anything — which means
 `lock_config` is a promise rather than a guarantee, and anyone who checks will
-correctly say so. The `Authority` line in the command above is the first thing a
+correctly say so. The `Authority` line printed above is the first thing a
 sophisticated holder looks at.
+
+**If you have a multisig,** transfer it now, in the same session as the deploy:
 
 ```bash
 solana program set-upgrade-authority <PROGRAM_ID> --new-upgrade-authority <SQUADS_MULTISIG_VAULT>
 ```
 
-Confirm it took effect by re-running `solana program show`.
+**If you are solo,** there is nothing to transfer — you keep it for the short
+window you published, and step 2.1b is the whole plan. Say so plainly in the
+announcement rather than leaving people to discover it: *"I hold the upgrade
+authority until [date], then it is burned. Verify with `solana program show`."*
 
-Keeping a multisig-held upgrade authority for the first ~90 days is a reasonable
-trade: a real bug in the opening weeks is fixable, and no single person can push
-an upgrade. What is not reasonable is holding it on a personal key, or holding
-it indefinitely.
+Either way, re-run `solana program show` and confirm the `Authority` line says
+what you told people it says.
 
-### 2.1b Burn it on the date you promised (~90 days later)
+### 2.1b Burn it on the date you promised
 
 ```bash
 solana program set-upgrade-authority <PROGRAM_ID> --final
@@ -344,12 +372,12 @@ re-litigate it if it happens.
 - [ ] Devnet rehearsal completed end to end
 - [ ] Security review done and published
 - [ ] Program keypair backed up offline
-- [ ] Multisig created with real community members
+- [ ] Upgrade-authority holder decided (solo + 7-day burn, or multisig + 90-day burn)
 - [ ] Upgrade-authority plan published with a dated burn commitment
 - [ ] Upgrade authority transferred to the multisig in the same session as deploy
 - [ ] Receipts dossier published
 - [ ] Pre-commitment document published **before** launch
-- [ ] Snapshot slot announced ≥24h ahead
+- [ ] Snapshot slot chosen retroactively, anchored to a documented event
 - [ ] Snapshot taken from an archival RPC, published, independently verified
 - [ ] Exclusions list includes both AMM pool vaults and the old dev wallets
 - [ ] Influencer list published with amounts

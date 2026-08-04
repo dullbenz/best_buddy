@@ -35,7 +35,9 @@ claim opens.
 | `scripts/build-tree.ts` | build the influencer tree from CSV |
 | `scripts/deploy-init.ts` | initialize → fund → lock, with a dry-run default |
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
+| `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
 | `app/` | claim dApp and public transparency dashboard |
+| `docs/DEVNET-REHEARSAL.md` | scripted dress run on devnet — do this first |
 | `docs/DEPLOY.md` | **the step-by-step runbook** |
 | `docs/PRE-COMMITMENT.md` | public tokenomics, to publish before launch |
 | `docs/RECEIPTS.md` | evidence dossier template |

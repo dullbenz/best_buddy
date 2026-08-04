@@ -180,7 +180,7 @@ async function main() {
     .rpc();
   console.log(`    ${sig3}`);
 
-  const state = await program.account.config.fetch(config);
+  const state = await (program.account as any).config.fetch(config);
   console.log("\nlocked:", state.locked);
   console.log("old-holder deadline:", new Date(Number(state.oldHolderDeadline) * 1000).toISOString());
   console.log("influencer deadline:", new Date(Number(state.influencerDeadline) * 1000).toISOString());

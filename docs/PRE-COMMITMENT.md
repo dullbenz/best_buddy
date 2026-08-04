@@ -57,8 +57,15 @@ generates and by what other people forfeit, not by a pre-mine.
 
 ## Bucket 2 — old Buddy holders
 
-Snapshot taken at slot `<slot>` (`<UTC time>`), announced `<date>`, at least 24
-hours in advance.
+Snapshot taken at slot `<slot>` (`<UTC time>`), chosen **retroactively** — the
+block of `<the documented event: e.g. the creator's final sell transaction>`,
+`<solscan link>`.
+
+The moment was already in the past when this was published, deliberately.
+Announcing a future snapshot would have told the whole market to go buy the old
+token and farm the airdrop, which would have handed restitution to speculators
+instead of the people it is owed to — and paid the old creator's fees on the way
+through.
 
 - Full holder list, allocations and Merkle proofs: `<link>`
 - Merkle root committed on chain: `<hex>`
@@ -172,7 +179,7 @@ loses the ability to:
 - change the original signer's public key
 - withdraw from any bucket
 
-The remaining admin surface is nothing. The multisig can no longer move funds.
+The remaining admin surface is nothing. The authority can no longer move funds.
 
 ### The upgrade authority — read this part carefully
 
@@ -197,8 +204,11 @@ its code can never change again, by anyone.
 
 | Period | Upgrade authority | Why |
 |---|---|---|
-| Launch → `<date + 90 days>` | the `<n>-of-<m>` Squads multisig at `<address>` | a real bug in the opening weeks needs to be fixable, and no single person should be able to push an upgrade |
-| After `<date + 90 days>` | **none — burned, permanently immutable** | by then the old-holder window has closed and the influencer streams have run; the ability to change the code stops being worth what it costs in trust |
+| Launch → `<burn date>` | `<the dev's wallet / the n-of-m Squads multisig at address>` | a genuine bug in the opening days has to be fixable; after that it stops being worth what it costs in trust |
+| After `<burn date>` | **none — burned, permanently immutable** | nobody can change the code again, including us |
+
+Pick a short window and say the date out loud. Solo-held: 7 days. Multisig-held:
+up to 90. A vague "we'll burn it eventually" is worth nothing.
 
 We will run the burn publicly on that date and post the transaction. If the
 `Authority` line does not read `none` after `<date + 90 days>`, we did not keep

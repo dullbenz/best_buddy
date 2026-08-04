@@ -96,6 +96,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
+      - name: Typecheck scripts and tests
+        run: npx tsc --noEmit -p tsconfig.json
+
       - name: Rust unit tests
         run: cargo test -p buddy-distributor --lib
 
