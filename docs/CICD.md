@@ -10,9 +10,14 @@ Total time: about 30 minutes. Nothing here touches mainnet or costs money.
 
 | Workflow | Runs when | What it does |
 |---|---|---|
-| `ci.yml` | every push and PR | keypair guard, Rust tests, program build, IDL drift check, 28 integration tests, app build |
-| `preview.yml` | every PR touching `app/` | deploys a temporary preview URL, expires after 7 days |
-| `deploy.yml` | push to `main` touching `app/` | builds and deploys to `mybestbuddy.fun` |
+| `ci.yml` | push to `main`/`develop`, and every PR | keypair guard, typecheck, Rust tests, program build, IDL drift check, 28 integration tests, app build |
+| `deploy-staging.yml` | push to `develop` | devnet build → `staging.mybestbuddy.fun`, behind basic auth |
+| `deploy.yml` | push to `main` touching `app/` | mainnet build → `mybestbuddy.fun` |
+| `preview.yml` | every PR touching `app/` | temporary preview URL, expires after 7 days |
+
+Branching, the staging auth gate and the Blaze requirement are covered in
+[ENVIRONMENTS.md](./ENVIRONMENTS.md). This file covers the Firebase and GitHub
+setup common to both.
 
 Two guards are worth knowing about, because they exist for this project
 specifically:
@@ -29,21 +34,21 @@ shortcut from ever shipping a UI that disagrees with the deployed contract.
 
 ---
 
-## 1. Create the GitHub repository
+## 1. The GitHub repository — already done
+
+`github.com/dullbenz/best_buddy`, currently **private**.
+
+It has to be public before launch: the Verify page asks people to clone the repo
+to reproduce the snapshot and to confirm the deployed bytecode matches the
+source, and neither works against a private repo.
 
 ```bash
-cd /Users/dullbenz/Projects/Personal/best_buddy && gh repo create buddy-distributor --public --source=. --remote=origin
+gh repo edit dullbenz/best_buddy --visibility public --accept-visibility-change-consequences
 ```
 
-Public is the right call: the whole pitch is that anyone can verify the
-contract. If you want to keep it private until launch, use `--private` and flip
-it public before you announce.
-
-Then push:
-
-```bash
-git push -u origin main
-```
+While it stays private, note that Actions minutes are metered — 2,000/month on
+the free tier, versus unlimited for public repos. The `program` job compiles
+Rust, so expect roughly 10–25 minutes per push.
 
 ---
 

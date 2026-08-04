@@ -1,0 +1,13 @@
+{
+  "name": "buddy-staging-gate",
+  "private": true,
+  "description": "Basic-auth gate serving the staging build",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "firebase-functions": "^6.1.0"
+  }
+}

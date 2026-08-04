@@ -25,7 +25,7 @@ team can write about itself.
 | SOL vault | `<SOL_VAULT_PDA>` |
 | Staking pool | `<POOL_PDA>` |
 | Token mint | `<MINT>` |
-| Source | `<repo url>` |
+| Source | https://github.com/dullbenz/best_buddy |
 | Security review | `<link>` |
 
 ---
@@ -87,7 +87,7 @@ The old-holder list was built off-chain, because Solana programs cannot
 enumerate token holders. That is only trustworthy if you can regenerate it.
 
 ```bash
-git clone <repo url> && cd buddy-distributor && npm install --legacy-peer-deps
+git clone https://github.com/dullbenz/best_buddy && cd best_buddy && npm install --legacy-peer-deps
 ```
 
 ```bash
@@ -108,7 +108,7 @@ alter after the fact.
 Reading source proves nothing unless that source is what actually got deployed.
 
 ```bash
-solana-verify verify-from-repo -um --program-id <PROGRAM_ID> <repo url>
+solana-verify verify-from-repo -um --program-id <PROGRAM_ID> https://github.com/dullbenz/best_buddy
 ```
 
 ## 6. The developer cannot dump

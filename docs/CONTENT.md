@@ -192,7 +192,7 @@ bought — only earned by the checks holding up.
 > publicly what they find — including if it's bad.
 >
 > Program: `<PROGRAM_ID>`
-> Source: `<repo>`
+> Source: https://github.com/dullbenz/best_buddy
 > Guide: mybestbuddy.fun/verify
 >
 > Specifically worth a look:

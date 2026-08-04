@@ -1,5 +1,7 @@
-name: Deploy site
+name: Deploy production
 
+# main -> mybestbuddy.fun, mainnet, public. Staging is a separate pipeline on
+# `develop`; nothing reaches this one without going through there first.
 on:
   push:
     branches: [main]
@@ -17,9 +19,10 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and deploy to Firebase Hosting
+    name: Build and deploy to production
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: production
     # Only deploy what already passed CI on this exact commit.
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +47,12 @@ jobs:
             echo "::error::Repository variable VITE_RPC_URL is not set. The public RPC returns 403 to browsers, so the dashboard would not load."
             exit 1
           fi
+          case "$VITE_RPC_URL" in
+            *devnet*|*testnet*|*localhost*)
+              echo "::error::VITE_RPC_URL points at '$VITE_RPC_URL'. Production must not ship a devnet build."
+              exit 1
+              ;;
+          esac
           npm run build
 
       - name: Deploy
@@ -52,4 +61,5 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          target: production
           channelId: live

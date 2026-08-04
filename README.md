@@ -37,6 +37,7 @@ claim opens.
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
 | `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
 | `app/` | claim dApp, dashboard, live Verify page and explainer |
+| `functions/` | basic-auth gate fronting the staging site |
 | `TO-THE-MOON.md` | **the complete checklist — start here** |
 | `docs/DEVNET-REHEARSAL.md` | scripted dress run on devnet |
 | `docs/DEPLOY.md` | **the step-by-step runbook** |
@@ -45,6 +46,7 @@ claim opens.
 | `docs/CONTENT.md` | TikTok scripts, X thread, the ask for independent review |
 | `docs/RECEIPTS.md` | evidence dossier template |
 | `docs/CICD.md` | GitHub Actions + Firebase Hosting setup |
+| `docs/ENVIRONMENTS.md` | staging vs production, branching, the auth gate |
 
 ## Start here
 

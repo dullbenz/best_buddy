@@ -1,0 +1,86 @@
+name: Deploy staging
+
+# develop -> staging.mybestbuddy.fun, pointed at devnet, behind basic auth.
+#
+# Staging exists so the claim flow can be exercised end to end against a chain
+# where mistakes are free. It must never read mainnet: a devnet build that
+# silently talks to production would be worse than having no staging at all.
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy to staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          cd app && npm install --legacy-peer-deps
+
+      - name: Build against devnet
+        working-directory: app
+        env:
+          VITE_RPC_URL: ${{ vars.STAGING_RPC_URL || 'https://api.devnet.solana.com' }}
+          VITE_PROGRAM_ID: ${{ vars.STAGING_PROGRAM_ID || vars.VITE_PROGRAM_ID }}
+        run: |
+          case "$VITE_RPC_URL" in
+            *devnet*|*testnet*|*localhost*) ;;
+            *)
+              echo "::error::STAGING_RPC_URL points at '$VITE_RPC_URL', which is not a devnet endpoint. Staging must never read mainnet."
+              exit 1
+              ;;
+          esac
+          npm run build
+
+      # The gate function serves the app itself, so the build has to travel
+      # inside the function bundle rather than being served by Hosting.
+      - name: Stage the build inside the auth gate
+        run: |
+          rm -rf functions/public
+          cp -r app/dist functions/public
+          echo "staged $(find functions/public -type f | wc -l) files"
+
+      - name: Write function environment
+        env:
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+          STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+        run: |
+          if [ -z "$STAGING_PASSWORD" ]; then
+            echo "::error::Secret STAGING_PASSWORD is not set. The gate fails closed, so staging would return 503."
+            exit 1
+          fi
+          printf 'STAGING_USER=%s\nSTAGING_PASSWORD=%s\n' \
+            "${STAGING_USER:-buddy}" "$STAGING_PASSWORD" > functions/.env
+
+      - name: Authenticate to Firebase
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # auth@v2 exports GOOGLE_APPLICATION_CREDENTIALS for subsequent steps.
+      - name: Deploy hosting and gate
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only "hosting:staging,functions:stagingGate" \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" \
+            --non-interactive
+
+      - name: Scrub the credential file
+        if: always()
+        run: rm -f functions/.env

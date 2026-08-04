@@ -62,21 +62,54 @@ Expect **7 passed**. If either fails, stop and fix it before anything else.
 > `~/.avm/bin/anchor-0.31.1` directly instead of `anchor`. Every command in
 > these docs already does.
 
-### 0.3 Push to GitHub
+### 0.3 Push to GitHub — done
+
+Repo: `github.com/dullbenz/best_buddy`, currently **private**.
+
+Private is sensible while the receipts and numbers are still being assembled.
+Two consequences to keep in mind:
+
+**The repo must be public before you announce.** Not after. Two of the six
+checks on the Verify page — reproducing the snapshot, and confirming the
+deployed bytecode matches the source — require cloning it. `solana-verify`
+cannot read a private repo. Announcing while it is private means telling people
+to verify and then handing them a 404, which reads worse than never having
+offered.
+
+**Actions minutes are metered on private repos.** 2,000/month on the free tier;
+public repos are unlimited. The `program` job compiles Rust, so budget roughly
+10–25 minutes per push depending on cache hits. Fine at a normal pace, but avoid
+pushing in a tight loop.
+
+Flip it when you are ready — this is also step 4.8:
 
 ```bash
-cd /Users/dullbenz/Projects/Personal/best_buddy && gh repo create buddy-distributor --public --source=. --remote=origin && git push -u origin main
+gh repo edit dullbenz/best_buddy --visibility public --accept-visibility-change-consequences
 ```
 
-Public is the right call — the whole pitch is that anyone can verify the
-contract. If you'd rather stay quiet until launch, use `--private` and flip it
-public **before** you announce.
+### 0.4 Get both sites live
 
-### 0.4 Get the site live at mybestbuddy.fun
+Two environments, two branches — full detail in
+[docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md):
 
-Follow [docs/CICD.md](docs/CICD.md). Roughly: create the Firebase project, run
-`firebase init hosting:github` to generate the deploy credential, set four
-values in GitHub settings, add the DNS records.
+| | Staging | Production |
+|---|---|---|
+| Branch | `develop` | `main` |
+| URL | `staging.mybestbuddy.fun` | `mybestbuddy.fun` |
+| Chain | devnet | mainnet |
+| Access | basic auth | public |
+
+**Work happens on `develop`.** Push there, check `staging.mybestbuddy.fun`, then
+PR into `main` when it looks right. Both pipelines refuse to build a site
+pointed at the wrong chain.
+
+Staging's basic auth needs a Cloud Function, because Firebase Hosting has no
+built-in auth — which means upgrading to the Blaze plan. At staging traffic the
+cost rounds to zero and your $300 credit covers it, but you do have to attach
+billing.
+
+Then follow [docs/CICD.md](docs/CICD.md) for the Firebase project, deploy
+credential, GitHub secrets, and DNS.
 
 Set these in **Settings → Secrets and variables → Actions**:
 
@@ -86,9 +119,11 @@ Set these in **Settings → Secrets and variables → Actions**:
 | Variable | `FIREBASE_PROJECT_ID` | your Firebase project ID |
 | Variable | `VITE_RPC_URL` | your Helius RPC URL |
 | Variable | `VITE_PROGRAM_ID` | `GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11` |
+| Secret | `STAGING_PASSWORD` | the staging basic-auth password |
+| Variable | `STAGING_RPC_URL` | a devnet RPC endpoint |
 
-Also replace the placeholder in `.firebaserc` — CI refuses to build `main` while
-it's still there.
+Also replace the three placeholders in `.firebaserc` — the project id and both
+hosting site ids. CI refuses to build `main` or `develop` while any survive.
 
 The site will show "Could not read the distributor". That's correct: the program
 isn't deployed yet, and it proves the site is live and talking to the chain.
@@ -144,12 +179,18 @@ Full guide, including how to re-run it: [docs/DEVNET-REHEARSAL.md](docs/DEVNET-R
 
 ### 1.3 Click through the real app against devnet
 
+Locally:
+
 ```bash
 cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11 npm run dev
 ```
 
+Or push to `develop` and use `staging.mybestbuddy.fun`, which is the same build
+against the same chain — better, because it also exercises the real hosting,
+headers and domain.
+
 Open every tab. Try a claim. Try staking. **Do it on your phone too** — most of
-your community will be on one.
+your community will be on one, and staging is reachable from one.
 
 ### 1.4 Practise the deploy script's dry run
 
@@ -347,7 +388,21 @@ In the pump.fun creator dashboard, split fees so 50%+ reaches the community.
 > fee structure changed in January 2026. Check what's actually there on the day
 > rather than trusting a screenshot in these docs.
 
-### 4.8 Announce
+### 4.8 Promote to production, then announce
+
+Merge `develop` into `main`. That deploys `mybestbuddy.fun` against mainnet;
+staging stays on devnet behind its password.
+
+```bash
+gh pr create --base main --head develop --title "Launch" --fill
+```
+
+**Then make the repo public** — the Verify page tells people to clone and
+build it, and half those checks fail against a private repo:
+
+```bash
+gh repo edit dullbenz/best_buddy --visibility public --accept-visibility-change-consequences
+```
 
 Now, and not before. All at once: program ID, config PDA, snapshot files,
 pre-commitment doc, receipts dossier, and the burn signature.
@@ -400,8 +455,10 @@ has the numbers; the post is a summary and a link.
 **Setup**
 - [ ] Program keypair backed up outside `target/`
 - [ ] `npm test` → 28 passing, `cargo test` → 7 passed
-- [ ] Pushed to GitHub, CI green
-- [ ] `mybestbuddy.fun` live
+- [ ] Pushed to GitHub, CI green (private for now)
+- [ ] Working on `develop`, not `main`
+- [ ] Blaze plan enabled; `staging.mybestbuddy.fun` returns 401 then 200 with the password
+- [ ] `mybestbuddy.fun` live (deploys from `main`)
 - [ ] Helius keys — separate archival and browser, browser one domain-locked
 
 **Rehearsal**
@@ -430,6 +487,8 @@ has the numbers; the post is a summary and a link.
 - [ ] Every parameter verified against the published doc
 - [ ] Upgrade authority burned; `Authority: none` confirmed
 - [ ] Creator fees routed to bucket 1
+- [ ] `develop` merged to `main`, production deploy green
+- [ ] **Repo flipped to public** (verification checks need it)
 - [ ] Announced, burn signature first
 - [ ] Influencers notified — their clock is already running
 - [ ] Independent-verification ask posted
