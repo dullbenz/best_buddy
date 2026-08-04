@@ -9,10 +9,11 @@ claim opens.
 
 ```
                       ┌─────────────────────────────┐
-   creator fees ─────►│                             │
-   donations    ─────►│   Bucket 1: staking pool    │◄──── every forfeiture
-                      │   (starts empty, perpetual) │      in the system
-                      └──────────────▲──────────────┘
+   creator fees ──┐   │                             │
+   donations    ──┼──►│   Bucket 1: staking pool    │◄──── every forfeiture
+                  │   │   (starts empty, perpetual) │      in the system
+   anyone can     │   └──────────────▲──────────────┘
+   push these ────┘                  │
                                      │
         ┌────────────────┬───────────┴────────┬──────────────────┐
         │                │                    │                  │
@@ -29,19 +30,21 @@ claim opens.
 | Path | What |
 |---|---|
 | `programs/buddy-distributor/` | the Anchor program |
-| `tests/` | 28 integration tests (bankrun, with time travel) |
+| `tests/` | 37 integration tests (bankrun, with time travel) |
 | `scripts/snapshot.ts` | snapshot old-token holders → Merkle tree |
 | `scripts/verify-snapshot.ts` | independent verification anyone can run |
 | `scripts/build-tree.ts` | build the influencer tree from CSV |
 | `scripts/deploy-init.ts` | initialize → fund → lock, with a dry-run default |
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
 | `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
-| `app/` | claim dApp, dashboard, live Verify page and explainer |
+| `app/` | claim dApp, dashboard, fee crank, live Verify page and explainer |
+| `app/src/pumpfun.ts` | the only pump.fun-coupled code — deliberately in the frontend |
 | `functions/` | basic-auth gate fronting the staging site |
 | `TO-THE-MOON.md` | **the complete checklist — start here** |
 | `docs/DEVNET-REHEARSAL.md` | scripted dress run on devnet |
 | `docs/DEPLOY.md` | **the step-by-step runbook** |
 | `docs/PRE-COMMITMENT.md` | public tokenomics, to publish before launch |
+| `docs/FEES.md` | how creator fees reach the pool, and the one-shot split |
 | `docs/VERIFY.md` | how anyone can independently verify every claim |
 | `docs/CONTENT.md` | TikTok scripts, X thread, the ask for independent review |
 | `docs/RECEIPTS.md` | evidence dossier template |

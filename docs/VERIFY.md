@@ -24,6 +24,7 @@ team can write about itself.
 | Token vault | `<VAULT_PDA>` |
 | SOL vault | `<SOL_VAULT_PDA>` |
 | Staking pool | `<POOL_PDA>` |
+| pump.fun fee config | `<SHARING_CONFIG_PDA>` |
 | Token mint | `<MINT>` |
 | Source | https://github.com/dullbenz/best_buddy |
 | Security review | `<link>` |
@@ -123,7 +124,27 @@ dev wallet itself holds none of it.
 
 Check the dev wallet's token balance directly if you want to confirm that.
 
-## 7. Forfeited tokens actually go to the community
+## 7. The fee split is frozen, and most of it goes to the community
+
+```bash
+solana account <SHARING_CONFIG_PDA>
+```
+
+Two things to confirm: the shareholder list reads **90% the SOL vault, 10% the
+dev wallet**, and the **admin is revoked**.
+
+The second matters more than the first. pump.fun lets a fee split be set exactly
+once and then permanently revokes the ability to change it. Until that flag is
+set, a team could still redirect the community's fees to themselves once the
+token has traction — which is precisely the failure this project exists to
+answer. A percentage without a revoked admin is a promise, not a guarantee.
+
+Note also what this implies about the funding path: fees are **not** pushed
+anywhere automatically. They accumulate at pump.fun until somebody moves them,
+and every instruction involved is permissionless — including for you. If the
+team went silent tomorrow, the community could still route its own fees.
+
+## 8. Forfeited tokens actually go to the community
 
 Every expiry in the system routes to the staking pool. The pool's
 `lifetime_token_rewards` only ever increases, and each increase is a

@@ -48,7 +48,7 @@ Current program ID: `GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11`
 cd /Users/dullbenz/Projects/Personal/best_buddy && npm test
 ```
 
-Expect **28 passing**. Then:
+Expect **37 passing**. Then:
 
 ```bash
 cargo test -p buddy-distributor --lib
@@ -199,6 +199,27 @@ Run `scripts/deploy-init.ts` without `EXECUTE=1` (command in
 its output carefully now, so that reading it under pressure on launch night is
 routine.
 
+### 1.5 Rehearse the fee path — on mainnet, with a throwaway coin
+
+**This one is not optional, and it cannot be done on devnet.** pump.fun's docs
+show no devnet deployment; every example they publish is a mainnet link.
+
+Setting the real coin's fee split is a one-shot that can never be corrected
+(§4.6). The only way to know the configuration works is to have already watched
+it work.
+
+1. Create a junk coin on pump.fun with a minimal buy.
+2. `create_fee_sharing_config`, then set a 90/10 split with a test PDA of the
+   same shape as the real SOL vault.
+3. Trade it a little so fees actually accrue.
+4. Run the whole chain from the Fund pool tab and confirm value lands and gets
+   credited.
+5. **Note which form the payout arrived in** — native lamports or wrapped SOL.
+   That tells you whether `unwrap_wsol` is on the critical path.
+
+Budget a few tens of dollars. Cheap, against a mistake that would freeze the
+community's fee stream permanently.
+
 ---
 
 ## Section 2 — Preparation (the slow part, days to weeks)
@@ -234,7 +255,7 @@ Fill these into [docs/PRE-COMMITMENT.md](docs/PRE-COMMITMENT.md):
 | Dev-buy size | Money you can lose entirely. Old token liquidity is ~$26k, so low tens of SOL is proportionate; larger mostly buys your own slippage. |
 | Bucket split | Suggested 55 / 15 / 20 / 10 across old holders, influencers, 2014 signer, dev. |
 | Dev cliff | 30 days is the default. |
-| Creator fee split | 50%+ to bucket 1 is the recommendation. This is what keeps staking rewards alive. |
+| Creator fee split | 90% to the community vault, 10% to you. Set **once, irreversibly** — see [docs/FEES.md](docs/FEES.md). |
 | Influencer list | Addresses and amounts. All published — no hidden deals. |
 
 ### 2.4 Write the launch content
@@ -315,7 +336,7 @@ solana config set --url mainnet-beta && ~/.avm/bin/anchor-0.31.1 deploy --provid
 Costs ~3–5 SOL.
 
 > **Do not add `--final` here.** You are burning the authority today, but not
-> yet — see 4.6. Between now and then there are three transactions and a dozen
+> yet — see 4.7. Between now and then there are three transactions and a dozen
 > parameters, and if one is wrong you want the option to redeploy at a new
 > address. Nobody knows the token exists yet, so this window costs you nothing.
 
@@ -349,7 +370,31 @@ RPC_URL=<rpc> KEYPAIR=<your-keypair.json> CLIFF_DAYS=30 npx ts-node scripts/crea
 
 Your wallet is now visibly empty of allocation.
 
-### 4.6 Verify everything, then burn
+### 4.6 Set the fee split — the other irreversible step
+
+**This happens BEFORE the burn**, so that if anything about it misbehaves you
+can still redeploy the program and start over.
+
+Full detail in [docs/FEES.md](docs/FEES.md). Two transactions, both signed by
+you as the coin creator — no application to pump.fun, no waiting on anyone:
+
+1. `create_fee_sharing_config` — opts the coin into shared fees. Shareholders
+   default to `[(you, 100%)]`.
+2. `update_fee_shares_v2` — set **90% → the SOL vault PDA, 10% → your wallet**.
+
+> **`update_fee_shares_v2` can only ever be called once.** pump.fun's program
+> revokes its own admin immediately afterwards and the shareholder list is
+> frozen permanently. If a share points somewhere that cannot be paid, and
+> payouts are atomic, that single bad entry can block every future distribution
+> forever.
+>
+> Do not run this on the real coin until the throwaway-coin rehearsal (§1.5) has
+> proved the exact same configuration works.
+
+Once set, confirm the shareholder list and that the admin reads revoked. This
+becomes the eighth check on the Verify page.
+
+### 4.7 Verify everything, then burn
 
 **Point of no return. Do the checks first.**
 
@@ -365,6 +410,7 @@ Confirm, one by one:
 - both deadlines are the dates you published
 - the dev stream exists with the right total and cliff
 - the signer key matches the 2014 transaction
+- the fee split from 4.6 reads 90/10 with the admin revoked
 
 Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
@@ -379,14 +425,6 @@ solana program show GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11
 
 `Authority` must read **`none`**. Save that transaction signature — it leads the
 announcement.
-
-### 4.7 Route creator fees to bucket 1
-
-In the pump.fun creator dashboard, split fees so 50%+ reaches the community.
-
-> I could not verify this step — it's a UI action on their platform and their
-> fee structure changed in January 2026. Check what's actually there on the day
-> rather than trusting a screenshot in these docs.
 
 ### 4.8 Promote to production, then announce
 
@@ -441,7 +479,14 @@ spread it. This is why that window is 30 days and not 72 hours.
 
 ### 5.3 Keep feeding bucket 1
 
-Route fees regularly. If the pool stops growing, the reason to stay disappears.
+Fees accrue safely at pump.fun and never expire, but they only reach stakers
+when somebody moves them. **Anyone can** — the Fund pool tab runs the whole
+chain from any visitor's wallet.
+
+Run it yourself after the first burst of trading so people see it work, then
+point at it in transparency posts: *anyone can press this, including you.* If
+the dashboard's "not yet credited" figure is non-zero, someone donated directly
+and a sync hands it to the stakers.
 
 ### 5.4 Weekly transparency posts
 
@@ -454,7 +499,7 @@ has the numbers; the post is a summary and a link.
 
 **Setup**
 - [ ] Program keypair backed up outside `target/`
-- [ ] `npm test` → 28 passing, `cargo test` → 7 passed
+- [ ] `npm test` → 37 passing, `cargo test` → 7 passed
 - [ ] Pushed to GitHub, CI green (private for now)
 - [ ] Working on `develop`, not `main`
 - [ ] Blaze plan enabled; `staging.mybestbuddy.fun` returns 401 then 200 with the password
@@ -486,7 +531,9 @@ has the numbers; the post is a summary and a link.
 - [ ] Dev stream created
 - [ ] Every parameter verified against the published doc
 - [ ] Upgrade authority burned; `Authority: none` confirmed
-- [ ] Creator fees routed to bucket 1
+- [ ] Throwaway-coin rehearsal proved the fee chain end to end (§1.5)
+- [ ] Fee split set to 90/10 via `update_fee_shares_v2` — **one shot**
+- [ ] Sharing config confirmed frozen (admin revoked)
 - [ ] `develop` merged to `main`, production deploy green
 - [ ] **Repo flipped to public** (verification checks need it)
 - [ ] Announced, burn signature first
@@ -506,8 +553,9 @@ has the numbers; the post is a summary and a link.
 |---|---|
 | Build fails, `edition2024 is required` | `agave-install init stable`, use `~/.avm/bin/anchor-0.31.1` |
 | Dashboard shows 403 | You're on the public RPC. Set `VITE_RPC_URL` to Helius. |
-| Wrong parameter, spotted before 4.6 | Redeploy at a new address, ~4 SOL. Cheap. |
-| Wrong parameter, spotted after 4.6 | Unfixable. This is why 4.6 has a checklist. |
+| Wrong parameter, spotted before 4.7 | Redeploy at a new address, ~4 SOL. Cheap. |
+| Wrong parameter, spotted after 4.7 | Unfixable. This is why 4.7 has a checklist. |
+| Fee split set wrong | Unfixable — `update_fee_shares_v2` runs once. This is what §1.5 exists to prevent. |
 | Old dev complains | Publish the receipts. Everything in them is public chain data. |
 | Influencers don't claim | Working as designed — it feeds the stakers. Announce it. |
 | The 2014 signer appears | Send them `scripts/sign-claim.ts`. Their tokens are theirs, including the right to sell. You committed to that publicly. |
@@ -519,8 +567,10 @@ has the numbers; the post is a summary and a link.
 
 Stated plainly, because you should know where the docs stop being tested:
 
-**The pump.fun fee-split UI.** Their platform, their interface, and their fee
-structure changed in January 2026. Check it live.
+**Which form pump.fun pays in, post-graduation.** Their docs confirm native
+lamports on the bonding curve and wrapped SOL on the AMM, but not with certainty
+which one a *sharing-config* distribution produces. `unwrap_wsol` exists to
+cover either. §1.5 is where you find out for real.
 
 **The security review.** The 35 tests prove the mechanisms work as designed.
 They do not prove there's no exploit nobody thought of. With an immutable

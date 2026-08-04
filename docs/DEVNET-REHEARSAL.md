@@ -20,8 +20,10 @@ a bug is permanent.
 **Proves:** the program deploys, accounts initialize, the Merkle proofs our
 tooling generates are accepted by the on-chain verifier, claims pay out
 instantly, influencer claims open streams instead of transferring, staking
-splits base from boost correctly, the config lock actually bites, and the boost
-escrow refuses early withdrawal.
+splits base from boost correctly, the config lock actually bites, the boost
+escrow refuses early withdrawal, and — the mechanism that makes trustless fee
+routing possible — funds sent straight to a vault stay invisible to the reward
+ledger until somebody syncs them, then become claimable.
 
 **Does not prove:** anything time-dependent. The 30-day and 72-hour windows, the
 three sweeps, emergency exit, and the 2030 deadline can't be exercised on a live
@@ -171,6 +173,27 @@ Then put the new address into `declare_id!` in
 > keypair destroys it. Back that file up somewhere this command cannot reach.
 
 ---
+
+## The one part that cannot be rehearsed here: fees
+
+pump.fun publishes **no devnet deployment** — every example in their docs is a
+mainnet Solscan link. So the fee path has to be proved on mainnet, with a
+throwaway coin, before you touch the real one.
+
+This is not optional. Setting the real coin's fee split is a one-shot that
+pump.fun's program makes permanent the moment it runs, and a share pointing
+somewhere unpayable can block every future distribution forever.
+
+1. Create a junk coin with a minimal buy.
+2. `create_fee_sharing_config`, then set 90/10 with a **test PDA of the same
+   shape** as the real SOL vault.
+3. Trade it a little so fees actually accrue.
+4. Run the chain from the Fund pool tab: collect → distribute → unwrap → sync.
+5. Confirm lamports land in the test PDA and get credited to a staker.
+6. **Write down which form the payout took** — native lamports or wrapped SOL.
+   That decides whether `unwrap_wsol` is load-bearing.
+
+Budget a few tens of dollars. Full mechanism in [FEES.md](./FEES.md).
 
 ## When to move on
 

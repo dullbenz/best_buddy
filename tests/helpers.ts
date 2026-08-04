@@ -201,6 +201,62 @@ export async function mintTo(
   await env.provider.sendAndConfirm(tx, [env.payer]);
 }
 
+export const NATIVE_MINT = new PublicKey(
+  "So11111111111111111111111111111111111111112"
+);
+
+/**
+ * Inject a wrapped-SOL token account owned by `owner`.
+ *
+ * Built by hand rather than by wrapping SOL through the token program, because
+ * bankrun's genesis has no native-mint account to wrap against. The layout is
+ * the standard 165-byte SPL token account; what makes it *wrapped* SOL is the
+ * `is_native` option being set, which is the flag `close_account` looks at when
+ * deciding to release the balance as lamports.
+ */
+export async function createWrappedSolAccount(
+  env: Env,
+  owner: PublicKey,
+  wrappedAmount: bigint
+): Promise<PublicKey> {
+  const account = Keypair.generate();
+  const rent = await env.context.banksClient.getRent();
+  const rentExempt = rent.minimumBalance(BigInt(ACCOUNT_SIZE));
+
+  const data = Buffer.alloc(ACCOUNT_SIZE);
+  NATIVE_MINT.toBuffer().copy(data, 0);
+  owner.toBuffer().copy(data, 32);
+  data.writeBigUInt64LE(wrappedAmount, 64);
+  data.writeUInt8(1, 108); // AccountState::Initialized
+  data.writeUInt32LE(1, 109); // is_native = Some(...)
+  data.writeBigUInt64LE(rentExempt, 113); // the reserve it must keep back
+
+  env.context.setAccount(account.publicKey, {
+    lamports: Number(rentExempt + wrappedAmount),
+    data,
+    owner: TOKEN_PROGRAM_ID,
+    executable: false,
+  });
+
+  return account.publicKey;
+}
+
+/** Drop lamports straight onto an account, bypassing every program instruction. */
+export async function airdropTo(
+  env: Env,
+  target: PublicKey,
+  lamports: number
+): Promise<void> {
+  const existing = await env.context.banksClient.getAccount(target);
+  if (!existing) throw new Error(`${target.toBase58()} does not exist`);
+  env.context.setAccount(target, {
+    lamports: existing.lamports + lamports,
+    data: Buffer.from(existing.data),
+    owner: existing.owner,
+    executable: existing.executable,
+  });
+}
+
 export async function tokenBalance(
   env: Env,
   account: PublicKey

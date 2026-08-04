@@ -97,6 +97,27 @@ export function HowItWorks() {
       </section>
 
       <section className="card">
+        <h2>Where the staking pool's money comes from</h2>
+        <p>
+          Three sources: a 90% share of the trading fees this token earns on
+          pump.fun, donations from anyone who wants to add to it, and every
+          allocation in the system that nobody claimed.
+        </p>
+        <p className="muted">
+          Fees do not flow in automatically — they build up at pump.fun until
+          someone moves them. That someone can be any person reading this: the
+          instructions involved are permissionless, and the Fund pool tab runs
+          them from your own wallet. The team has no special ability to do it,
+          and no ability to stop it.
+        </p>
+        <p className="muted">
+          The remaining 10% of fees goes to the developer. That is the only
+          ongoing income from this project, and it is stated here so nobody has
+          to guess.
+        </p>
+      </section>
+
+      <section className="card">
         <h2>Staking, and why the multiplier is held back</h2>
         <p>
           Staking registers you for everything the ecosystem earns. Longer locks

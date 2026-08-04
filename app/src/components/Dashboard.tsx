@@ -71,8 +71,10 @@ export function Dashboard() {
       <section className="card">
         <h2>Bucket 1 — community staking pool</h2>
         <p className="muted">
-          Fed by routed creator fees, donations, and every forfeiture in the
-          system. Grows forever; never starts full.
+          Fed by pump.fun creator fees, donations, and every forfeiture in the
+          system. Nothing arrives on its own — fees have to be pushed in, and
+          anyone can do it from the Fund pool tab. Grows forever; never starts
+          full.
         </p>
         <div className="stat-row">
           <Stat label="Lifetime token rewards" value={fmtTokens(pool.lifetimeTokenRewards, true)} />
@@ -147,6 +149,14 @@ export function Dashboard() {
         <div className="stat-row">
           <Stat label="Token vault" value={fmtTokens(vaultBalance, true)} />
           <Stat label="SOL vault" value={`${fmtSol(solVaultBalance)} SOL`} />
+          <Stat
+            label="Of which not yet credited"
+            value={`${fmtSol(
+              solVaultBalance > BigInt(pool.reservedSol)
+                ? solVaultBalance - BigInt(pool.reservedSol)
+                : 0n
+            )} SOL`}
+          />
           <Stat label="Config" value={config.locked ? "LOCKED" : "unlocked"} />
         </div>
         <p className="muted small">

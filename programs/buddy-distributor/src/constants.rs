@@ -61,3 +61,13 @@ pub const SIGNER_CLAIM_MESSAGE_PREFIX: &str = "I am the original Buddy. Claim to
 
 #[constant]
 pub const PROGRAM_VERSION: u8 = 1;
+
+/// Wrapped SOL. Hard-coded so `unwrap_wsol` can only ever act on the real one.
+///
+/// Declared as a plain constant rather than a `declare_id!` module: a second
+/// `declare_id!` anywhere in the crate overwrites the program address Anchor
+/// writes into the generated IDL, which would point every client at the wrong
+/// program entirely.
+pub const WSOL_MINT: Pubkey = anchor_lang::solana_program::pubkey!(
+    "So11111111111111111111111111111111111111112"
+);

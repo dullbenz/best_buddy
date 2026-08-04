@@ -133,8 +133,13 @@ The dev's allocation streams linearly over 12 months behind a `<30>`-day cliff.
 ever receive from this allocation exists only inside the distributor contract
 and comes out at a fixed rate that nobody — including the dev — can accelerate.
 
-Ongoing dev income is the retained share of pump.fun creator fees, disclosed
-here: `<X%>` retained, `<Y%>` routed to the community staking pool.
+Ongoing dev income is the retained share of pump.fun creator fees: **10%
+retained, 90% to the community staking pool.**
+
+That split is set once, on chain, through pump.fun's fee-sharing config — which
+revokes its own admin immediately afterwards. It is therefore **permanent and
+publicly verifiable**, exactly like the burned upgrade authority. Neither we nor
+anyone else can change it later.
 
 ---
 
@@ -163,8 +168,13 @@ exactly what you actually committed to.
 Early exit forfeits the escrowed boost plus 10% of principal. Both go straight
 into the pool for the stakers who stayed.
 
-The pool is fed by routed creator fees, donations from anyone, and every
-forfeiture in the system.
+The pool is fed by a 90% share of pump.fun creator fees, donations from anyone,
+and every forfeiture in the system.
+
+Fees do not arrive automatically. They accumulate at pump.fun until someone
+moves them — and **anyone can**, because every instruction in that chain is
+permissionless. The site has a button that runs it from your own wallet. We
+have no special ability to do it, and no ability to prevent it.
 
 ---
 

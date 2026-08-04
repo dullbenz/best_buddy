@@ -30,8 +30,9 @@ export function Staking() {
         <h2>Staking</h2>
         <p className="muted">
           Connect a wallet to stake. Staking registers you for every reward the
-          ecosystem generates — routed creator fees, donations, and everything
-          forfeited by people who did not show up.
+          ecosystem generates — pump.fun creator fees, donations, and everything
+          forfeited by people who did not show up. Fees do not arrive by
+          themselves; anyone can push them in from the Fund pool tab.
         </p>
         <TierTable />
       </div>

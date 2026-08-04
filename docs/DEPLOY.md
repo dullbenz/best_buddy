@@ -46,7 +46,7 @@ cd best_buddy && npm install --legacy-peer-deps && ~/.avm/bin/anchor-0.31.1 buil
 cargo test -p buddy-distributor --lib && npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
 ```
 
-You should see 7 Rust unit tests and 28 integration tests pass. **Do not
+You should see 7 Rust unit tests and 37 integration tests pass. **Do not
 continue if anything fails.** These cover the claim-then-exit attack, every
 expiry sweep, and the secp256k1 verification — they are the reason to trust the
 contract.
@@ -270,6 +270,28 @@ RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> CLIFF_DAYS=30 npx ts-node script
 Anyone can call this; it can only produce the terms fixed at init. Do it
 immediately so the dev wallet is visibly empty from the first block.
 
+### 2.5a Set the pump.fun fee split — irreversible, so do it before the burn
+
+Full mechanism: [FEES.md](./FEES.md). Two self-service transactions signed by
+you as coin creator; pump.fun approval is not involved.
+
+```
+create_fee_sharing_config        # shareholders default to [(you, 100%)]
+update_fee_shares_v2             # 90% -> SOL vault PDA, 10% -> dev wallet
+```
+
+> **`update_fee_shares_v2` runs exactly once.** pump.fun's program revokes its
+> own admin straight afterwards and freezes the shareholder list forever. A
+> share pointing somewhere unpayable can block every future distribution
+> permanently, with no way to edit it.
+>
+> Never run this on the real coin before the throwaway-coin rehearsal has proved
+> the identical configuration works. It cannot be rehearsed on devnet —
+> pump.fun has no devnet deployment.
+
+Doing this *before* the burn is deliberate: if the split misbehaves, the program
+is still upgradeable and you can redeploy. Afterwards you cannot.
+
 ### 2.6 Verify everything, then burn the upgrade authority
 
 **This is the point of no return. Read the checks before running the command.**
@@ -288,6 +310,7 @@ Then walk the dashboard locally against mainnet and check, line by line:
 - both deadlines are the dates you published
 - the dev stream exists, with the right total and cliff
 - the original-signer key matches the 2014 transaction
+- the fee split reads 90/10 and the sharing-config admin is revoked
 
 Anything wrong? Fix it now. You can still redeploy at a new address for ~4 SOL.
 After the next command you cannot.
@@ -306,21 +329,7 @@ solana program show <PROGRAM_ID>
 not by anyone, not to fix a bug. Save that transaction signature; it goes in the
 announcement.
 
-### 2.7 Route creator fees into bucket 1
-
-In the pump.fun creator dashboard, split creator fees so a meaningful share
-(recommended: 50% or more) goes to the community. Two options:
-
-- **Simplest:** point the split at a wallet you control, and have it
-  periodically call `notify_token_rewards` / `notify_sol_rewards`.
-- **Better if supported:** point it directly at the SOL vault PDA. Lamports sent
-  there still need a `notify_sol_rewards` call to be counted, so a small
-  cron that reconciles the vault balance is worth writing either way.
-
-Check pump.fun's current fee-split UI at the time — it changed in January 2026
-and may have changed again.
-
-### 2.8 Announce
+### 2.7 Announce
 
 Post all at once: program ID, config PDA, snapshot files, pre-commitment doc,
 receipts dossier, and the burn transaction signature.
@@ -426,7 +435,7 @@ re-litigate it if it happens.
 
 ## Pre-launch checklist
 
-- [ ] All 35 tests pass
+- [ ] All 44 tests pass
 - [ ] Devnet rehearsal completed end to end
 - [ ] Security review done and published
 - [ ] Program keypair backed up offline
@@ -442,6 +451,8 @@ re-litigate it if it happens.
 - [ ] Influencer list published with amounts
 - [ ] Dev-buy sized as losable money
 - [ ] No public material promises returns, profit, or price
+- [ ] Fee chain proved end to end on a throwaway mainnet coin
+- [ ] Fee split set 90/10 via `update_fee_shares_v2` and confirmed frozen
 - [ ] VERIFY.md filled in with real addresses and published
 - [ ] Verify and How it works tabs live on the site and read end to end
 - [ ] Independent-verification ask posted where technical people will see it

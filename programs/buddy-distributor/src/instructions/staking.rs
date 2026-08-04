@@ -8,11 +8,15 @@ use anchor_spl::token::{Token, TokenAccount, Transfer};
 ///
 /// The vault is owned by this program, which is what permits debiting its
 /// lamports directly instead of paying for a System CPI on every claim. Its
-/// rent-exempt floor is never spendable: only lamports deposited on top of it
-/// by `notify_sol_rewards` can ever leave.
+/// rent-exempt floor is never spendable.
+///
+/// This is the single exit for lamports, which is why `reserved_sol` is
+/// decremented here rather than at each of the four call sites — one place to
+/// get right, and no way to add a fifth exit that forgets.
 pub(crate) fn pay_sol_from_vault<'info>(
     sol_vault: &Account<'info, SolVault>,
     recipient: &AccountInfo<'info>,
+    pool: &mut StakePool,
     amount: u64,
     rent: &Rent,
 ) -> Result<()> {
@@ -27,9 +31,52 @@ pub(crate) fn pay_sol_from_vault<'info>(
         DistributorError::InsufficientBucketBalance
     );
 
+    pool.reserved_sol = pool
+        .reserved_sol
+        .checked_sub(amount)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
     **info.try_borrow_mut_lamports()? -= amount;
     **recipient.try_borrow_mut_lamports()? += amount;
     Ok(())
+}
+
+/// Move reward-mint tokens out of the vault.
+///
+/// The counterpart to `pay_sol_from_vault`, and the single exit for tokens for
+/// the same reason: `reserved_token` is maintained in one place. It also
+/// replaces six near-identical copies of this CPI that previously lived in the
+/// claim, stream, unstake, exit and reward paths.
+pub(crate) fn pay_token_from_vault<'info>(
+    vault: &Account<'info, TokenAccount>,
+    destination: &Account<'info, TokenAccount>,
+    config: &Account<'info, Config>,
+    token_program: &Program<'info, Token>,
+    pool: &mut StakePool,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+
+    pool.reserved_token = pool
+        .reserved_token
+        .checked_sub(amount)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config.bump]]];
+    anchor_spl::token::transfer(
+        CpiContext::new_with_signer(
+            token_program.to_account_info(),
+            Transfer {
+                from: vault.to_account_info(),
+                to: destination.to_account_info(),
+                authority: config.to_account_info(),
+            },
+            signer,
+        ),
+        amount,
+    )
 }
 
 #[derive(Accounts)]
@@ -140,6 +187,11 @@ pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
     pool.total_staked = pool
         .total_staked
+        .checked_add(amount)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    // Staked principal is tokens physically entering the vault.
+    pool.reserved_token = pool
+        .reserved_token
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
@@ -287,24 +339,19 @@ pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
         position.unstake_requested_at = 0;
     }
 
-    let config_bump = ctx.accounts.config.bump;
-    let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config_bump]]];
-    anchor_spl::token::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.vault.to_account_info(),
-                to: ctx.accounts.destination.to_account_info(),
-                authority: ctx.accounts.config.to_account_info(),
-            },
-            signer,
-        ),
+    pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        pool,
         token_out,
     )?;
 
     pay_sol_from_vault(
         &ctx.accounts.sol_vault,
         &ctx.accounts.owner.to_account_info(),
+        pool,
         sol_out,
         &ctx.accounts.rent,
     )?;
@@ -405,6 +452,9 @@ pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {
     position.escrow_token = 0;
     position.escrow_sol = 0;
 
+    // The slash and the forfeited boost stay physically in the vaults — they
+    // are only reclassified from "this staker's" to "everyone else's". The
+    // reserved counters therefore stay exactly where they are.
     let redistributed_token = forfeited_token
         .checked_add(slash)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
@@ -415,24 +465,19 @@ pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {
         .checked_add(base_token)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    let config_bump = ctx.accounts.config.bump;
-    let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config_bump]]];
-    anchor_spl::token::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.vault.to_account_info(),
-                to: ctx.accounts.destination.to_account_info(),
-                authority: ctx.accounts.config.to_account_info(),
-            },
-            signer,
-        ),
+    pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        pool,
         token_out,
     )?;
 
     pay_sol_from_vault(
         &ctx.accounts.sol_vault,
         &ctx.accounts.owner.to_account_info(),
+        pool,
         base_sol,
         &ctx.accounts.rent,
     )?;
@@ -496,26 +541,19 @@ pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
     position.claimable_token = 0;
     position.claimable_sol = 0;
 
-    if token_out > 0 {
-        let config_bump = ctx.accounts.config.bump;
-        let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config_bump]]];
-        anchor_spl::token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.vault.to_account_info(),
-                    to: ctx.accounts.destination.to_account_info(),
-                    authority: ctx.accounts.config.to_account_info(),
-                },
-                signer,
-            ),
-            token_out,
-        )?;
-    }
+    pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        pool,
+        token_out,
+    )?;
 
     pay_sol_from_vault(
         &ctx.accounts.sol_vault,
         &ctx.accounts.owner.to_account_info(),
+        pool,
         sol_out,
         &ctx.accounts.rent,
     )?;
@@ -576,26 +614,19 @@ pub fn withdraw_boost_escrow(ctx: Context<WithdrawBoostEscrow>) -> Result<()> {
     position.escrow_token = 0;
     position.escrow_sol = 0;
 
-    if token_out > 0 {
-        let config_bump = ctx.accounts.config.bump;
-        let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config_bump]]];
-        anchor_spl::token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.vault.to_account_info(),
-                    to: ctx.accounts.destination.to_account_info(),
-                    authority: ctx.accounts.config.to_account_info(),
-                },
-                signer,
-            ),
-            token_out,
-        )?;
-    }
+    pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        pool,
+        token_out,
+    )?;
 
     pay_sol_from_vault(
         &ctx.accounts.sol_vault,
         &ctx.accounts.owner.to_account_info(),
+        pool,
         sol_out,
         &ctx.accounts.rent,
     )?;

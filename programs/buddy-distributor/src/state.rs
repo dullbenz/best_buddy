@@ -79,10 +79,16 @@ impl Config {
 
 /// Bucket 1 — the community staking pool.
 ///
-/// Rewards arrive here from three sources: the routed share of pump.fun creator
-/// fees, voluntary donations, and every forfeiture in the system (expired
-/// buckets, slashed principal, abandoned boost escrow). Distribution uses the
-/// standard rewards-per-share accumulator so that paying N stakers costs O(1).
+/// Rewards arrive here from three sources: the share of pump.fun creator fees
+/// directed at this program's vaults, voluntary donations, and every forfeiture
+/// in the system (expired buckets, slashed principal, abandoned boost escrow).
+/// Distribution uses the standard rewards-per-share accumulator so that paying
+/// N stakers costs O(1).
+///
+/// Nothing pushes fees in automatically. Value that arrives from outside sits
+/// uncredited until someone — anyone — calls `sync_sol_rewards` or
+/// `sync_token_rewards`, which is what keeps the funding path free of any
+/// privileged operator.
 #[account]
 #[derive(InitSpace)]
 pub struct StakePool {
@@ -102,6 +108,21 @@ pub struct StakePool {
     /// Lifetime totals, for the public dashboard.
     pub lifetime_token_rewards: u64,
     pub lifetime_sol_rewards: u64,
+    /// Funds that entered the vaults through this program's own instructions
+    /// and are therefore already on the ledger.
+    ///
+    /// Anything a vault holds *above* these figures arrived from outside — a
+    /// pump.fun fee distribution, a donation, a mistake — and is uncredited
+    /// until someone calls the matching `sync_*` instruction. Without this
+    /// distinction those funds would be stranded permanently, because payouts
+    /// only ever release amounts the accumulator knows about and the program is
+    /// immutable after launch.
+    ///
+    /// Maintained strictly at the points where value physically enters or
+    /// leaves a vault. Internal reclassification — a slashed stake becoming
+    /// staker rewards, say — moves nothing and must not touch them.
+    pub reserved_sol: u64,
+    pub reserved_token: u64,
     pub bump: u8,
 }
 
@@ -391,11 +412,16 @@ impl Stream {
     }
 }
 
-/// Holds SOL rewards (routed creator fees, donations).
+/// Holds SOL rewards for stakers.
 ///
 /// Deliberately owned by this program rather than the System Program: only the
 /// owning program may debit an account's lamports directly, and paying stakers
 /// out of a system-owned PDA would need a CPI on every single claim.
+///
+/// Lamports can land here from anywhere — a pump.fun fee distribution, a
+/// donation — because crediting an account needs no permission. They only
+/// become staker rewards once `sync_sol_rewards` accounts for them, which
+/// anyone may call.
 #[account]
 #[derive(InitSpace)]
 pub struct SolVault {

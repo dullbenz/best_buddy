@@ -106,6 +106,23 @@ pub mod buddy_distributor {
         instructions::rewards::flush_pending(ctx)
     }
 
+    /// Credit lamports that reached the SOL vault without going through
+    /// `notify_sol_rewards` — pump.fun fee distributions, donations, mistakes.
+    pub fn sync_sol_rewards(ctx: Context<SyncSolRewards>) -> Result<()> {
+        instructions::rewards::sync_sol_rewards(ctx)
+    }
+
+    /// The same, for reward-mint tokens sent straight to the token vault.
+    pub fn sync_token_rewards(ctx: Context<SyncTokenRewards>) -> Result<()> {
+        instructions::rewards::sync_token_rewards(ctx)
+    }
+
+    /// Turn vault-held wrapped SOL into lamports and credit it. Needed because
+    /// pump.fun pays post-graduation creator fees in wSOL.
+    pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
+        instructions::rewards::unwrap_wsol(ctx)
+    }
+
     // ---- buckets 2, 3, 4 ----
 
     pub fn claim_old_holder(

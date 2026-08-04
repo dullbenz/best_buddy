@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { useEffect, useState } from "react";
 import { PROGRAM_ID, SEEDS, pda } from "../config";
 import { fmtTokens } from "../format";
+import { SharingConfigView, readSharingConfig, sharingConfigPda } from "../pumpfun";
 import { useDistributor } from "../useDistributor";
 import { useUpgradeAuthority } from "../useUpgradeAuthority";
 
@@ -28,7 +30,20 @@ interface Check {
 export function Verify() {
   const { config, pool, vaultBalance, loading, error } = useDistributor();
   const upgrade = useUpgradeAuthority();
+  const { connection } = useConnection();
   const [copied, setCopied] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<SharingConfigView | null>(null);
+
+  useEffect(() => {
+    if (!config?.rewardMint) return;
+    let cancelled = false;
+    readSharingConfig(connection, config.rewardMint)
+      .then((v) => !cancelled && setSharing(v))
+      .catch(() => !cancelled && setSharing(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, config?.rewardMint?.toBase58()]);
 
   const copy = (text: string, id: string) => {
     navigator.clipboard?.writeText(text);
@@ -148,7 +163,36 @@ export function Verify() {
     command: `RPC_URL=<your-rpc> npx ts-node scripts/verify-snapshot.ts --onchain`,
   });
 
-  // 6 — source matches what is deployed.
+  // 6 — the fee split is frozen and points at the community.
+  const vaultShare = sharing?.shareholders.find(
+    (h) => h.address === vaultPda
+  );
+  checks.push({
+    title: "The fee split is frozen, and most of it goes to the community",
+    status:
+      !sharing || !sharing.exists
+        ? "pending"
+        : sharing.adminRevoked && !!vaultShare
+        ? "pass"
+        : "fail",
+    detail: !sharing
+      ? UNREADABLE
+      : !sharing.exists
+      ? "No fee-sharing config found for this mint yet."
+      : `${
+          vaultShare ? (vaultShare.shareBps / 100).toFixed(0) : "0"
+        }% of creator fees go to the community vault. Admin is ${
+          sharing.adminRevoked ? "revoked — the split can never change" : "STILL ACTIVE"
+        }.`,
+    why:
+      "pump.fun lets a fee split be set exactly once, after which it revokes the admin and the shares are permanent. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction — so the thing to check is not just the percentage but that the admin really is revoked.",
+    link: `https://solscan.io/account/${
+      config ? sharingConfigPda(config.rewardMint).toBase58() : ""
+    }`,
+    linkLabel: "Inspect the fee-sharing config on Solscan",
+  });
+
+  // 7 — source matches what is deployed.
   checks.push({
     title: "The published source matches the deployed bytecode",
     status: "pending",
@@ -226,6 +270,10 @@ export function Verify() {
                 ["Token vault", vaultPda],
                 ["SOL vault", pda([SEEDS.solVault]).toBase58()],
                 ["Staking pool", pda([SEEDS.pool]).toBase58()],
+                [
+                  "pump.fun fee config",
+                  config ? sharingConfigPda(config.rewardMint).toBase58() : "—",
+                ],
               ].map(([label, address]) => (
                 <tr key={label}>
                   <td>{label}</td>

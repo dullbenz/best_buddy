@@ -139,6 +139,8 @@ pub fn initialize(ctx: Context<Initialize>, params: InitializeParams) -> Result<
     pool.pending_sol_rewards = 0;
     pool.lifetime_token_rewards = 0;
     pool.lifetime_sol_rewards = 0;
+    pool.reserved_sol = 0;
+    pool.reserved_token = 0;
     pool.bump = ctx.bumps.pool;
 
     msg!(
@@ -173,6 +175,10 @@ pub struct FundVault<'info> {
     )]
     pub vault: Account<'info, TokenAccount>,
 
+    /// Needed so the deposit registers in `reserved_token`.
+    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
     #[account(mut, constraint = source.mint == config.reward_mint)]
     pub source: Account<'info, TokenAccount>,
 
@@ -182,6 +188,13 @@ pub struct FundVault<'info> {
 pub fn fund_vault(ctx: Context<FundVault>, amount: u64) -> Result<()> {
     ctx.accounts.config.assert_unlocked()?;
     require!(amount > 0, DistributorError::ZeroAmount);
+
+    ctx.accounts.pool.reserved_token = ctx
+        .accounts
+        .pool
+        .reserved_token
+        .checked_add(amount)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
     anchor_spl::token::transfer(
         CpiContext::new(
