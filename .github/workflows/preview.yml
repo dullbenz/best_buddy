@@ -1,0 +1,51 @@
+name: Preview deploy
+
+# Every pull request gets its own temporary URL. Useful for reviewing copy and
+# layout changes to the claim flow before they reach the community — a broken
+# claim page during the 72-hour influencer window is expensive.
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "idl/**"
+      - "firebase.json"
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    name: Deploy PR preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Forks cannot read secrets, so skip rather than fail confusingly.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          cd app && npm install --legacy-peer-deps
+
+      - name: Build
+        working-directory: app
+        env:
+          VITE_RPC_URL: ${{ vars.VITE_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
+          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID }}
+        run: npm run build
+
+      - name: Deploy preview channel
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          expires: 7d

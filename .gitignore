@@ -1,0 +1,14 @@
+node_modules/
+target/
+dist/
+.anchor/
+app/src/idl/
+app/node_modules/
+app/dist/
+.DS_Store
+*.log
+
+# Never commit keypairs. The program keypair in particular is the upgrade
+# authority — losing it means no upgrades, leaking it means someone else can.
+*keypair*.json
+!snapshot/*.json

@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLANA_VERSION: stable
+  ANCHOR_VERSION: 0.31.1
+
+jobs:
+  # Cheap, fast checks that should fail the build before anything expensive runs.
+  guard:
+    name: Safety checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A leaked program keypair means someone else can replace the deployed
+      # contract. A leaked authority keypair means they can drain the buckets
+      # before the config lock. Neither should ever reach the repo.
+      - name: Refuse to build if a keypair was committed
+        run: |
+          if git ls-files | grep -E '(keypair|id\.json$|.*-key\.json$)' ; then
+            echo "::error::A keypair file is tracked by git. Remove it and rotate the key."
+            exit 1
+          fi
+          echo "No keypair files tracked."
+
+      - name: Refuse to build if a placeholder reached main
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if grep -q "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID" .firebaserc ; then
+            echo "::error::.firebaserc still holds the placeholder project id."
+            exit 1
+          fi
+
+  program:
+    name: Program build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache Rust and Solana toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.avm
+            ~/.local/share/solana
+            ~/.cache/solana
+            target
+          key: ${{ runner.os }}-toolchain-${{ env.ANCHOR_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-toolchain-${{ env.ANCHOR_VERSION }}-
+
+      - name: Install Solana
+        run: |
+          if [ ! -x "$HOME/.local/share/solana/install/active_release/bin/solana" ]; then
+            sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+          fi
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor
+        run: |
+          if [ ! -x "$HOME/.avm/bin/anchor-${ANCHOR_VERSION}" ]; then
+            cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+            avm install "${ANCHOR_VERSION}"
+          fi
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      # avm's `anchor` shim re-pins Solana to the version it prefers (2.1.0),
+      # whose bundled cargo cannot parse edition-2024 crates in our dependency
+      # tree. Reset to stable and call the Anchor binary directly instead.
+      - name: Pin Solana back to stable
+        run: |
+          agave-install init "${SOLANA_VERSION}"
+          solana --version
+          cargo-build-sbf --version
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Rust unit tests
+        run: cargo test -p buddy-distributor --lib
+
+      - name: Build program
+        run: ~/.avm/bin/anchor-${ANCHOR_VERSION} build
+
+      # The app builds against the IDL committed at idl/ so deploys stay fast.
+      # If a program change lands without regenerating it, the site would ship
+      # an interface that no longer matches the chain — catch that here.
+      - name: Verify the committed IDL is current
+        run: |
+          if ! diff -q target/idl/buddy_distributor.json idl/buddy_distributor.json > /dev/null; then
+            echo "::error::idl/buddy_distributor.json is stale. Run 'anchor build' and commit target/idl/buddy_distributor.json to idl/."
+            diff target/idl/buddy_distributor.json idl/buddy_distributor.json || true
+            exit 1
+          fi
+          echo "Committed IDL matches the build."
+
+      - name: Integration tests
+        run: npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
+
+      - name: Upload program artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: program
+          path: |
+            target/deploy/buddy_distributor.so
+            target/idl/buddy_distributor.json
+          retention-days: 30
+
+  app:
+    name: App build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          cd app && npm install --legacy-peer-deps
+
+      - name: Typecheck and build
+        working-directory: app
+        env:
+          VITE_RPC_URL: ${{ vars.VITE_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
+          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID || 'GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11' }}
+        run: npm run build
+
+      - name: Check the published proofs are valid JSON
+        run: |
+          for f in app/public/proofs/*.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" \
+              || { echo "::error::$f is not valid JSON"; exit 1; }
+          done
+          echo "Proof files parse cleanly."

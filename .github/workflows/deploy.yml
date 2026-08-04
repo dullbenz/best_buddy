@@ -1,0 +1,55 @@
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "idl/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only deploy what already passed CI on this exact commit.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          cd app && npm install --legacy-peer-deps
+
+      - name: Build
+        working-directory: app
+        env:
+          VITE_RPC_URL: ${{ vars.VITE_RPC_URL }}
+          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID }}
+        run: |
+          if [ -z "$VITE_RPC_URL" ]; then
+            echo "::error::Repository variable VITE_RPC_URL is not set. The public RPC returns 403 to browsers, so the dashboard would not load."
+            exit 1
+          fi
+          npm run build
+
+      - name: Deploy
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          channelId: live

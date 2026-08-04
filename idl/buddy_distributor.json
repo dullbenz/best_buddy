@@ -1,0 +1,2540 @@
+{
+  "address": "GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11",
+  "metadata": {
+    "name": "buddy_distributor",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Four-bucket community distributor for the Buddy relaunch"
+  },
+  "instructions": [
+    {
+      "name": "claim_influencer",
+      "discriminator": [
+        168,
+        197,
+        117,
+        70,
+        195,
+        88,
+        191,
+        28
+      ],
+      "accounts": [
+        {
+          "name": "claimant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "receipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  102,
+                  95,
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "claimant"
+              }
+            ]
+          }
+        },
+        {
+          "name": "stream",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  101,
+                  97,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "claimant"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim_old_holder",
+      "discriminator": [
+        113,
+        84,
+        187,
+        102,
+        223,
+        213,
+        178,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "claimant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "receipt",
+          "docs": [
+            "Existence of this account is the double-claim guard: `init` fails if a",
+            "receipt for this wallet is already on chain."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  108,
+                  100,
+                  95,
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "claimant"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim_original_signer",
+      "discriminator": [
+        94,
+        56,
+        143,
+        24,
+        202,
+        199,
+        97,
+        95
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "docs": [
+            "Anyone may relay the transaction — the signature itself is the",
+            "authorisation, and it is bound to `destination_owner`."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "stream",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  101,
+                  97,
+                  109
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "destination_owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "destination_owner",
+          "type": "pubkey"
+        },
+        {
+          "name": "header",
+          "type": "u8"
+        },
+        {
+          "name": "signature",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim_rewards",
+      "docs": [
+        "Withdraw settled base rewards. Always available, every tier."
+      ],
+      "discriminator": [
+        4,
+        144,
+        132,
+        71,
+        116,
+        23,
+        151,
+        80
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_dev_stream",
+      "discriminator": [
+        85,
+        174,
+        180,
+        55,
+        134,
+        52,
+        119,
+        85
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "stream",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  101,
+                  97,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.dev_wallet",
+                "account": "Config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "cliff_seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "emergency_exit",
+      "discriminator": [
+        164,
+        174,
+        48,
+        163,
+        191,
+        65,
+        91,
+        245
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "flush_pending",
+      "discriminator": [
+        43,
+        97,
+        248,
+        241,
+        81,
+        216,
+        83,
+        122
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fund_vault",
+      "discriminator": [
+        26,
+        33,
+        207,
+        242,
+        119,
+        108,
+        134,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "The Squads multisig (or whatever key the community agrees on) that may",
+            "fund buckets before the lock. It has no power at all afterwards."
+          ]
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "Single token vault holding every bucket's tokens plus all staked",
+            "principal. Bucket balances are tracked in `Config`; the vault is the",
+            "physical custody account."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "docs": [
+            "Program-owned PDA holding SOL rewards (routed creator fees, donations)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "InitializeParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "lock_config",
+      "docs": [
+        "Freeze every claim parameter. After this the authority cannot change",
+        "allocations, roots, deadlines or the signer key."
+      ],
+      "discriminator": [
+        140,
+        30,
+        78,
+        170,
+        92,
+        132,
+        150,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "notify_sol_rewards",
+      "discriminator": [
+        79,
+        47,
+        120,
+        196,
+        248,
+        192,
+        197,
+        179
+      ],
+      "accounts": [
+        {
+          "name": "depositor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "notify_token_rewards",
+      "discriminator": [
+        31,
+        25,
+        43,
+        215,
+        92,
+        52,
+        138,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "depositor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "request_unstake",
+      "discriminator": [
+        44,
+        154,
+        110,
+        253,
+        160,
+        202,
+        54,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "stake",
+      "discriminator": [
+        206,
+        176,
+        202,
+        18,
+        200,
+        209,
+        179,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "tier",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "stream_withdraw",
+      "discriminator": [
+        138,
+        253,
+        106,
+        161,
+        253,
+        160,
+        216,
+        61
+      ],
+      "accounts": [
+        {
+          "name": "beneficiary",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "stream",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  101,
+                  97,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "beneficiary"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "sweep_influencers",
+      "discriminator": [
+        203,
+        34,
+        46,
+        91,
+        24,
+        70,
+        59,
+        157
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "sweep_old_holders",
+      "discriminator": [
+        231,
+        69,
+        134,
+        233,
+        150,
+        28,
+        64,
+        78
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "sweep_original_signer",
+      "discriminator": [
+        102,
+        91,
+        73,
+        25,
+        242,
+        103,
+        56,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "unstake",
+      "discriminator": [
+        90,
+        95,
+        107,
+        42,
+        205,
+        124,
+        50,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_boost_escrow",
+      "docs": [
+        "Withdraw the boost portion. Only at lock maturity."
+      ],
+      "discriminator": [
+        74,
+        73,
+        148,
+        183,
+        1,
+        71,
+        11,
+        154
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ClaimReceipt",
+      "discriminator": [
+        223,
+        233,
+        11,
+        229,
+        124,
+        165,
+        207,
+        28
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "SolVault",
+      "discriminator": [
+        21,
+        132,
+        230,
+        103,
+        19,
+        209,
+        129,
+        248
+      ]
+    },
+    {
+      "name": "StakePool",
+      "discriminator": [
+        121,
+        34,
+        206,
+        21,
+        79,
+        127,
+        255,
+        28
+      ]
+    },
+    {
+      "name": "StakePosition",
+      "discriminator": [
+        78,
+        165,
+        30,
+        111,
+        171,
+        125,
+        11,
+        220
+      ]
+    },
+    {
+      "name": "Stream",
+      "discriminator": [
+        166,
+        224,
+        59,
+        4,
+        202,
+        10,
+        186,
+        83
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ConfigLocked",
+      "msg": "Config is already locked and cannot be modified"
+    },
+    {
+      "code": 6001,
+      "name": "ConfigNotLocked",
+      "msg": "Config must be locked before this action"
+    },
+    {
+      "code": 6002,
+      "name": "Unauthorized",
+      "msg": "Only the configured authority may perform this action"
+    },
+    {
+      "code": 6003,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidTier",
+      "msg": "Invalid staking tier"
+    },
+    {
+      "code": 6005,
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6006,
+      "name": "StillLocked",
+      "msg": "Position is still locked"
+    },
+    {
+      "code": 6007,
+      "name": "NoUnstakeRequested",
+      "msg": "No unstake has been requested for this position"
+    },
+    {
+      "code": 6008,
+      "name": "CooldownActive",
+      "msg": "Unstake cooldown has not elapsed"
+    },
+    {
+      "code": 6009,
+      "name": "NotLocked",
+      "msg": "Emergency exit is only available to locked positions"
+    },
+    {
+      "code": 6010,
+      "name": "EscrowNotMatured",
+      "msg": "Boost escrow is only withdrawable at lock maturity"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidMerkleProof",
+      "msg": "Invalid Merkle proof for this claim"
+    },
+    {
+      "code": 6012,
+      "name": "AlreadyClaimed",
+      "msg": "This allocation has already been claimed"
+    },
+    {
+      "code": 6013,
+      "name": "ClaimWindowClosed",
+      "msg": "The claim window for this bucket has closed"
+    },
+    {
+      "code": 6014,
+      "name": "ClaimWindowNotOpen",
+      "msg": "The claim window for this bucket has not opened yet"
+    },
+    {
+      "code": 6015,
+      "name": "SweepTooEarly",
+      "msg": "The claim window is still open; cannot sweep yet"
+    },
+    {
+      "code": 6016,
+      "name": "SignatureRecoveryFailed",
+      "msg": "Signature recovery failed"
+    },
+    {
+      "code": 6017,
+      "name": "SignerMismatch",
+      "msg": "Recovered public key does not match the original signer"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidRecoveryId",
+      "msg": "Invalid signature recovery id"
+    },
+    {
+      "code": 6019,
+      "name": "NothingToWithdraw",
+      "msg": "Nothing is currently withdrawable from this stream"
+    },
+    {
+      "code": 6020,
+      "name": "StreamAlreadyExists",
+      "msg": "Stream has already been initialized for this beneficiary"
+    },
+    {
+      "code": 6021,
+      "name": "InsufficientBucketBalance",
+      "msg": "Bucket has insufficient unclaimed balance for this operation"
+    },
+    {
+      "code": 6022,
+      "name": "NoStakers",
+      "msg": "No stakers are present; rewards cannot be distributed"
+    },
+    {
+      "code": 6023,
+      "name": "MessageTooLong",
+      "msg": "Message is too long to encode with a single-byte varint"
+    }
+  ],
+  "types": [
+    {
+      "name": "ClaimReceipt",
+      "docs": [
+        "One-shot marker proving a wallet already claimed from a Merkle bucket.",
+        "Its existence *is* the double-claim guard — `init` fails if it is present."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "claimant",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "claimed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "docs": [
+        "Global configuration and the accounting for buckets 2, 3 and 4.",
+        "",
+        "Everything in here that governs a claim is written once at `initialize` and",
+        "frozen by `lock_config`. After the lock, the authority can no longer change",
+        "allocations, roots, deadlines or the signer key — the only remaining admin",
+        "surface is emergency-free. This is what makes the published pre-commitment",
+        "document binding rather than aspirational."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "locked",
+            "docs": [
+              "Set true by `lock_config`. Once true, no field below may change."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "claims_start",
+            "docs": [
+              "Timestamp at which claim windows begin counting."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "old_holder_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "old_holder_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "old_holder_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "old_holder_deadline",
+            "type": "i64"
+          },
+          {
+            "name": "old_holder_swept",
+            "type": "bool"
+          },
+          {
+            "name": "influencer_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "influencer_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "influencer_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "influencer_deadline",
+            "type": "i64"
+          },
+          {
+            "name": "influencer_swept",
+            "type": "bool"
+          },
+          {
+            "name": "original_signer_pubkey",
+            "docs": [
+              "Uncompressed secp256k1 public key as X||Y (the 65-byte form with the",
+              "leading 0x04 stripped), exactly as `secp256k1_recover` returns it."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "original_signer_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "original_signer_claimed",
+            "type": "bool"
+          },
+          {
+            "name": "original_signer_swept",
+            "type": "bool"
+          },
+          {
+            "name": "dev_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "dev_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "dev_stream_created",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "sol_vault_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_holder_root",
+            "docs": [
+              "Merkle root over (wallet, amount) for old Buddy holders."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "old_holder_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "influencer_root",
+            "docs": [
+              "Merkle root over (wallet, amount) for the published influencer list."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "influencer_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "original_signer_pubkey",
+            "docs": [
+              "Uncompressed secp256k1 key from the 2014 transaction, X||Y, 0x04 stripped."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "original_signer_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "dev_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "dev_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "dev_cliff_seconds",
+            "docs": [
+              "Seconds after `claims_start` before the dev stream begins releasing."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "claims_start",
+            "docs": [
+              "When claim windows begin. Pass 0 to use the current block time."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SolVault",
+      "docs": [
+        "Holds SOL rewards (routed creator fees, donations).",
+        "",
+        "Deliberately owned by this program rather than the System Program: only the",
+        "owning program may debit an account's lamports directly, and paying stakers",
+        "out of a system-owned PDA would need a CPI on every single claim."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StakePool",
+      "docs": [
+        "Bucket 1 — the community staking pool.",
+        "",
+        "Rewards arrive here from three sources: the routed share of pump.fun creator",
+        "fees, voluntary donations, and every forfeiture in the system (expired",
+        "buckets, slashed principal, abandoned boost escrow). Distribution uses the",
+        "standard rewards-per-share accumulator so that paying N stakers costs O(1)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "total_weight",
+            "docs": [
+              "Sum of every position's weight (amount x tier multiplier)."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "total_staked",
+            "docs": [
+              "Sum of every position's principal, unweighted."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "acc_token_per_weight",
+            "docs": [
+              "Cumulative token rewards per unit of weight, scaled by ACC_PRECISION."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "acc_sol_per_weight",
+            "docs": [
+              "Cumulative SOL rewards per unit of weight, scaled by ACC_PRECISION."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "pending_token_rewards",
+            "docs": [
+              "Rewards that arrived while `total_weight == 0`. Held here rather than",
+              "dropped, and folded into the accumulator on the next notify once real",
+              "stakers exist."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pending_sol_rewards",
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_token_rewards",
+            "docs": [
+              "Lifetime totals, for the public dashboard."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lifetime_sol_rewards",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StakePosition",
+      "docs": [
+        "One staker's position.",
+        "",
+        "The base/boost split lives here. Rewards accrue on `weight` (amount x tier",
+        "multiplier), but only the portion attributable to `amount x 1.0` is",
+        "immediately claimable. The remainder — the part the multiplier bought — is",
+        "escrowed until the lock matures, and is forfeited on early exit. Without",
+        "this, a staker could take the 3.0x rate, claim continuously, and leave after",
+        "a few weeks having honoured none of the commitment the multiplier paid for."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "tier",
+            "type": {
+              "defined": {
+                "name": "Tier"
+              }
+            }
+          },
+          {
+            "name": "weight",
+            "type": "u128"
+          },
+          {
+            "name": "lock_end",
+            "docs": [
+              "Timestamp at which a locked tier matures. Zero for flexible."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "unstake_requested_at",
+            "docs": [
+              "Timestamp of an unstake request for a flexible position; zero if none."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "token_debt",
+            "docs": [
+              "Accumulator checkpoints — rewards already accounted for."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "sol_debt",
+            "type": "u128"
+          },
+          {
+            "name": "claimable_token",
+            "docs": [
+              "Settled base rewards, withdrawable at any time."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "claimable_sol",
+            "type": "u64"
+          },
+          {
+            "name": "escrow_token",
+            "docs": [
+              "Settled boost rewards, withdrawable only at lock maturity."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "escrow_sol",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Stream",
+      "docs": [
+        "Linear vesting stream used by bucket 3 (influencers, 30 days) and bucket 4",
+        "(founders, 12 months with an optional cliff)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "beneficiary",
+            "type": "pubkey"
+          },
+          {
+            "name": "total",
+            "type": "u64"
+          },
+          {
+            "name": "withdrawn",
+            "type": "u64"
+          },
+          {
+            "name": "start",
+            "type": "i64"
+          },
+          {
+            "name": "cliff",
+            "docs": [
+              "Nothing is withdrawable before this timestamp. Equal to `start` when",
+              "there is no cliff."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "end",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Tier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Flexible"
+          },
+          {
+            "name": "OneMonth"
+          },
+          {
+            "name": "ThreeMonth"
+          },
+          {
+            "name": "TwelveMonth"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "PROGRAM_VERSION",
+      "type": "u8",
+      "value": "1"
+    }
+  ]
+}
