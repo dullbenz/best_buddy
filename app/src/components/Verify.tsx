@@ -54,6 +54,7 @@ export function Verify() {
   const programId = PROGRAM_ID.toBase58();
   const configPda = pda([SEEDS.config]).toBase58();
   const vaultPda = pda([SEEDS.vault]).toBase58();
+  const solVaultPda = pda([SEEDS.solVault]).toBase58();
 
   const checks: Check[] = [];
 
@@ -164,8 +165,10 @@ export function Verify() {
   });
 
   // 6 — the fee split is frozen and points at the community.
+  // Creator fees are paid as lamports, so the shareholder to look for is the
+  // SOL vault — not the token vault.
   const vaultShare = sharing?.shareholders.find(
-    (h) => h.address === vaultPda
+    (h) => h.address === solVaultPda
   );
   checks.push({
     title: "The fee split is frozen, and most of it goes to the community",
@@ -181,9 +184,11 @@ export function Verify() {
       ? "No fee-sharing config found for this mint yet."
       : `${
           vaultShare ? (vaultShare.shareBps / 100).toFixed(0) : "0"
-        }% of creator fees go to the community vault. Admin is ${
-          sharing.adminRevoked ? "revoked — the split can never change" : "STILL ACTIVE"
-        }.`,
+        }% of creator fees go to the community vault. Admin: ${
+          sharing.adminRevoked
+            ? "cleared — the split can no longer be changed"
+            : sharing.admin
+        }. Status: ${sharing.status}.`,
     why:
       "pump.fun lets a fee split be set exactly once, after which it revokes the admin and the shares are permanent. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction — so the thing to check is not just the percentage but that the admin really is revoked.",
     link: `https://solscan.io/account/${

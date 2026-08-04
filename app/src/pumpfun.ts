@@ -93,26 +93,35 @@ const meta = (
 /**
  * Sweep AMM-side creator fees back into the bonding-curve vault so the pump
  * program can distribute them. Only relevant once the coin has graduated.
+ *
+ * Account order is exactly `pump_amm.json` → `transfer_creator_fees_to_pump_v2`.
+ * Solana matches accounts positionally, so a single misordered entry fails the
+ * whole transaction — check this list against the vendored IDL, do not trust it.
  */
 export function transferCreatorFeesToPumpIx(
-  mint: PublicKey,
+  payer: PublicKey,
   sharingConfig: PublicKey
 ): TransactionInstruction {
-  const vaultAuthority = ammCreatorVaultAuthorityPda(sharingConfig);
+  // After migration the "coin creator" pump.fun knows about is the sharing config.
+  const coinCreator = sharingConfig;
+  const ammVaultAuthority = ammCreatorVaultAuthorityPda(coinCreator);
+  const pumpVault = creatorVaultPda(coinCreator);
+
   return new TransactionInstruction({
     programId: PUMP_AMM_PROGRAM_ID,
     keys: [
-      meta(mint),
-      meta(sharingConfig),
-      meta(vaultAuthority),
-      meta(associatedTokenAddress(vaultAuthority, NATIVE_MINT), true),
-      meta(creatorVaultPda(sharingConfig), true),
-      meta(NATIVE_MINT),
-      meta(TOKEN_PROGRAM_ID),
-      meta(ASSOCIATED_TOKEN_PROGRAM_ID),
-      meta(SystemProgram.programId),
-      meta(eventAuthorityPda(PUMP_AMM_PROGRAM_ID)),
-      meta(PUMP_AMM_PROGRAM_ID),
+      meta(payer, true, true), // 0  payer
+      meta(NATIVE_MINT), // 1  quote_mint
+      meta(TOKEN_PROGRAM_ID), // 2  token_program
+      meta(SystemProgram.programId), // 3  system_program
+      meta(ASSOCIATED_TOKEN_PROGRAM_ID), // 4  associated_token_program
+      meta(coinCreator), // 5  coin_creator
+      meta(ammVaultAuthority, true), // 6  coin_creator_vault_authority
+      meta(associatedTokenAddress(ammVaultAuthority, NATIVE_MINT), true), // 7
+      meta(pumpVault, true), // 8  pump_creator_vault
+      meta(associatedTokenAddress(pumpVault, NATIVE_MINT), true), // 9
+      meta(eventAuthorityPda(PUMP_AMM_PROGRAM_ID)), // 10 event_authority
+      meta(PUMP_AMM_PROGRAM_ID), // 11 program
     ],
     data: discriminator("transfer_creator_fees_to_pump_v2"),
   });
@@ -204,32 +213,63 @@ export async function readPendingFees(
   return { bondingCurve: bonding, amm };
 }
 
-/** Read the frozen shareholder list, for the Verify page. */
+/** Read the shareholder list and admin state, for the Verify page. */
 export interface SharingConfigView {
   exists: boolean;
+  /** Base58 admin. All-zeros is how a revoked admin appears on chain. */
+  admin: string | null;
   adminRevoked: boolean;
+  status: "Paused" | "Active" | "unknown";
   shareholders: { address: string; shareBps: number }[];
 }
 
+const ZERO_PUBKEY = PublicKey.default.toBase58();
+
+/**
+ * Decode pump.fun's `SharingConfig`.
+ *
+ * Borsh layout after the 8-byte discriminator, taken field-for-field from
+ * `idl/pumpfun/pump_fees.json` → `accounts.SharingConfig`:
+ *
+ *   timestamp            i64
+ *   mint                 pubkey
+ *   bonding_curve        pubkey
+ *   pool                 Option<pubkey>        1-byte tag, +32 when Some
+ *   sharing_config       pubkey
+ *   admin                pubkey
+ *   initial_shareholders Vec<Shareholder>      u32 length, then n × 34
+ *   status               ConfigStatus          0 = Paused, 1 = Active
+ *
+ * `Shareholder` is `{ address: pubkey, share_bps: u16 }`.
+ */
 export async function readSharingConfig(
   connection: Connection,
   mint: PublicKey
 ): Promise<SharingConfigView> {
   const info = await connection.getAccountInfo(sharingConfigPda(mint));
-  if (!info) return { exists: false, adminRevoked: false, shareholders: [] };
+  if (!info) {
+    return {
+      exists: false,
+      admin: null,
+      adminRevoked: false,
+      status: "unknown",
+      shareholders: [],
+    };
+  }
 
-  // Layout after the 8-byte discriminator, transcribed from pump_fees.json:
-  //   version u8 | admin Pubkey | admin_revoked bool | mint Pubkey
-  //   | shareholder_count u8 | [ (Pubkey, u16) ; count ]
   const d = info.data;
   let o = 8;
-  o += 1; // version
-  o += 32; // admin
-  const adminRevoked = d[o] === 1;
-  o += 1;
+  o += 8; // timestamp
   o += 32; // mint
-  const count = d[o];
-  o += 1;
+  o += 32; // bonding_curve
+  const hasPool = d[o] === 1;
+  o += 1 + (hasPool ? 32 : 0);
+  o += 32; // sharing_config
+  const admin = new PublicKey(d.subarray(o, o + 32)).toBase58();
+  o += 32;
+
+  const count = d.readUInt32LE(o);
+  o += 4;
 
   const shareholders: { address: string; shareBps: number }[] = [];
   for (let i = 0; i < count && o + 34 <= d.length; i++) {
@@ -240,5 +280,21 @@ export async function readSharingConfig(
     o += 34;
   }
 
-  return { exists: true, adminRevoked, shareholders };
+  const statusByte = o < d.length ? d[o] : -1;
+  const status =
+    statusByte === 0 ? "Paused" : statusByte === 1 ? "Active" : "unknown";
+
+  // There is no explicit `admin_revoked` flag. pump.fun's docs say
+  // `update_fee_shares_v2` "revokes further admin updates", and clearing the
+  // admin to the default pubkey is the conventional way to express that — but
+  // we have not confirmed the mechanism against a live account. The Verify page
+  // therefore shows the actual admin rather than asserting a verdict it cannot
+  // justify, and the throwaway-coin rehearsal is where this gets settled.
+  return {
+    exists: true,
+    admin,
+    adminRevoked: admin === ZERO_PUBKEY,
+    status,
+    shareholders,
+  };
 }

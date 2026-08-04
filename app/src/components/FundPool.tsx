@@ -1,7 +1,7 @@
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
 import { useCallback, useEffect, useState } from "react";
-import { SEEDS, TOKEN_DECIMALS, pda } from "../config";
+import { SEEDS, pda } from "../config";
 import { fmtSol } from "../format";
 import {
   NATIVE_MINT,
@@ -97,7 +97,7 @@ export function FundPool() {
 
       // 1. If the coin has graduated, sweep AMM fees back to the curve vault.
       if ((pending?.amm ?? 0n) > 0n) {
-        tx.add(transferCreatorFeesToPumpIx(mint, sharingConfigPda(mint)));
+        tx.add(transferCreatorFeesToPumpIx(publicKey, sharingConfigPda(mint)));
       }
 
       // 2. Pay the frozen shareholder list — our vault is one of them.
