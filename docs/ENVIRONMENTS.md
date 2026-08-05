@@ -109,18 +109,22 @@ Firebase Console → **Upgrade** → Blaze, attach the billing account holding y
 credits. Set a budget alert while you are there; it costs nothing and removes
 the background worry.
 
-Then enable the five services a 2nd-gen function is built and run on. The
+Then enable the services a 2nd-gen function is built, stored and run on. The
 deploy service account deliberately cannot do this itself — enabling APIs is an
 owner-level action, and granting CI that power to save one command is a bad
 trade. Run it once, as yourself, in Cloud Shell:
 
 ```bash
-gcloud services enable artifactregistry.googleapis.com cloudfunctions.googleapis.com cloudbuild.googleapis.com run.googleapis.com eventarc.googleapis.com --project=influential-bit-411408
+gcloud services enable artifactregistry.googleapis.com cloudfunctions.googleapis.com cloudbuild.googleapis.com run.googleapis.com eventarc.googleapis.com firebaseextensions.googleapis.com pubsub.googleapis.com storage.googleapis.com storage-api.googleapis.com logging.googleapis.com iam.googleapis.com cloudbilling.googleapis.com cloudresourcemanager.googleapis.com serviceusage.googleapis.com firebase.googleapis.com firebasehosting.googleapis.com --project=influential-bit-411408
 ```
 
-Skip this and the first staging deploy fails at `Permissions denied enabling
-artifactregistry.googleapis.com` — the CLI tries to enable them for you and is
-correctly refused.
+That list is longer than it looks like it should be, and it is deliberate. The
+CLI checks its prerequisites in stages, so a short list buys you one further
+step and then another `Permissions denied enabling …` on a service you hadn't
+heard of. Enabling all of them up front costs nothing — an enabled-but-unused
+API is not billed — and turns a sequence of failed deploys into one command.
+`cloudbilling` is the surprising one: the CLI reads the project's billing state
+to decide whether 2nd-gen functions are permitted at all.
 
 ### 3. About the `.web.app` addresses
 

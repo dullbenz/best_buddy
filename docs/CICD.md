@@ -101,30 +101,40 @@ build `main` or `develop` while any placeholder survives.
 
 ## 3. Create the deploy service account
 
-This is the credential GitHub uses to publish. Easiest route:
+This is the credential GitHub uses to publish. Do it in **Cloud Shell** (the
+`>_` icon in the Cloud Console) — it is already authenticated as you, and the
+console's own IAM form is easy to get wrong:
 
 ```bash
-npm install -g firebase-tools && firebase login && firebase init hosting:github
+P=influential-bit-411408; SA=github-deploy@$P.iam.gserviceaccount.com; gcloud iam service-accounts create github-deploy --display-name="GitHub Actions deploy" --project=$P; for R in firebase.admin cloudfunctions.admin iam.serviceAccountUser artifactregistry.admin run.admin cloudbuild.builds.editor; do gcloud projects add-iam-policy-binding $P --member="serviceAccount:$SA" --role="roles/$R" --condition=None -q >/dev/null; done; gcloud iam service-accounts keys create ~/sa-key.json --iam-account=$SA && cloudshell download ~/sa-key.json
 ```
 
-When prompted, point it at your GitHub repo. It creates the service account and
-sets the `FIREBASE_SERVICE_ACCOUNT` secret for you.
+Then, locally:
 
-It may also offer to write its own workflow files — **decline**, or let it and
-then delete what it adds. The workflows in `.github/workflows/` already handle
-this and include the safety checks.
+```bash
+gh secret set FIREBASE_SERVICE_ACCOUNT < ~/Downloads/sa-key.json && rm ~/Downloads/sa-key.json
+```
 
-<details>
-<summary>Manual route, if you prefer not to use the CLI</summary>
+And back in Cloud Shell, remove its copy too — a private key should not outlive
+the minute it was needed:
 
-In Google Cloud Console → IAM → Service Accounts → Create:
+```bash
+shred -u ~/sa-key.json
+```
 
-- Role: **Firebase Hosting Admin**
-- Create a JSON key, download it
-- Paste the entire file contents as the GitHub secret `FIREBASE_SERVICE_ACCOUNT`
-- Delete the downloaded file afterwards
+**Why six roles and not just Firebase Hosting Admin.** Hosting Admin deploys
+production, and nothing else. Staging's basic-auth gate is a 2nd-gen Cloud
+Function, and those are Cloud Run services built by Cloud Build from a container
+in Artifact Registry — so a deploy touches four more products, plus
+`iam.serviceAccountUser` to act as the function's own runtime identity.
 
-</details>
+Note what is *not* in the list: permission to enable APIs. CI should not be able
+to turn on billable Google Cloud services by itself. That is a one-time owner
+action instead — see [ENVIRONMENTS.md](./ENVIRONMENTS.md) §2.
+
+> The `firebase init hosting:github` shortcut also exists, but it provisions
+> only Hosting permissions and offers to write its own workflow files, which
+> would overwrite the ones here and their safety checks.
 
 ---
 
