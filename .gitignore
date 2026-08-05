@@ -17,4 +17,11 @@ app/dist/
 # the staging password. Neither belongs in git.
 functions/node_modules/
 functions/public/
-functions/.env
+
+# Environment files anywhere in the tree. app/.env.local holds a live Helius
+# key and functions/.env holds the staging password. Only the .example
+# templates are tracked — they carry placeholders, never real values.
+.env
+.env.*
+!.env.example
+!*.env.example
