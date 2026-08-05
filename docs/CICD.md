@@ -158,9 +158,19 @@ Under **Variables** (visible in logs — never put a secret here):
 
 > **On `VITE_RPC_URL`:** anything in a frontend build is public by definition —
 > anyone can read the key out of the JavaScript bundle. That is normal and
-> unavoidable for a browser dApp. Protect it at the provider instead: in Helius,
-> restrict the key to your domain and set a rate limit. Do not reuse the key
-> your deploy scripts use.
+> unavoidable for a browser dApp. Protect it at the provider instead.
+>
+> Done, for this project: Helius → RPCs → **RPC Access Control Rules** →
+> Allowed Domains is set to `mybestbuddy.fun`, `www.mybestbuddy.fun` and the
+> ngrok dev domain. Any other Origin gets `Forbidden`. Verify it in one line:
+>
+> ```bash
+> curl -sS -X POST -H 'Content-Type: application/json' -H 'Origin: https://attacker.example.com' -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' "$VITE_RPC_URL"
+> ```
+>
+> That must print `Forbidden`. If it prints `ok`, the lock is off and the key is
+> free for anyone to spend. Local dev works through the tunnel — see
+> [ENVIRONMENTS.md](./ENVIRONMENTS.md) "Local development against mainnet".
 
 The deploy workflow fails fast if `VITE_RPC_URL` is unset, rather than shipping
 a site that 403s for every visitor.

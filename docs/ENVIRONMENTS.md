@@ -180,6 +180,51 @@ not the repo or a public channel.
 
 ---
 
+## Local development against mainnet
+
+The production Helius key is compiled into the public JS bundle — that is
+unavoidable for a `VITE_` variable — so it is locked at Helius to the origins
+that are allowed to use it. Requests from anywhere else get `Forbidden`.
+
+| Allowed origin | Why |
+|---|---|
+| `mybestbuddy.fun` | production |
+| `www.mybestbuddy.fun` | production, www |
+| `ryleigh-companyless-outbully.ngrok-free.dev` | local dev and shared test links |
+
+**`localhost` is not on that list and cannot be.** Helius rejects `localhost` as
+an allowed-domain value outright. The tempting workaround — a second,
+unrestricted key for local use — is worse than it looks: an unrestricted key is
+exactly the thing the lock exists to prevent, and it tends to end up pasted
+somewhere public.
+
+So route the dev server through the tunnel instead. Two terminals, from `app/`:
+
+```bash
+npm run dev
+```
+
+```bash
+npm run tunnel
+```
+
+Then open **https://ryleigh-companyless-outbully.ngrok-free.dev** — not
+`localhost:5173`. The page still comes off your machine with hot reload intact;
+only the Origin differs, and that is the one thing Helius checks.
+
+The domain is permanently assigned to the account and survives restarts, which
+is why it can be allowlisted at all. Two things follow from being on ngrok's
+free tier: visitors see a one-time interstitial they must click through, and
+the quota is 20k requests and 1GB a month — ample for development, not a way to
+host anything.
+
+`vite.config.ts` lists `.ngrok-free.dev` under `server.allowedHosts`; without
+that Vite's DNS-rebinding protection answers the tunnel with a 403.
+
+Staging needs none of this — it runs on devnet, whose public RPC takes no key.
+
+---
+
 ## Verifying staging works
 
 ```bash
