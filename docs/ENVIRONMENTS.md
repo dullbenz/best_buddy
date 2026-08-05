@@ -213,13 +213,36 @@ Then open **https://ryleigh-companyless-outbully.ngrok-free.dev** — not
 `localhost:5173`. The page still comes off your machine with hot reload intact;
 only the Origin differs, and that is the one thing Helius checks.
 
-**If the URL returns 404, read the page — it is almost certainly
-`ERR_NGROK_3200, endpoint offline`, which ngrok serves with a 404 status.** It
-means no agent is connected: `npm run tunnel` is not running, or it was started
-and later killed. It is not a routing or Vite problem, and restarting the tunnel
-fixes it. The same page appears if the agent is connected but too slow to
-answer, which is why the script pins `--region eu`; the default `us` region put
-a 2.4-second leg in front of every request and made the tunnel look dead.
+### When the tunnel misbehaves
+
+Three failures look alarming and all mean something mundane.
+
+**A 404 from the tunnel URL.** Read the page: it is almost certainly
+`ERR_NGROK_3200, endpoint offline`, which ngrok serves *with a 404 status*. No
+agent is connected — `npm run tunnel` is not running, or its terminal was
+closed. It is not a routing fault and not a Vite fault. Restart the tunnel.
+
+**`ERR_NGROK_334: the endpoint is already online`.** Another agent already holds
+the domain, usually one you forgot in another terminal. Only one agent may serve
+a given endpoint. Find and stop it:
+
+```bash
+pkill -f "ngrok http"
+```
+
+**`Port 5173 is in use, trying another one...`.** Vite silently moves to 5174,
+but the tunnel still points at 5173, so you end up tunnelling a stale server or
+nothing at all. Kill the old one and restart — never leave it on 5174:
+
+```bash
+pkill -f vite
+```
+
+Start the dev server **before** the tunnel, and check the port really is 5173.
+
+Latency through the free tier is roughly one to one and a half seconds per
+request, which is normal and not worth chasing. Region selection is automatic —
+the old `--region` flag is deprecated and changes nothing.
 
 The domain is permanently assigned to the account and survives restarts, which
 is why it can be allowlisted at all. Two things follow from being on ngrok's

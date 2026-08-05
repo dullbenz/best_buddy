@@ -6,7 +6,7 @@
   "scripts": {
     "copy-idl": "node scripts/copy-idl.mjs",
     "dev": "npm run copy-idl && vite",
-    "tunnel": "ngrok http 5173 --region eu --url https://ryleigh-companyless-outbully.ngrok-free.dev",
+    "tunnel": "ngrok http 5173 --url https://ryleigh-companyless-outbully.ngrok-free.dev",
     "build": "npm run copy-idl && tsc --noEmit && vite build",
     "preview": "vite preview"
   },
