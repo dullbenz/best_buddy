@@ -59,6 +59,12 @@ Consequences worth knowing before you set it up:
 - **Basic auth is not a security boundary.** It keeps the devnet preview from
   being stumbled upon, indexed, or mistaken for the real thing. That is all it
   is for. Never put anything behind it that would matter if the password leaked.
+- **Staging's Hosting `public` directory must stay empty.** It points at
+  `staging-empty/`, not `app/dist`. Hosting serves a matching static file
+  *before* it applies `rewrites`, so a populated directory would serve `/` and
+  every asset around the gate — a site that looks protected and is not. The
+  build reaches users inside the function bundle instead, copied to
+  `functions/public` by the workflow.
 
 ---
 
@@ -97,11 +103,24 @@ That writes the `targets` block in `.firebaserc`. CI refuses to build `main` or
 `develop` while any `REPLACE_WITH_YOUR_*` placeholder survives there, so it will
 tell you if a target was missed.
 
-### 2. Upgrade to Blaze and enable functions
+### 2. Upgrade to Blaze and enable the APIs
 
 Firebase Console → **Upgrade** → Blaze, attach the billing account holding your
 credits. Set a budget alert while you are there; it costs nothing and removes
 the background worry.
+
+Then enable the five services a 2nd-gen function is built and run on. The
+deploy service account deliberately cannot do this itself — enabling APIs is an
+owner-level action, and granting CI that power to save one command is a bad
+trade. Run it once, as yourself, in Cloud Shell:
+
+```bash
+gcloud services enable artifactregistry.googleapis.com cloudfunctions.googleapis.com cloudbuild.googleapis.com run.googleapis.com eventarc.googleapis.com --project=influential-bit-411408
+```
+
+Skip this and the first staging deploy fails at `Permissions denied enabling
+artifactregistry.googleapis.com` — the CLI tries to enable them for you and is
+correctly refused.
 
 ### 3. About the `.web.app` addresses
 

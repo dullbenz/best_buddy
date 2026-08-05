@@ -28,10 +28,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      # functions/ needs its own install: the Firebase CLI requires the trigger
+      # to load locally before it will upload anything.
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          cd app && npm install --legacy-peer-deps
+          (cd app && npm install --legacy-peer-deps)
+          (cd functions && npm install)
 
       - name: Build against devnet
         working-directory: app
