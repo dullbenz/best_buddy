@@ -213,6 +213,14 @@ Then open **https://ryleigh-companyless-outbully.ngrok-free.dev** — not
 `localhost:5173`. The page still comes off your machine with hot reload intact;
 only the Origin differs, and that is the one thing Helius checks.
 
+**If the URL returns 404, read the page — it is almost certainly
+`ERR_NGROK_3200, endpoint offline`, which ngrok serves with a 404 status.** It
+means no agent is connected: `npm run tunnel` is not running, or it was started
+and later killed. It is not a routing or Vite problem, and restarting the tunnel
+fixes it. The same page appears if the agent is connected but too slow to
+answer, which is why the script pins `--region eu`; the default `us` region put
+a 2.4-second leg in front of every request and made the tunnel look dead.
+
 The domain is permanently assigned to the account and survives restarts, which
 is why it can be allowlisted at all. Two things follow from being on ngrok's
 free tier: visitors see a one-time interstitial they must click through, and
