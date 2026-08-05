@@ -4,6 +4,8 @@
   "private": true,
   "description": "Four-bucket community distributor for the Buddy relaunch",
   "scripts": {
+    "dev": "npm --prefix app run dev",
+    "tunnel": "npm --prefix app run tunnel",
     "test": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
     "snapshot": "ts-node scripts/snapshot.ts",
     "verify-snapshot": "ts-node scripts/verify-snapshot.ts",

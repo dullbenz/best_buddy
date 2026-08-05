@@ -198,7 +198,8 @@ unrestricted key for local use — is worse than it looks: an unrestricted key i
 exactly the thing the lock exists to prevent, and it tends to end up pasted
 somewhere public.
 
-So route the dev server through the tunnel instead. Two terminals, from `app/`:
+So route the dev server through the tunnel instead. Two terminals, from the
+repo root (both scripts also exist in `app/`, and forward to the same place):
 
 ```bash
 npm run dev
