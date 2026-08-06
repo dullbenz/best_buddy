@@ -37,7 +37,7 @@ export function HowItWorks() {
           pump.fun, where almost nothing is.
         </p>
         <p>
-          A community takeover of the old token would still have paid him. So
+          A community takeover of the Legacy Buddy token would still have paid him. So
           this is a new token, and the difference is not that we are promising
           to behave better — it is that the rules are enforced by a program
           nobody can alter, including us. The story stays the same. What changes
@@ -83,7 +83,7 @@ export function HowItWorks() {
               </tr>
               <tr>
                 <td>4</td>
-                <td>The 2014 signer, and the dev</td>
+                <td>The 2014 signer, and the Token Creator</td>
                 <td>until 2030 / automatic</td>
                 <td>12-month streams</td>
               </tr>
@@ -100,7 +100,7 @@ export function HowItWorks() {
       </section>
 
       <section className="card">
-        <h2>If you held the old token</h2>
+        <h2>If you held the Legacy Buddy token</h2>
         <p>
           A snapshot was taken at a block that had <em>already passed</em> when
           it was announced, chosen for a documented reason rather than a
@@ -108,8 +108,8 @@ export function HowItWorks() {
         </p>
         <p className="muted">
           That ordering matters. Announcing a snapshot in advance tells the whole
-          market to go buy the old token and farm the airdrop — which would have
-          handed your restitution to speculators and paid the old creator's fees
+          market to go buy the Legacy Buddy token and farm the airdrop — which would have
+          handed your restitution to speculators and paid the original creator's fees
           on the way through.
         </p>
         <p>

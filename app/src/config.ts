@@ -185,12 +185,13 @@ export const TIERS = [
     id: 0,
     name: "Flexible",
     multiplier: "1.0x",
-    lock: "no lock",
-    tagline: "Leave whenever you like",
+    lock: "3 days to exit",
+    tagline: "Exit any day you choose — it takes 3 days to complete",
     perks: [
       "Earn a share of every reward, from day one",
       "Claim your rewards at any time",
-      "No penalty, ever — nothing to forfeit",
+      "Keeps earning during the 3-day exit",
+      "No penalty, ever — you always get 100% back",
     ],
     costs: [
       "No bonus: you earn the base rate only",

@@ -176,13 +176,23 @@ export function Staking() {
         <TierCards selected={tier} onSelect={setTier} />
 
         <p className="muted small">
-          <strong>About the 3-day cooldown on Flexible.</strong> Flexible has no
-          lock, but leaving is a two-step move: you request to unstake, wait
-          three days, then withdraw. Your tokens keep earning during the wait
-          and nothing is at risk — you can complete the withdrawal at any point
-          afterwards. It exists so nobody can watch a large reward land, stake
-          for a moment to capture a slice of it, and leave in the same block.
-          Without it, the people who stay would be diluted by people who were
+          <strong>Is Flexible really a lockup?</strong> Partly, and it is fairer
+          to say so than to hide behind the word "flexible". Leaving takes three
+          days: you request to unstake, wait, then withdraw. So you cannot exit
+          within the same day.
+          <br />
+          What makes it different from the locked tiers is that{" "}
+          <strong>nothing is ever at risk and nothing is forfeited.</strong> You
+          get 100% of your tokens and all your base rewards, always. Your stake
+          keeps earning throughout the three days, the clock starts the moment
+          you ask rather than the moment you staked, and once it elapses you can
+          withdraw whenever suits you — there is no window to miss. Break a
+          locked tier early and you lose the whole bonus plus 10% of your stake;
+          Flexible has no equivalent, because there is nothing to break.
+          <br />
+          The delay exists so nobody can watch a large reward land, stake for a
+          moment to capture a slice of it, and leave in the same block. Without
+          it, everyone who actually stays would be diluted by people who were
           never really there.
         </p>
 
