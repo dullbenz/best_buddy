@@ -75,7 +75,7 @@ Timings are for a spoken take. Keep it plain; the story does the work.
 > In 2014 someone signed a message on Bitcoin. It became a memecoin. Then the
 > dev dumped it and walked away — and every trade after still paid him.
 >
-> So the community rebuilt it. Old holders can claim, paid instantly, no lockup.
+> So the community rebuilt it. Legacy holders can claim, paid instantly, no lockup.
 > Anything unclaimed goes to the community, not to us. And the dev's own tokens
 > are locked in the contract for a year.
 >
@@ -107,7 +107,7 @@ So: new token, same story, rules enforced by a contract instead of promises.
 **3/**
 Four buckets.
 
-• Old holders — 30 days to claim, paid instantly, no lockup
+• Legacy holders — 30 days to claim, paid instantly, no lockup
 • Influencers — 72 hours, then a 30-day stream
 • The 2014 signer — reserved until 2030
 • The dev — 12-month stream behind a cliff
@@ -116,7 +116,7 @@ Four buckets.
 One rule ties them together: anything unclaimed becomes community staking
 rewards.
 
-Influencers who don't show. Old holders who never return. The 2014 allocation
+Influencers who don't show. Legacy holders who never return. The 2014 allocation
 if nobody claims it. Tokens forfeited by broken staking locks.
 
 None of it comes back to us.

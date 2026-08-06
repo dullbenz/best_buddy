@@ -209,12 +209,14 @@ site is live and talking to the chain.
 The claim page reads two files from the deployed site:
 
 - `app/public/proofs/old-holders.json`
+- `app/public/snapshot/holders.csv`, `excluded.csv`, `manifest.json` — the
+  Claims and Verify tabs link to these directly, so they 404 if not copied
 - `app/public/proofs/influencers.json`
 
 After you run the snapshot:
 
 ```bash
-cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json
+cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && cp snapshot/holders.csv snapshot/excluded.csv snapshot/manifest.json app/public/snapshot/
 ```
 
 Commit and push — CI validates the JSON and the deploy publishes them.

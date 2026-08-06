@@ -91,7 +91,7 @@ The domain lock on the key does not interfere: it matches on the browser
 the free tier will refuse — fund the wallet first, via `solana airdrop` or
 [faucet.solana.com](https://faucet.solana.com), then point the script at Helius.
 
-It creates a mock token, invents three old holders and two influencers, builds
+It creates a mock token, invents three Legacy Buddy holders and two influencers, builds
 real Merkle trees from them, then walks the whole sequence printing what
 happened at each step.
 

@@ -1,3 +1,5 @@
+import { LEGACY_TOKEN } from "../config";
+
 /**
  * The plain-English explainer.
  *
@@ -17,11 +19,32 @@ export function HowItWorks() {
           he had walked away from.
         </p>
         <p>
-          A community takeover of that token would still have paid him. So this
-          is a new token, and the difference is not that we are promising to
-          behave better — it is that the rules are enforced by a program nobody
-          can alter, including us.
+          <strong>
+            The idea was never the problem. The stewardship was.
+          </strong>{" "}
+          A message signed onto the Bitcoin blockchain in 2014, turned into a
+          memecoin a decade later — that is a genuinely good story, the kind
+          that does not need inventing and cannot be copied. It had a real
+          origin, a real date, and a real key behind it. What it never had was
+          anyone willing to keep showing up for it. It did not fail because the
+          premise was weak; it failed because the person holding it left, and
+          left in a way that made it impossible for anyone else to pick up.
         </p>
+        <p>
+          That is the entire premise of this project: take the story that
+          deserved better and give it the structure it never had. Not a quick
+          relaunch — something that can still be standing in five years, on
+          pump.fun, where almost nothing is.
+        </p>
+        <p>
+          A community takeover of the old token would still have paid him. So
+          this is a new token, and the difference is not that we are promising
+          to behave better — it is that the rules are enforced by a program
+          nobody can alter, including us. The story stays the same. What changes
+          is that it no longer depends on anyone's good intentions.
+        </p>
+
+        <LegacyToken />
       </section>
 
       <section className="card">
@@ -48,7 +71,7 @@ export function HowItWorks() {
               </tr>
               <tr>
                 <td>2</td>
-                <td>Old Buddy holders</td>
+                <td>Legacy Buddy holders</td>
                 <td>30 days</td>
                 <td>instantly, no lockup</td>
               </tr>
@@ -70,7 +93,7 @@ export function HowItWorks() {
         <p>
           <strong>One rule ties them together: anything unclaimed becomes
           staking rewards for the community.</strong> Influencers who never turn
-          up, old holders who never come back, the 2014 allocation if nobody
+          up, Legacy Buddy holders who never come back, the 2014 allocation if nobody
           claims it, tokens forfeited by people who break staking locks — all of
           it flows to the same place, and none of it comes back to us.
         </p>
@@ -111,7 +134,7 @@ export function HowItWorks() {
           and no ability to stop it.
         </p>
         <p className="muted">
-          The remaining 10% of fees goes to the developer. That is the only
+          The remaining 10% of fees goes to the Token Creator. That is the only
           ongoing income from this project, and it is stated here so nobody has
           to guess.
         </p>
@@ -161,7 +184,7 @@ export function HowItWorks() {
       <section className="card">
         <h2>What stops us from doing what he did</h2>
         <p>
-          <strong>The developer's tokens are locked in the contract</strong>,
+          <strong>The Token Creator's tokens are locked in the contract</strong>,
           released over twelve months behind a cliff. There is no wallet holding
           a pile that could be sold tomorrow.
         </p>
@@ -203,6 +226,47 @@ export function HowItWorks() {
           </li>
         </ul>
       </section>
+    </div>
+  );
+}
+
+/**
+ * The old token, named and linked.
+ *
+ * Naming it is not a risk to manage — it is the evidence. Everything claimed
+ * about the abandonment is visible in that token's own history, so the links
+ * go to the places people already trust rather than to a screenshot of ours.
+ */
+function LegacyToken() {
+  return (
+    <div className="files">
+      <div className="files-head">The original token</div>
+      <div className="file-row">
+        <div className="file-meta">
+          <span className="mono file-name">{LEGACY_TOKEN.mint}</span>
+          <span className="file-desc">
+            The abandoned Buddy mint. This is the token the snapshot was taken
+            from — not the one this site distributes.
+          </span>
+        </div>
+      </div>
+      {LEGACY_TOKEN.links.map((l) => (
+        <div className="file-row" key={l.label}>
+          <div className="file-meta">
+            <span className="file-name">{l.label}</span>
+            <span className="file-desc">{l.note}</span>
+          </div>
+          <div className="file-actions">
+            <a href={l.url} target="_blank" rel="noreferrer noopener">
+              open
+            </a>
+          </div>
+        </div>
+      ))}
+      <p className="file-foot">
+        Check the sell history against the launch date yourself. Nothing on this
+        page about the old token needs to be taken on our word.
+      </p>
     </div>
   );
 }

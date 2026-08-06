@@ -1,4 +1,5 @@
 import { BN } from "@coral-xyz/anchor";
+import bs58 from "bs58";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
@@ -6,7 +7,9 @@ import { useEffect, useState } from "react";
 import {
   INFLUENCER_PROOFS_URL,
   OLD_HOLDER_PROOFS_URL,
+  INFLUENCER_TERMS,
   SEEDS,
+  SNAPSHOT_FILES,
   pda,
 } from "../config";
 import { countdown, fmtTokens } from "../format";
@@ -28,7 +31,7 @@ async function loadProofs(url: string): Promise<ProofFile> {
 }
 
 export function Claims() {
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey, sendTransaction, signMessage } = useWallet();
   const { connection } = useConnection();
   const program = useProgram();
   const { config, refresh } = useDistributor();
@@ -38,6 +41,8 @@ export function Claims() {
   const [infProofs, setInfProofs] = useState<ProofFile | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Base58 of the wallet's signature over INFLUENCER_TERMS. Gates the claim.
+  const [termsSig, setTermsSig] = useState<string | null>(null);
 
   useEffect(() => {
     loadProofs(OLD_HOLDER_PROOFS_URL).then(setOldProofs).catch(() => setOldProofs({}));
@@ -103,6 +108,22 @@ export function Claims() {
       refresh();
     } catch (e: any) {
       setStatus(`Failed: ${e?.message ?? String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Sign the published terms. Not a transaction — no fee, nothing on chain. */
+  async function signTerms() {
+    if (!signMessage) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const sig = await signMessage(new TextEncoder().encode(INFLUENCER_TERMS));
+      setTermsSig(bs58.encode(sig));
+      setStatus("Terms signed. You can claim now.");
+    } catch (e: any) {
+      setStatus(`Not signed: ${e?.message ?? String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -177,7 +198,18 @@ export function Claims() {
   return (
     <div className="stack">
       <section className="card">
-        <h2>Old Buddy holder</h2>
+        <h2>Legacy Buddy holders</h2>
+        <p className="muted">
+          If you held the <strong>original</strong> Buddy token when its creator
+          walked away, this is your restitution. A snapshot of every holder was
+          taken at a fixed moment in the past, so nothing you do now can change
+          what you are owed — and buying the old token today earns nothing.
+        </p>
+        <p className="muted small">
+          Paid in full the moment you claim. No lockup, no vesting, no strings:
+          sell it the same minute if you want to.
+        </p>
+
         {oldProofs === null ? (
           <p className="muted">Checking the published snapshot…</p>
         ) : oldEntry ? (
@@ -187,7 +219,9 @@ export function Claims() {
               <strong>{fmtTokens(oldEntry.amount)}</strong> tokens.
             </p>
             <p className="muted small">
-              Paid immediately, no lockup. {oldLeft ? `Window closes in ${oldLeft}.` : "The window has closed."}
+              {oldLeft ? `Window closes in ${oldLeft}.` : "The window has closed."}{" "}
+              Anything unclaimed when it closes becomes staking rewards for the
+              community — it does not come back to us.
             </p>
             <button className="primary" disabled={busy || !oldLeft} onClick={claimOldHolder}>
               {oldLeft ? "Claim" : "Window closed"}
@@ -195,15 +229,40 @@ export function Claims() {
           </>
         ) : (
           <p className="muted">
-            This wallet is not in the old-holder snapshot. If you believe that is
-            wrong, check the published CSV — it is reproducible from public chain
-            data.
+            <strong>This wallet is not in the snapshot.</strong> That means it
+            held no Buddy at the snapshot moment, or it was excluded — the
+            excluded list below gives a reason for every address on it. The
+            whole snapshot is published, so you can check rather than ask.
           </p>
         )}
+
+        <SnapshotFiles />
       </section>
 
       <section className="card">
         <h2>Influencer allocation</h2>
+        <p className="muted">
+          A named list of people asked to talk about the project publicly.
+          Claiming pays <strong>nothing up front</strong> — the tokens are
+          released gradually across 30 days instead of arriving in one lump.
+        </p>
+        <p className="muted small">
+          To be exact about what that does and does not do: it removes the
+          incentive to claim and dump on day one, and it means anyone promoting
+          this is still holding while they do it. It is <em>not</em> a
+          performance condition. The contract cannot tell whether you posted,
+          and there is no instruction that cancels a stream — so someone who
+          claims and never says a word still collects the full amount by day 30.
+          The commitment below is a matter of your word and your reputation, not
+          of code.
+        </p>
+        <p className="muted small">
+          The window is 72 hours from launch. Everyone on this list was told in
+          writing to disclose that they were compensated.
+        </p>
+
+        <StreamExplainer />
+
         {infProofs === null ? (
           <p className="muted">Checking the published list…</p>
         ) : infEntry ? (
@@ -213,12 +272,44 @@ export function Claims() {
               <strong>{fmtTokens(infEntry.amount)}</strong> tokens.
             </p>
             <p className="muted small">
-              Claiming opens a 30-day stream rather than transferring at once.{" "}
-              {infLeft ? `You have ${infLeft} left.` : "The 72-hour window has closed."}
+              {infLeft ? `You have ${infLeft} left.` : "The 72-hour window has closed."}{" "}
+              Unclaimed allocations become staking rewards for the community.
             </p>
-            <button className="primary" disabled={busy || !infLeft} onClick={claimInfluencer}>
-              {infLeft ? "Claim and open stream" : "Window closed"}
-            </button>
+
+            <details className="terms" open={!termsSig}>
+              <summary>The terms you are agreeing to</summary>
+              <pre className="terms-body">{INFLUENCER_TERMS}</pre>
+            </details>
+
+            {termsSig ? (
+              <p className="muted small">
+                ✓ Terms signed by this wallet. The signature is your own record
+                too — keep it.
+              </p>
+            ) : (
+              <p className="muted small">
+                Sign the terms before claiming. This costs nothing and is not a
+                transaction; it is a message signed with your key, proving these
+                terms were shown and accepted. The contract cannot read a
+                promise, so this is evidence rather than enforcement — but it is
+                evidence tied to the same key that receives the tokens.
+              </p>
+            )}
+
+            <div className="button-row">
+              {!termsSig && (
+                <button disabled={busy || !infLeft || !signMessage} onClick={signTerms}>
+                  {signMessage ? "Sign the terms" : "Wallet cannot sign messages"}
+                </button>
+              )}
+              <button
+                className="primary"
+                disabled={busy || !infLeft || !termsSig}
+                onClick={claimInfluencer}
+              >
+                {infLeft ? "Claim and open stream" : "Window closed"}
+              </button>
+            </div>
           </>
         ) : (
           <p className="muted">This wallet is not on the influencer list.</p>
@@ -249,6 +340,78 @@ export function Claims() {
       )}
 
       {status && <div className="card status">{status}</div>}
+    </div>
+  );
+}
+
+/**
+ * Links to the raw snapshot.
+ *
+ * "Check the published CSV" is only meaningful if the CSV is one click away,
+ * so both actions are offered: view it in the browser to settle a question now,
+ * download it to rebuild the Merkle tree and check the root yourself.
+ */
+function SnapshotFiles() {
+  return (
+    <div className="files">
+      <div className="files-head">The published snapshot</div>
+      {SNAPSHOT_FILES.map((f) => (
+        <div className="file-row" key={f.name}>
+          <div className="file-meta">
+            <span className="mono file-name">{f.name}</span>
+            <span className="file-desc">{f.description}</span>
+          </div>
+          <div className="file-actions">
+            <a href={f.url} target="_blank" rel="noreferrer noopener">
+              view
+            </a>
+            <a href={f.url} download>
+              download
+            </a>
+          </div>
+        </div>
+      ))}
+      <p className="file-foot">
+        The list is built only from public Solana history, so anyone can rebuild
+        it and get the same answer. Rebuild the tree from{" "}
+        <span className="mono">holders.csv</span> and its root must equal the one
+        stored on chain — the <strong>Verify</strong> tab has the command.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * What a "30-day stream" actually is, in mechanical terms.
+ *
+ * People reasonably assume a stream is a promise someone keeps. It is not —
+ * it is arithmetic in an account nobody can edit, so it is worth showing the
+ * arithmetic.
+ */
+function StreamExplainer() {
+  return (
+    <div className="note">
+      <strong>What "released over 30 days" actually means.</strong> Claiming does
+      not send you tokens. It creates a <em>stream account</em> holding four
+      numbers: the total, the start time, the end time, and how much you have
+      already withdrawn.
+      <br />
+      Whenever you press withdraw, the contract works out how much time has
+      passed as a fraction of the 30 days, multiplies that by your total,
+      subtracts what you already took, and sends the difference. After ten days
+      you can take about a third; after thirty, all of it.
+      <br />
+      Withdrawing is a normal transaction you send whenever you like — daily,
+      once at the end, or never. Nothing is automatic and nothing expires: a
+      matured stream stays yours indefinitely.
+      <br />
+      <span className="muted">
+        The tokens stay in the contract's vault until each withdrawal, and no
+        instruction exists to release them faster — not for you, not for us. The
+        stream is keyed to your wallet, so nobody else can withdraw it. Equally,
+        there is no instruction to cancel or claw one back: once opened, it runs
+        to completion whatever anyone thinks of you afterwards.
+      </span>
     </div>
   );
 }

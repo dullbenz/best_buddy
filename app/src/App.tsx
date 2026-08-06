@@ -1,5 +1,6 @@
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useState } from "react";
+import { CLUSTER, IS_MAINNET } from "./config";
 import { Claims } from "./components/Claims";
 import { Dashboard } from "./components/Dashboard";
 import { FundPool } from "./components/FundPool";
@@ -35,6 +36,13 @@ export function App() {
           </button>
         ))}
       </nav>
+
+      {!IS_MAINNET && (
+        <div className="cluster-banner">
+          Test network ({CLUSTER}) — these balances are not real, and the tokens
+          have no value. Explorer links point at {CLUSTER}.
+        </div>
+      )}
 
       <main>
         {tab === "dashboard" && <Dashboard />}

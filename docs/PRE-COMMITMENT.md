@@ -29,7 +29,7 @@ claim opens.
 | Bucket | Who | Window | How it pays |
 |---|---|---|---|
 | 1 | Community stakers | perpetual | pro-rata, continuously |
-| 2 | Old Buddy holders | 30 days | instantly, no lockup |
+| 2 | Legacy Buddy holders | 30 days | instantly, no lockup |
 | 3 | Influencers | 72 hours | 30-day stream on claim |
 | 4a | The original 2014 Bitcoin signer | until 2030-12-31 | 12-month stream |
 | 4b | The new dev | automatic | 12-month stream behind a cliff |
@@ -44,7 +44,7 @@ up in bucket 1.
 
 | Bucket | Amount | Share |
 |---|---|---|
-| 2 — old holders | `<amount>` | `<55%>` |
+| 2 — Legacy Buddy holders | `<amount>` | `<55%>` |
 | 3 — influencers | `<amount>` | `<15%>` |
 | 4a — original signer | `<amount>` | `<20%>` |
 | 4b — new dev | `<amount>` | `<10%>` |
@@ -55,7 +55,7 @@ generates and by what other people forfeit, not by a pre-mine.
 
 ---
 
-## Bucket 2 — old Buddy holders
+## Bucket 2 — Legacy Buddy holders
 
 Snapshot taken at slot `<slot>` (`<UTC time>`), chosen **retroactively** — the
 block of `<the documented event: e.g. the creator's final sell transaction>`,

@@ -1,6 +1,6 @@
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react";
-import { PROGRAM_ID, SEEDS, pda } from "../config";
+import { PROGRAM_ID, SEEDS, pda, solscanAccount } from "../config";
 import { fmtTokens } from "../format";
 import { SharingConfigView, readSharingConfig, sharingConfigPda } from "../pumpfun";
 import { useDistributor } from "../useDistributor";
@@ -99,14 +99,14 @@ export function Verify() {
     // `solana account` returns raw base64, which proves nothing to a reader.
     // Solscan decodes Anchor accounts against the published IDL, so the flag is
     // legible without running anything.
-    link: `https://solscan.io/account/${configPda}#anchorData`,
+    link: `${solscanAccount(configPda)}#anchorData`,
     linkLabel: "Decode the config account on Solscan",
   });
 
   // 3 — the vault covers everything still owed.
   //
   // Deliberately measured against *outstanding* obligations rather than the
-  // original committed total: the vault legitimately shrinks as old holders
+  // original committed total: the vault legitimately shrinks as Legacy Buddy holders
   // claim, so comparing to the launch-day total would report a false failure
   // the moment claims started. This is a lower bound — the vault also holds
   // stream remainders we cannot enumerate from here — so it must always hold.
@@ -138,24 +138,24 @@ export function Verify() {
     command: `spl-token balance --address ${vaultPda}`,
   });
 
-  // 4 — the dev cannot dump.
+  // 4 — the Token Creator cannot dump.
   checks.push({
-    title: "The developer's tokens are locked in a stream",
+    title: "The Token Creator's tokens are locked in a stream",
     status: loading || !config ? "pending" : config.devStreamCreated ? "pass" : "fail",
     detail: loading
       ? "reading the config…"
       : !config
       ? UNREADABLE
       : config.devStreamCreated
-      ? `${fmtTokens(config.devAllocation)} released linearly over 12 months behind a cliff. The dev wallet holds none of it.`
+      ? `${fmtTokens(config.devAllocation)} released linearly over 12 months behind a cliff. The Token Creator's wallet holds none of it.`
       : "The dev stream has not been created yet.",
     why:
-      "The previous token failed because its creator could sell whenever he liked. Here the developer's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate.",
+      "The original token failed because its creator could sell whenever he liked. Here the Token Creator's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate.",
   });
 
   // 5 — reproduce the snapshot.
   checks.push({
-    title: "The old-holder snapshot is reproducible from public data",
+    title: "The Legacy Buddy holder snapshot is reproducible from public data",
     status: "pending",
     detail:
       "Run the verifier against the published files. It rebuilds the Merkle tree from scratch and compares the root to what is committed on chain.",
@@ -191,9 +191,9 @@ export function Verify() {
         }. Status: ${sharing.status}.`,
     why:
       "pump.fun lets a fee split be set exactly once, after which it revokes the admin and the shares are permanent. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction — so the thing to check is not just the percentage but that the admin really is revoked.",
-    link: `https://solscan.io/account/${
+    link: solscanAccount(
       config ? sharingConfigPda(config.rewardMint).toBase58() : ""
-    }`,
+    ),
     linkLabel: "Inspect the fee-sharing config on Solscan",
   });
 
@@ -284,7 +284,7 @@ export function Verify() {
                   <td>{label}</td>
                   <td>
                     <a
-                      href={`https://solscan.io/account/${address}`}
+                      href={solscanAccount(String(address))}
                       target="_blank"
                       rel="noreferrer noopener"
                       className="mono"
@@ -303,10 +303,34 @@ export function Verify() {
         <section className="card">
           <h2>Where forfeited tokens went</h2>
           <p className="muted">
-            One rule covers everything unclaimed — expired influencer
-            allocations, the old-holder remainder, broken staking locks. It all
-            becomes rewards for the people who stayed. This counter only ever
-            goes up, and every increase is a transaction you can inspect.
+            One rule covers everything nobody takes, and all of it becomes
+            rewards for the people who stayed:
+          </p>
+          <ul className="muted small reasons">
+            <li>
+              <strong>Influencers who never claimed.</strong> The 72-hour window
+              closes and their allocation is gone.
+            </li>
+            <li>
+              <strong>The Legacy Buddy holder remainder.</strong> Whatever is
+              still unclaimed when the 30-day window closes.
+            </li>
+            <li>
+              <strong>Broken staking locks.</strong> If somebody picks a locked
+              tier — say 12 months at 3× — and then pulls their tokens out
+              early, they give up the entire bonus they had accrued plus 10% of
+              their stake. That is what "broken lock" means: a commitment ended
+              before its term. The penalty is not burned and does not come to
+              us; it is shared among the stakers who kept theirs.
+            </li>
+            <li>
+              <strong>The 2014 allocation</strong>, if nobody proves the key by
+              2030.
+            </li>
+          </ul>
+          <p className="muted small">
+            The counter only ever goes up, and every increase is a transaction
+            you can inspect.
           </p>
           <div className="stat-row">
             <div className="stat">

@@ -18,7 +18,7 @@ claim opens.
         ┌────────────────┬───────────┴────────┬──────────────────┐
         │                │                    │                  │
   Bucket 2         Bucket 3             Bucket 4a          Bucket 4b
-  old holders      influencers          2014 signer        new dev
+  Legacy Buddy holders      influencers          2014 signer        new dev
   30 days          72 hours             until 2030         automatic
   instant          30-day stream        12-mo stream       12-mo + cliff
 ```

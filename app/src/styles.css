@@ -360,3 +360,423 @@ footer {
 .prose li {
   margin-bottom: 10px;
 }
+
+/* ---- Dashboard: two-column bucket card, provenance block, callouts ---- */
+
+/* Bucket 4 holds two independent stories. Side by side on a wide screen,
+   stacked with a rule between them on a phone. */
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 720px) {
+  .split {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .split-half + .split-half {
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+  }
+}
+
+@media (min-width: 721px) {
+  .split-half + .split-half {
+    border-left: 1px solid var(--border);
+    padding-left: 24px;
+  }
+}
+
+.split-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.split-head h3 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+/* An explanation that must not be skimmed past — bordered, not just muted. */
+.note {
+  background: var(--panel-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.note strong {
+  color: var(--text);
+}
+
+.note-cta {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* A stat worth looking at twice: uncredited funds, an unlocked config. */
+.stat-emphasis {
+  border: 1px solid var(--accent);
+}
+
+.stat-emphasis .stat-value {
+  color: var(--accent);
+}
+
+/* The 2014 evidence, styled like a receipt so it reads as source material
+   rather than marketing copy. */
+.provenance {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.provenance-head {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.prov-row {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+@media (max-width: 560px) {
+  .prov-row {
+    grid-template-columns: 1fr auto;
+  }
+  .prov-label {
+    grid-column: 1 / -1;
+  }
+}
+
+.prov-label {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+/* Long hashes and addresses must wrap rather than widen the card. */
+.prov-value {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+a.prov-value {
+  color: var(--accent);
+}
+
+.prov-message {
+  display: block;
+  background: var(--panel-2);
+  border-radius: 6px;
+  padding: 7px 9px;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+.prov-foot {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.copy {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.copy:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ---- Published file list (snapshot CSVs) ---- */
+
+.files {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.files-head {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 13px;
+}
+
+.file-desc {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.file-actions a {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.file-actions a:hover {
+  border-color: var(--accent);
+}
+
+.file-foot {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ---- Staking tiers as selectable plans ---- */
+
+.tiers-title {
+  margin: 18px 0 10px;
+  font-size: 14px;
+}
+
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Each tier is a button: the whole card is the hit target, not a radio dot. */
+.tier {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 16px 14px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.tier:hover {
+  border-color: var(--muted);
+}
+
+.tier-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+.tier-flag {
+  position: absolute;
+  top: -9px;
+  right: 12px;
+  background: var(--accent);
+  color: #1a1206;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.tier-name {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tier-mult {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.tier-lock {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tier-tagline {
+  font-size: 12.5px;
+  margin-top: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tier-perks,
+.tier-costs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tier-perks {
+  margin-top: 10px;
+}
+
+.tier-costs {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* Ticks and crosses carry the gain/cost distinction without extra markup. */
+.tier-perks li,
+.tier-costs li {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 6px;
+}
+
+.tier-perks li::before {
+  content: "✓";
+  color: var(--good);
+  font-weight: 700;
+}
+
+.tier-costs li::before {
+  content: "!";
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tier-pick {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.tier-active .tier-pick {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1206;
+}
+
+/* ---- Forfeiture reasons, influencer terms, devnet banner ---- */
+
+.reasons {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.55;
+}
+
+.reasons strong {
+  color: var(--text);
+}
+
+.terms {
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.terms summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.terms-body {
+  margin: 0;
+  padding: 0 12px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--muted);
+  overflow-x: auto;
+}
+
+/* A devnet build must never be mistaken for the real thing. */
+.cluster-banner {
+  background: var(--accent);
+  color: #1a1206;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}

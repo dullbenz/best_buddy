@@ -9,6 +9,14 @@ export interface DistributorState {
   pool: any;
   vaultBalance: bigint;
   solVaultBalance: bigint;
+  /**
+   * Lamports the SOL vault must keep to stay rent-exempt. `sync_sol_rewards`
+   * subtracts this before crediting anything, so the UI has to as well —
+   * otherwise the rent deposit reads as undistributed rewards forever.
+   */
+  solVaultRentFloor: bigint;
+  /** Vault lamports the reward ledger has not booked yet. Never negative. */
+  untrackedSol: bigint;
   loading: boolean;
   error: string | null;
   refresh: () => void;
@@ -22,6 +30,7 @@ export function useDistributor(): DistributorState {
   const [pool, setPool] = useState<any>(null);
   const [vaultBalance, setVaultBalance] = useState<bigint>(0n);
   const [solVaultBalance, setSolVaultBalance] = useState<bigint>(0n);
+  const [solVaultRentFloor, setSolVaultRentFloor] = useState<bigint>(0n);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -43,11 +52,21 @@ export function useDistributor(): DistributorState {
         const vaultInfo = await connection.getTokenAccountBalance(pda([SEEDS.vault]));
         const solInfo = await connection.getAccountInfo(pda([SEEDS.solVault]));
 
+        // Mirror the program: floor = rent for the vault's own data length.
+        const floor = solInfo
+          ? BigInt(
+              await connection.getMinimumBalanceForRentExemption(
+                solInfo.data.length
+              )
+            )
+          : 0n;
+
         if (cancelled) return;
         setConfig(cfg);
         setPool(pl);
         setVaultBalance(BigInt(vaultInfo.value.amount));
         setSolVaultBalance(BigInt(solInfo?.lamports ?? 0));
+        setSolVaultRentFloor(floor);
         setError(null);
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? String(e));
@@ -61,7 +80,23 @@ export function useDistributor(): DistributorState {
     };
   }, [program, connection, nonce]);
 
-  return { config, pool, vaultBalance, solVaultBalance, loading, error, refresh };
+  // saturating_sub twice, exactly as sync_sol_rewards does on chain.
+  const spendable =
+    solVaultBalance > solVaultRentFloor ? solVaultBalance - solVaultRentFloor : 0n;
+  const reserved = BigInt(pool?.reservedSol ?? 0);
+  const untrackedSol = spendable > reserved ? spendable - reserved : 0n;
+
+  return {
+    config,
+    pool,
+    vaultBalance,
+    solVaultBalance,
+    solVaultRentFloor,
+    untrackedSol,
+    loading,
+    error,
+    refresh,
+  };
 }
 
 export interface StakeInfo {

@@ -72,7 +72,7 @@ dev-bought tokens into a contract. No community money exists in the vault yet,
 so a multisig here protects nobody from anything — **your own wallet is fine.**
 
 **The upgrade authority** can replace the program's code and bypass the config
-lock entirely. By the time it matters the vault holds tokens that old holders
+lock entirely. By the time it matters the vault holds tokens that Legacy Buddy holders
 and influencers have a claim on, so this one is real.
 
 **This project burns it on launch day, before announcing.** No multisig, no
@@ -143,7 +143,7 @@ can say about yourself. Post it where technical people actually are.
 
 ### 1.1 Pick a slot that is already in the past
 
-Do **not** announce a future snapshot time. Telling the internet "old Buddy
+Do **not** announce a future snapshot time. Telling the internet "Legacy Buddy
 holders get an airdrop, snapshot in 24 hours" is an instruction to go buy the
 old token: you would pump it, hand restitution to farmers instead of the people
 who were actually wronged, and route the extra trading fees straight to the dev
@@ -356,7 +356,7 @@ you write yourself substitutes for that.
 ### 3.1 Deploy the app
 
 ```bash
-cd app && cp -r ../snapshot/proofs.json public/proofs/old-holders.json && npm run build
+cd app && cp ../snapshot/proofs.json public/proofs/old-holders.json && cp ../snapshot/holders.csv ../snapshot/excluded.csv ../snapshot/manifest.json public/snapshot/ && npm run build
 ```
 
 Copy the influencer proofs to `public/proofs/influencers.json`, set
@@ -370,7 +370,7 @@ The 72-hour window began at `claims_start`, i.e. when you initialized. Notify
 every influencer immediately and publicly, so the countdown is visible to
 everyone and nobody can claim they were never told.
 
-### 3.3 Contact the old holders
+### 3.3 Contact the Legacy Buddy holders
 
 You cannot DM them. Post everywhere the old community gathered, and ask people
 to spread it. This is why the window is 30 days rather than 72 hours.

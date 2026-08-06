@@ -29,7 +29,7 @@ export function FundPool() {
   const { publicKey } = useWallet();
   const { connection } = useConnection();
   const program = useProgram();
-  const { config, pool, solVaultBalance, loading, error, refresh } = useDistributor();
+  const { config, untrackedSol, loading, error, refresh } = useDistributor();
 
   const [pending, setPending] = useState<PendingFees | null>(null);
   const [wsolBalance, setWsolBalance] = useState<bigint>(0n);
@@ -74,12 +74,6 @@ export function FundPool() {
         </div>
       </div>
     );
-
-  // Lamports the vault holds that the reward ledger has not booked yet.
-  const untrackedSol =
-    pool && solVaultBalance > BigInt(pool.reservedSol)
-      ? solVaultBalance - BigInt(pool.reservedSol)
-      : 0n;
 
   const somethingToDo =
     (pending?.bondingCurve ?? 0n) > 0n ||
@@ -149,50 +143,64 @@ export function FundPool() {
   return (
     <div className="stack">
       <section className="card highlight">
-        <h2>Fund the community pool</h2>
+        <h2>Credit the community pool</h2>
         <p className="muted">
-          Trading fees from this token accumulate at pump.fun. They do not arrive
-          on their own — somebody has to move them. Every step below is
-          permissionless, so that somebody can be you, right now, with no
-          permission from anyone.
+          Every trade on this token pays a fee, and those fees are already the
+          community's — they accrue automatically to addresses the contract
+          controls, and no wallet, including ours, can withdraw them anywhere
+          else. That part needs nobody's help.
+        </p>
+        <p className="muted">
+          The last step is a bookkeeping one. A Solana program cannot notice a
+          balance changing; it only runs when a transaction calls it. So the
+          fees sit in the vault, safe but not yet counted, until someone signs
+          the transaction that credits them to the stakers.
         </p>
         <p className="muted small">
-          Whatever this moves goes to stakers. None of it reaches the team, and
-          the team cannot do this any faster than you can.
+          <strong>That someone can be anybody — and that is the point.</strong>{" "}
+          The instruction takes no admin key and pays whoever is staked, never
+          whoever clicked. So the community never has to wait on us, and we
+          could not divert or delay a single lamport if we tried. Press the
+          button below and you have just done the team's job for them.
         </p>
       </section>
 
       <section className="card">
-        <h2>Waiting to be moved</h2>
+        <h2>Fees accrued, awaiting credit</h2>
         <div className="stat-row">
           <div className="stat">
             <span className="stat-value">
               {pending ? `${fmtSol(pending.bondingCurve)} SOL` : "—"}
             </span>
-            <span className="stat-label">At pump.fun (bonding curve)</span>
+            <span className="stat-label">Accrued at pump.fun</span>
           </div>
           <div className="stat">
             <span className="stat-value">
               {pending ? `${fmtSol(pending.amm)} SOL` : "—"}
             </span>
-            <span className="stat-label">At pump.fun (AMM, wrapped)</span>
+            <span className="stat-label">Accrued at pump.fun (AMM)</span>
           </div>
           <div className="stat">
             <span className="stat-value">{fmtSol(wsolBalance)} SOL</span>
-            <span className="stat-label">Wrapped, in our vault</span>
+            <span className="stat-label">In the vault, as wrapped SOL</span>
           </div>
           <div className="stat">
             <span className="stat-value">{fmtSol(untrackedSol)} SOL</span>
-            <span className="stat-label">In our vault, not yet credited</span>
+            <span className="stat-label">In the vault, not yet credited</span>
           </div>
         </div>
 
         {!publicKey ? (
-          <p className="muted small">Connect a wallet to run it.</p>
+          <p className="muted small">
+            Connect a wallet to sign it. You pay only the network fee — a fraction
+            of a cent — and none of the amounts below pass through your wallet.
+          </p>
         ) : (
           <div className="button-row">
             <button className="primary" disabled={busy || !somethingToDo} onClick={run}>
-              {somethingToDo ? "Move the fees to stakers" : "Nothing to move right now"}
+              {somethingToDo
+                ? "Credit these fees to the stakers"
+                : "Everything is already credited"}
             </button>
             <button disabled={busy} onClick={load}>
               Refresh
@@ -202,7 +210,7 @@ export function FundPool() {
       </section>
 
       <section className="card">
-        <h2>What the button actually does</h2>
+        <h2>Exactly what you would be signing</h2>
         <ol className="muted small">
           <li>
             Sweeps AMM-side fees back into the bonding-curve vault, if the coin

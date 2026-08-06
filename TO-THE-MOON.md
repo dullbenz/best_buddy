@@ -264,7 +264,7 @@ Fill these into [docs/PRE-COMMITMENT.md](docs/PRE-COMMITMENT.md):
 | Decision | Guidance |
 |---|---|
 | Dev-buy size | Money you can lose entirely. Old token liquidity is ~$26k, so low tens of SOL is proportionate; larger mostly buys your own slippage. |
-| Bucket split | Suggested 55 / 15 / 20 / 10 across old holders, influencers, 2014 signer, dev. |
+| Bucket split | Suggested 55 / 15 / 20 / 10 across Legacy Buddy holders, influencers, 2014 signer, dev. |
 | Dev cliff | 30 days is the default. |
 | Creator fee split | 90% to the community vault, 10% to you. Set **once, irreversibly** — see [docs/FEES.md](docs/FEES.md). |
 | Influencer list | Addresses and amounts. All published — no hidden deals. |
@@ -325,7 +325,7 @@ npx ts-node scripts/build-tree.ts influencers.csv snapshot/influencers
 ### 3.5 Publish everything and wire up the site
 
 ```bash
-cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && git add -A && git commit -m "publish snapshot" && git push
+cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && cp snapshot/holders.csv snapshot/excluded.csv snapshot/manifest.json app/public/snapshot/ && git add -A && git commit -m "publish snapshot" && git push
 ```
 
 Publish the whole `snapshot/` directory too, and invite people to re-run the
@@ -476,14 +476,14 @@ Then, in order:
 | When | What | Command |
 |---|---|---|
 | +72 hours | Influencer window closes | `sweep_influencers` |
-| +30 days | Old-holder window closes | `sweep_old_holders` |
+| +30 days | Legacy Buddy holder window closes | `sweep_old_holders` |
 | 2030-12-31 | Signer deadline | `sweep_original_signer` |
 
 The sweeps are permissionless — anyone can run them — but run them yourself
 promptly and **announce each one as a community win.** The 72-hour sweep is your
 first proof that the dead-man rule is real, so make noise about it.
 
-### 5.2 Chase the old holders
+### 5.2 Chase the Legacy Buddy holders
 
 You can't DM them. Post everywhere the old community gathered and ask people to
 spread it. This is why that window is 30 days and not 72 hours.
