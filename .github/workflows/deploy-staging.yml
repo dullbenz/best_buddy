@@ -81,7 +81,7 @@ jobs:
       - name: Deploy hosting and gate
         run: |
           npx --yes firebase-tools@13 deploy \
-            --only "hosting:staging,functions:stagingGate" \
+            --only "hosting:staging,functions:stagingGate,functions:terms,firestore:rules" \
             --project "${{ vars.FIREBASE_PROJECT_ID }}" \
             --non-interactive
 

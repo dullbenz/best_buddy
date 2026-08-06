@@ -77,3 +77,7 @@ exports.stagingGate = onRequest(
   { region: "us-central1", memory: "256MiB", maxInstances: 3 },
   app
 );
+
+// The influencer terms register lives in its own module but must be exported
+// from the functions entry point to be deployable.
+exports.terms = require("./terms").terms;

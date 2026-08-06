@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+import influencerTerms from "./generated/influencer-terms.txt?raw";
 
 /**
  * Everything the UI needs to talk to the deployed distributor. All of it is
@@ -129,38 +130,20 @@ export const btcAddressUrl = (address: string) =>
 /**
  * What an influencer agrees to by claiming.
  *
- * Signed with the wallet before the claim button unlocks. The signature is
- * off-chain evidence, not an on-chain condition — the program cannot read the
- * contents of a promise, and pretending otherwise would be the same kind of
- * overclaiming this project exists to avoid. What it does give: a
- * cryptographic record, tied to the same key that received the tokens, that
- * these terms were shown and accepted at claim time.
+ * Imported from the single canonical file at the repo root, never retyped —
+ * the Cloud Function that verifies these signatures reads the same bytes, and
+ * a one-character difference between the two would make every signature fail
+ * to verify.
  *
- * The terms themselves are not decoration. Paid promotion without disclosure
- * breaks FTC rules in the US and equivalents elsewhere, and a promise of
- * returns can make an ordinary post a securities problem for the person who
- * made it.
+ * The signature is evidence, not enforcement: the program cannot read a
+ * promise, and claiming succeeds without one. What it gives is a public,
+ * self-authenticating record, tied to the key that received the tokens, that
+ * these terms were displayed in the wallet and accepted.
  */
-export const INFLUENCER_TERMS = `Buddy — influencer allocation terms
+export const INFLUENCER_TERMS = influencerTerms;
 
-By signing this message and claiming, I agree that:
-
-1. I will disclose that I was compensated in tokens, clearly and in the post
-   itself — not in a reply, a bio, or a link. #ad or "paid promotion" is
-   enough; burying it is not.
-2. I will not promise, predict or imply any financial return. No price
-   targets, no "this will 100x", no "guaranteed", no "you can't lose".
-3. I will not present this as investment advice, and I will not tell anyone
-   how much of their money to put in.
-4. I will describe the project as it actually is: a memecoin whose rules are
-   enforced by an immutable contract, which can go to zero like any other.
-5. I will not claim the team guarantees anything, because it does not.
-6. I understand my tokens are released gradually over 30 days and that
-   claiming pays me nothing up front.
-7. I am not being paid to say anything untrue, and nobody has asked me to.
-
-I understand these terms are published, that this signature is a public
-record, and that misrepresenting the project is my own legal liability.`;
+/** Where accepted signatures are recorded, and served back for auditing. */
+export const TERMS_API = "/api/terms";
 
 export const SEEDS = {
   config: Buffer.from("config"),

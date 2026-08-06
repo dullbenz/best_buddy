@@ -27,3 +27,23 @@ if (!existsSync(source)) {
 mkdirSync(dirname(target), { recursive: true });
 copyFileSync(source, target);
 console.log(`IDL <- ${source === built ? "fresh build" : "committed copy"}`);
+
+// The influencer terms are signed in the browser and verified in a Cloud
+// Function. Both must hash byte-for-byte identical text, so there is exactly
+// one canonical copy at the repo root and everything else is generated from it.
+const termsSource = resolve(here, "../../INFLUENCER-TERMS.txt");
+const termsTargets = [
+  resolve(here, "../src/generated/influencer-terms.txt"),
+  resolve(here, "../../functions/influencer-terms.txt"),
+];
+
+if (!existsSync(termsSource)) {
+  console.error(`Missing ${termsSource}`);
+  process.exit(1);
+}
+
+for (const t of termsTargets) {
+  mkdirSync(dirname(t), { recursive: true });
+  copyFileSync(termsSource, t);
+}
+console.log("influencer terms <- INFLUENCER-TERMS.txt");

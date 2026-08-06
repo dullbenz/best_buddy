@@ -1,13 +1,16 @@
 {
   "name": "buddy-staging-gate",
   "private": true,
-  "description": "Basic-auth gate serving the staging build",
+  "description": "Staging auth gate and the influencer terms register",
   "main": "index.js",
   "engines": {
     "node": "22"
   },
   "dependencies": {
+    "bs58": "^5.0.0",
     "express": "^4.21.1",
-    "firebase-functions": "^6.1.0"
+    "firebase-admin": "^13.0.1",
+    "firebase-functions": "^6.1.0",
+    "tweetnacl": "^1.0.3"
   }
 }

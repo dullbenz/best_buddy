@@ -32,10 +32,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      # functions/ needs its own install: the Firebase CLI loads the trigger
+      # locally before it will upload anything.
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          cd app && npm install --legacy-peer-deps
+          (cd app && npm install --legacy-peer-deps)
+          (cd functions && npm install)
 
       - name: Build
         working-directory: app
@@ -56,11 +59,21 @@ jobs:
           esac
           npm run build
 
-      - name: Deploy
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Authenticate to Firebase
+        uses: google-github-actions/auth@v2
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
-          target: production
-          channelId: live
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # Production is no longer hosting-only: /api/terms is served by the
+      # `terms` function, and the Firestore rules behind it must ship with it.
+      # action-hosting-deploy cannot do either, so deploy through the CLI.
+      #
+      # `stagingGate` is deliberately excluded — it belongs to the other
+      # environment and naming the functions explicitly stops a production
+      # deploy from ever touching it.
+      - name: Deploy hosting, API and rules
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only "hosting:production,functions:terms,firestore:rules" \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" \
+            --non-interactive

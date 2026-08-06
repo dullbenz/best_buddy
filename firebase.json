@@ -3,8 +3,21 @@
     {
       "target": "production",
       "public": "app/dist",
-      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-      "rewrites": [{ "source": "**", "destination": "/index.html" }],
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/api/terms",
+          "function": "terms"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
       "headers": [
         {
           "source": "/assets/**",
@@ -18,19 +31,36 @@
         {
           "source": "/proofs/**",
           "headers": [
-            { "key": "Cache-Control", "value": "public, max-age=300" },
-            { "key": "Access-Control-Allow-Origin", "value": "*" }
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            }
           ]
         },
         {
           "source": "/index.html",
-          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
         },
         {
           "source": "**",
           "headers": [
-            { "key": "X-Content-Type-Options", "value": "nosniff" },
-            { "key": "X-Frame-Options", "value": "DENY" },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
             {
               "key": "Referrer-Policy",
               "value": "strict-origin-when-cross-origin"
@@ -46,8 +76,22 @@
     {
       "target": "staging",
       "public": "staging-empty",
-      "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/*.md"],
-      "rewrites": [{ "source": "**", "function": "stagingGate" }],
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "**/*.md"
+      ],
+      "rewrites": [
+        {
+          "source": "/api/terms",
+          "function": "terms"
+        },
+        {
+          "source": "**",
+          "function": "stagingGate"
+        }
+      ],
       "headers": [
         {
           "source": "**",
@@ -56,8 +100,14 @@
               "key": "X-Robots-Tag",
               "value": "noindex, nofollow, noarchive"
             },
-            { "key": "X-Content-Type-Options", "value": "nosniff" },
-            { "key": "X-Frame-Options", "value": "DENY" }
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            }
           ]
         }
       ]
@@ -66,6 +116,13 @@
   "functions": {
     "source": "functions",
     "runtime": "nodejs22",
-    "ignore": ["node_modules", ".git", "*.log"]
+    "ignore": [
+      "node_modules",
+      ".git",
+      "*.log"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   }
 }

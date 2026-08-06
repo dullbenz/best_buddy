@@ -9,6 +9,7 @@ import {
   OLD_HOLDER_PROOFS_URL,
   INFLUENCER_TERMS,
   SEEDS,
+  TERMS_API,
   SNAPSHOT_FILES,
   pda,
 } from "../config";
@@ -42,7 +43,13 @@ export function Claims() {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Base58 of the wallet's signature over INFLUENCER_TERMS. Gates the claim.
-  const [termsSig, setTermsSig] = useState<string | null>(null);
+  //
+  // Seeded from localStorage so someone who signs, then reloads or comes back
+  // later, is not asked to sign the same terms twice. The register is keyed by
+  // address, so a re-signature would be a no-op server-side anyway.
+  const [termsSig, setTermsSig] = useState<string | null>(() =>
+    publicKey ? localStorage.getItem(`buddy.terms.${publicKey.toBase58()}`) : null
+  );
 
   useEffect(() => {
     loadProofs(OLD_HOLDER_PROOFS_URL).then(setOldProofs).catch(() => setOldProofs({}));
@@ -113,15 +120,44 @@ export function Claims() {
     }
   }
 
-  /** Sign the published terms. Not a transaction — no fee, nothing on chain. */
+  /**
+   * Sign the published terms and record the signature publicly.
+   *
+   * Not a transaction: no fee, nothing on chain. The wallet shows the full
+   * terms text, so what is being agreed to is visible at signing time rather
+   * than hidden behind a hash.
+   */
   async function signTerms() {
-    if (!signMessage) return;
+    if (!signMessage || !publicKey) return;
     setBusy(true);
     setStatus(null);
     try {
-      const sig = await signMessage(new TextEncoder().encode(INFLUENCER_TERMS));
-      setTermsSig(bs58.encode(sig));
-      setStatus("Terms signed. You can claim now.");
+      const raw = await signMessage(new TextEncoder().encode(INFLUENCER_TERMS));
+      const encoded = bs58.encode(raw);
+      const address = publicKey.toBase58();
+
+      setTermsSig(encoded);
+      localStorage.setItem(`buddy.terms.${address}`, encoded);
+
+      // Publishing is best-effort on purpose. The register is a transparency
+      // aid, not a gate — refusing to let someone claim their allocation
+      // because our own server was down would be the wrong failure.
+      try {
+        const res = await fetch(TERMS_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address, signature: encoded }),
+        });
+        setStatus(
+          res.ok
+            ? "Terms signed and published to the public register. You can claim now."
+            : "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim."
+        );
+      } catch {
+        setStatus(
+          "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim."
+        );
+      }
     } catch (e: any) {
       setStatus(`Not signed: ${e?.message ?? String(e)}`);
     } finally {
@@ -283,16 +319,18 @@ export function Claims() {
 
             {termsSig ? (
               <p className="muted small">
-                ✓ Terms signed by this wallet. The signature is your own record
-                too — keep it.
+                ✓ Terms signed by this wallet, and added to the{" "}
+                <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
+                  public register
+                </a>
+                .
               </p>
             ) : (
               <p className="muted small">
                 Sign the terms before claiming. This costs nothing and is not a
                 transaction; it is a message signed with your key, proving these
-                terms were shown and accepted. The contract cannot read a
-                promise, so this is evidence rather than enforcement — but it is
-                evidence tied to the same key that receives the tokens.
+                terms were shown and accepted. Your wallet will display the
+                full text, so you can read exactly what you are agreeing to.
               </p>
             )}
 

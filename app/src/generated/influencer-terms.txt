@@ -1,0 +1,20 @@
+Buddy — influencer allocation terms
+
+By signing this message and claiming, I agree that:
+
+1. I will disclose that I was compensated in tokens, clearly and in the post
+   itself — not in a reply, a bio, or a link. #ad or "paid promotion" is
+   enough; burying it is not.
+2. I will not promise, predict or imply any financial return. No price
+   targets, no "this will 100x", no "guaranteed", no "you can't lose".
+3. I will not present this as investment advice, and I will not tell anyone
+   how much of their money to put in.
+4. I will describe the project as it actually is: a memecoin whose rules are
+   enforced by an immutable contract, which can go to zero like any other.
+5. I will not claim the team guarantees anything, because it does not.
+6. I understand my tokens are released gradually over 30 days and that
+   claiming pays me nothing up front.
+7. I am not being paid to say anything untrue, and nobody has asked me to.
+
+I understand these terms are published, that this signature is a public
+record, and that misrepresenting the project is my own legal liability.
