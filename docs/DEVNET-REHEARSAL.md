@@ -75,9 +75,21 @@ solana program show GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11
 
 ## 3. Run the rehearsal
 
+**Use a paid devnet RPC, not the public one.** The rehearsal fires a long burst
+of transactions and reads, and `api.devnet.solana.com` rate-limits hard partway
+through — it retries a while, then dies with `429 Too Many Requests` mid-run.
+Because the config PDA is global and gets locked, a half-finished run cannot
+simply be restarted; you need a fresh program id to go again. Spending the
+free-tier credits here is much cheaper than that.
+
 ```bash
-RPC_URL=https://api.devnet.solana.com KEYPAIR=~/.config/solana/id.json npx ts-node scripts/devnet-rehearsal.ts
+RPC_URL="https://devnet.helius-rpc.com/?api-key=YOUR_KEY" KEYPAIR=~/.config/solana/id.json npx ts-node scripts/devnet-rehearsal.ts
 ```
+
+The domain lock on the key does not interfere: it matches on the browser
+`Origin` header, which a Node script never sends. Airdrops are the one thing
+the free tier will refuse — fund the wallet first, via `solana airdrop` or
+[faucet.solana.com](https://faucet.solana.com), then point the script at Helius.
 
 It creates a mock token, invents three old holders and two influencers, builds
 real Merkle trees from them, then walks the whole sequence printing what
