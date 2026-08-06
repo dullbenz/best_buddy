@@ -1,5 +1,11 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program, BN } from "@coral-xyz/anchor";
+// Destructured from the namespace rather than imported by name.
+// @coral-xyz/anchor is CommonJS, and since Node 22.18 enabled require(esm) by
+// default, `import { BN } from "@coral-xyz/anchor"` fails at runtime with
+// "Named export 'BN' not found" on newer Node while still working on older
+// ones. The namespace form behaves the same under both.
+const { BN } = anchor;
+type Program<T extends anchor.Idl> = anchor.Program<T>;
 import {
   Keypair,
   PublicKey,
@@ -278,7 +284,7 @@ export async function setupEnv(): Promise<Env> {
   anchor.setProvider(provider);
 
   const idl = require("../target/idl/buddy_distributor.json");
-  const program = new Program(idl, provider) as Program<any>;
+  const program = new anchor.Program(idl, provider) as Program<any>;
   const programId = program.programId;
 
   const payer = context.payer;
@@ -351,7 +357,7 @@ export function signBitcoinMessage(
   return { header, signature: Buffer.from(sig.toCompactRawBytes()) };
 }
 
-export function toBn(value: bigint | number): BN {
+export function toBn(value: bigint | number): anchor.BN {
   return new BN(value.toString());
 }
 

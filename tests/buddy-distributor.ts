@@ -1,4 +1,6 @@
-import { BN } from "@coral-xyz/anchor";
+import * as anchor from "@coral-xyz/anchor";
+// See tests/helpers.ts — named imports from this CJS package break on Node 22.18+.
+const { BN } = anchor;
 import { Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { assert } from "chai";
@@ -1145,6 +1147,10 @@ describe("buddy-distributor", () => {
       let pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       assert.equal(pool.lifetimeTokenRewards.toString(), "0");
 
+      // The failed sync above is byte-identical to this one and still landed,
+      // so without a new slot the bank rejects this as already-processed and
+      // the program is never entered.
+      await advanceSlot(b.env.context);
       await syncToken(b);
 
       pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
