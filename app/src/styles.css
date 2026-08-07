@@ -1,27 +1,43 @@
+/*
+ * Warm charcoal rather than blue-black. The amber accent was always warm, and
+ * a cool-grey shell under it reads as a generic dashboard template; pulling the
+ * neutrals toward the accent makes the whole thing feel drawn rather than
+ * assembled. Same token names throughout, so every existing page inherits it.
+ */
 :root {
-  --bg: #0b0d12;
-  --panel: #141821;
-  --panel-2: #1b2029;
-  --border: #262c38;
-  --text: #e8ecf3;
-  --muted: #8b94a7;
+  --bg: #0d0c0a;
+  --panel: #151310;
+  --panel-2: #1c1915;
+  --border: #2a2620;
+  --text: #ece5d8;
+  --muted: #948a78;
   --accent: #ffb84d;
-  --accent-dim: #6b4d1f;
-  --good: #4ade80;
-  --bad: #f87171;
+  --accent-dim: #5c441d;
+  --rust: #d2764c;
+  --good: #6fcf8f;
+  --bad: #f0776b;
   --radius: 14px;
+
+  /* Display face for the landing document. System serifs only — this project
+     ships no webfonts and should not start now for one page. */
+  --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+    serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f7f8fa;
-    --panel: #ffffff;
-    --panel-2: #f0f2f6;
-    --border: #dfe3ea;
-    --text: #12151c;
-    --muted: #5f6878;
-    --accent: #b8791a;
-    --accent-dim: #f3e2c4;
+    --bg: #f3efe6;
+    --panel: #fbf8f2;
+    --panel-2: #ece7db;
+    --border: #ddd5c6;
+    --text: #2a231a;
+    --muted: #6f6353;
+    --accent: #9a6415;
+    --accent-dim: #e6d5b4;
+    --rust: #a8542c;
+    --good: #2f7d4f;
+    --bad: #b2402f;
   }
 }
 
@@ -35,6 +51,13 @@ body {
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.55;
+}
+
+/* Unclassed links were falling back to the browser default blue, which is
+   close to unreadable on the dark panel. Element-level, so `.mono` and
+   `a.prov-value` still win on specificity and keep their own colour. */
+a {
+  color: var(--accent);
 }
 
 .app {
@@ -52,37 +75,67 @@ header {
   margin-bottom: 20px;
 }
 
+/* The wordmark carries the whole brand in one word, so it is set as a mark
+   rather than as a heading: heavy grotesque, uppercase, tightened. */
 .brand h1 {
-  margin: 0;
-  font-size: 28px;
-  letter-spacing: -0.02em;
+  margin: 0 0 3px;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  font-weight: 800;
+  font-size: 25px;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
 }
 
 .tagline {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--muted);
-  font-size: 13px;
+}
+
+/* Tabs as an index rule rather than pills. Squared off and set in the same
+   mono micro-type as the section labels, so the chrome belongs to the same
+   document as the page it frames. */
+header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
 }
 
 nav {
   display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: 0;
+  margin-bottom: 0;
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
 }
 
 .tab {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   color: var(--muted);
-  padding: 8px 16px;
-  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 13px 15px;
   cursor: pointer;
-  font-size: 14px;
+  margin-bottom: -1px;
+}
+
+.tab:hover:not(:disabled) {
+  color: var(--text);
+  border-color: transparent;
 }
 
 .tab.active {
-  color: var(--text);
-  border-color: var(--accent);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .stack {
@@ -103,10 +156,14 @@ nav {
   background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
 }
 
+/* Card headings take the landing's display face so the app reads as one
+   document rather than a marketing page bolted onto a dashboard. */
 .card h2 {
   margin: 0 0 6px;
-  font-size: 17px;
-  letter-spacing: -0.01em;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.02em;
 }
 
 .card p {
@@ -779,4 +836,1016 @@ a.prov-value {
   padding: 7px 12px;
   border-radius: 8px;
   margin-bottom: 14px;
+}
+
+/* --- Landing: engineering document --------------------------------- */
+/*
+ * Laid out like a datasheet: numbered sections on a left rail, serif display
+ * headings, monospace micro-labels, hairline rules, square corners. The point
+ * is not decoration — a page that looks specified rather than styled is itself
+ * an argument that whoever built the contract was precise about it.
+ */
+
+.landing {
+  display: flex;
+  flex-direction: column;
+}
+
+.l-micro {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* --- hero --- */
+.l-hero {
+  padding: 28px 0 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.l-display {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(38px, 7.4vw, 68px);
+  line-height: 1.02;
+  letter-spacing: -0.028em;
+  margin: 0 0 22px;
+}
+
+.l-display-accent {
+  color: var(--accent);
+}
+
+.l-lede {
+  max-width: 58ch;
+  font-size: 16.5px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0;
+}
+
+.l-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+/* --- buttons: square, mono, uppercase --- */
+.l-btn {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 11px 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.l-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.l-btn-solid {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #17120a;
+  font-weight: 600;
+}
+
+.l-btn-solid:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.l-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- spec strip --- */
+.l-spec {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+
+.l-spec-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 16px 16px 0;
+}
+
+@media (min-width: 640px) {
+  .l-spec-cell + .l-spec-cell {
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+  }
+}
+
+.l-spec-value {
+  font-family: var(--mono);
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.l-spec-note {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.l-tone-good {
+  color: var(--good);
+}
+
+.l-tone-warn {
+  color: var(--accent);
+}
+
+.l-tone-check {
+  color: var(--accent);
+}
+
+.l-tone-unknown {
+  color: var(--muted);
+}
+
+.l-tone-plain {
+  color: var(--text);
+}
+
+/* --- ticker --- */
+.l-ticker {
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  padding: 11px 0;
+}
+
+.l-ticker-run {
+  display: flex;
+  width: max-content;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  animation: l-scroll 46s linear infinite;
+}
+
+.l-ticker-run i {
+  color: var(--rust);
+  font-style: normal;
+  padding: 0 4px;
+}
+
+@keyframes l-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .l-ticker-run {
+    animation: none;
+  }
+}
+
+/* --- section shell --- */
+.l-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 34px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 820px) {
+  .l-section {
+    grid-template-columns: 150px 1fr;
+    gap: 32px;
+  }
+}
+
+.l-section-rail {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+@media (min-width: 820px) {
+  .l-section-rail {
+    flex-direction: column;
+    gap: 3px;
+    position: sticky;
+    top: 20px;
+    align-self: start;
+  }
+}
+
+.l-h2 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(24px, 3.6vw, 33px);
+  line-height: 1.12;
+  letter-spacing: -0.022em;
+  margin: 0 0 12px;
+}
+
+.l-intro {
+  color: var(--muted);
+  max-width: 62ch;
+  margin: 0 0 4px;
+  font-size: 14.5px;
+}
+
+/* --- numbered index rows --- */
+.l-index {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.l-index-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+@media (min-width: 700px) {
+  .l-index-row {
+    grid-template-columns: 132px 1fr;
+  }
+}
+
+.l-index-when {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 4px;
+}
+
+.l-index-text {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+@media (min-width: 700px) {
+  .l-index-text {
+    grid-column: 2;
+  }
+}
+
+.l-index-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.l-index-current .l-index-when {
+  color: var(--accent);
+}
+
+/* --- source line --- */
+.l-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.l-source code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.l-source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.l-source-links a {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.l-source-links a:hover {
+  text-decoration: underline;
+}
+
+/* --- routes --- */
+.l-routes {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+@media (min-width: 760px) {
+  .l-routes {
+    grid-template-columns: 1fr 1fr;
+  }
+  .l-route:nth-child(2n) {
+    border-left: 1px solid var(--border);
+    padding-left: 22px;
+  }
+}
+
+.l-route {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 760px) {
+  .l-route:nth-child(2n + 1) {
+    padding-right: 22px;
+  }
+}
+
+.l-route-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 5px 10px;
+  margin-bottom: 10px;
+}
+
+.l-route-head h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.l-route-clock {
+  grid-column: 2;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.l-route p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+.l-route > p:first-of-type {
+  flex: 1;
+}
+
+.l-route-primary > p:first-of-type {
+  color: var(--text);
+}
+
+.l-route-note {
+  font-size: 12.5px !important;
+}
+
+.l-route-address {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  word-break: break-all;
+  margin-bottom: 10px;
+}
+
+.l-route .l-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+/* --- allocation rows --- */
+.l-alloc {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.l-alloc-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 780px) {
+  .l-alloc-row {
+    grid-template-columns: 1fr 190px;
+  }
+}
+
+.l-alloc-main h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.015em;
+  margin: 0 0 6px;
+}
+
+.l-alloc-main p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.l-alloc-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@media (min-width: 780px) {
+  .l-alloc-meta {
+    grid-column: 2;
+    text-align: right;
+    padding-top: 3px;
+  }
+}
+
+.l-alloc-live {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.l-alloc-clock {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+/* --- the rule block: the one emphasis on the page --- */
+.l-rule {
+  margin-top: 26px;
+  padding: 24px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  background-color: var(--panel);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 7px,
+    rgba(255, 184, 77, 0.045) 7px,
+    rgba(255, 184, 77, 0.045) 8px
+  );
+}
+
+.l-rule-line {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(21px, 3.6vw, 30px);
+  line-height: 1.18;
+  letter-spacing: -0.022em;
+  margin: 10px 0 14px !important;
+}
+
+.l-rule-body {
+  color: var(--muted);
+  max-width: 62ch;
+  margin: 0 !important;
+  font-size: 14.5px;
+}
+
+.l-rule-live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 18px 0 0 !important;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.l-rule-num {
+  font-family: var(--mono);
+  font-size: 26px;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+/* --- proofs --- */
+.l-proof {
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+}
+
+.l-proof:first-of-type {
+  margin-top: 12px;
+}
+
+.l-proof-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px 16px;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+@media (min-width: 780px) {
+  .l-proof-head {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+.l-proof-head h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.l-proof-answer {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 780px) {
+  .l-proof-answer {
+    grid-column: 2;
+    text-align: right;
+  }
+}
+
+.l-proof-body {
+  margin: 0;
+  color: var(--muted);
+  max-width: 66ch;
+  font-size: 14.5px;
+}
+
+
+
+.l-proof-live {
+  margin: 10px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.l-details {
+  margin-top: 12px;
+}
+
+.l-details summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  list-style: none;
+}
+
+.l-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.l-details summary::before {
+  content: "[+] ";
+}
+
+.l-details[open] summary::before {
+  content: "[−] ";
+}
+
+.l-cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 2px;
+  padding: 10px 12px;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.l-cmd code {
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre;
+  color: var(--text);
+  flex: 1;
+}
+
+.l-cmd button {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.l-proof-hint {
+  margin: 10px 0 0 !important;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.l-index-tight .l-index-row:first-child {
+  border-top: none;
+}
+
+/* --- wallet adapter, retuned to the document palette ---------------- */
+/*
+ * The library ships a purple pill on a blue-grey chrome, which is the single
+ * loudest thing on the page and belongs to a different design entirely.
+ * Overridden rather than forked so wallet-adapter upgrades still land.
+ */
+.wallet-adapter-button-trigger {
+  background: var(--accent) !important;
+  color: #17120a !important;
+}
+
+.wallet-adapter-button {
+  font-family: var(--mono) !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  border-radius: 2px !important;
+  height: auto !important;
+  padding: 12px 16px !important;
+  line-height: 1 !important;
+}
+
+.wallet-adapter-button:not([disabled]):hover {
+  background: var(--panel-2) !important;
+  color: var(--accent) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background: var(--panel) !important;
+  border: 1px solid var(--border);
+  border-radius: 2px !important;
+  font-family: inherit !important;
+}
+
+.wallet-adapter-modal-title {
+  font-family: var(--serif) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+  color: var(--text) !important;
+}
+
+.wallet-adapter-modal-list li,
+.wallet-adapter-modal-list .wallet-adapter-button {
+  background: var(--panel-2) !important;
+  color: var(--text) !important;
+  border-radius: 2px !important;
+}
+
+.wallet-adapter-modal-button-close {
+  background: var(--panel-2) !important;
+  border-radius: 2px !important;
+}
+
+footer {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+footer .small {
+  font-size: 12px;
+}
+
+/* The landing supplies its own rules, so the shell should not add another. */
+.landing {
+  margin-top: 0;
+}
+
+/* --- Landing: figures and diagrams --------------------------------- */
+.l-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.l-figure {
+  margin: 26px 0 0;
+  padding: 22px 22px 18px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+}
+
+.l-figure figcaption {
+  display: block;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+.l-figure-inset {
+  margin-top: 18px;
+  background: transparent;
+}
+
+
+
+/* --- a titled break inside a long section --- */
+.l-sub {
+  margin-top: 38px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.l-sub:first-child {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.l-sub h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.l-sub p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 14.5px;
+  max-width: 62ch;
+}
+
+/* --- payout shapes --- */
+.l-shapes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+@media (min-width: 640px) {
+  .l-shapes {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
+.l-shape {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+}
+
+.l-shape svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.l-shape figcaption {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.l-shape figcaption strong {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+
+.l-shape figcaption span {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* --- route glyphs --- */
+.l-glyph {
+  color: var(--rust);
+  flex-shrink: 0;
+}
+
+.l-route-primary .l-glyph {
+  color: var(--accent);
+}
+
+/* --- readability: a touch more air and size in body copy ----------- */
+.l-index-text,
+.l-alloc-main p,
+.l-route p,
+.l-proof-body,
+.l-rule-body {
+  line-height: 1.62;
+}
+
+.l-index-text,
+.l-proof-body {
+  font-size: 15px;
+}
+
+@media (max-width: 520px) {
+  /* Give the diagrams back the padding on a phone — they are the width-hungry
+     element on the page and the frame matters less than the drawing. */
+  .l-figure {
+    padding: 14px 12px 14px;
+  }
+  .l-figure-inset {
+    padding-left: 0;
+    padding-right: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
+
+/* --- Mobile ---------------------------------------------------------
+ * Most of the layout collapses on its own. These are the places where it
+ * needed deciding rather than stacking.
+ */
+
+/* The tab row wrapped onto two lines and ate a third of the first screen.
+   One scrollable line instead, with the scrollbar hidden — the active
+   underline plus the cut-off edge is enough affordance. */
+@media (max-width: 700px) {
+  nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    padding: 12px 13px;
+  }
+}
+
+/* Brand and wallet button share the top line rather than stacking. */
+@media (max-width: 620px) {
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0;
+    padding-bottom: 14px;
+  }
+
+  .brand h1 {
+    font-size: 22px;
+  }
+
+  .tagline {
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+  }
+
+  .wallet-adapter-button {
+    padding: 10px 12px !important;
+    font-size: 9.5px !important;
+    letter-spacing: 0.1em !important;
+  }
+}
+
+/* Two columns with real dividers, and the odd fifth cell runs full width
+   instead of leaving a hole. */
+@media (max-width: 639px) {
+  .l-spec {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .l-spec-cell {
+    border-top: 1px solid var(--border);
+    padding: 13px 12px 13px 0;
+  }
+
+  .l-spec-cell:nth-child(2n) {
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+  }
+
+  .l-spec-cell:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .l-hero {
+    padding: 22px 0 26px;
+  }
+
+  .l-lede {
+    font-size: 15.5px;
+  }
+
+  .l-section {
+    padding: 26px 0;
+  }
+
+  .l-section-rail {
+    margin-bottom: 2px;
+  }
+
+  .l-sub {
+    margin-top: 28px;
+    padding-top: 16px;
+  }
+
+  /* Full-width tap targets read as buttons on a phone; inline-sized ones
+     read as links you might miss. */
+  .l-actions .l-btn,
+  .l-route .l-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .l-alloc-meta {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    align-items: baseline;
+    margin-top: 4px;
+  }
+
+  .l-rule {
+    padding: 18px 16px;
+  }
+
+  .l-cmd {
+    padding: 9px 10px;
+  }
+
+  .l-cmd code {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 460px) {
+  /* The tagline wrapped to two lines and pushed the header out of shape. The
+     hero says the same thing better one screen down. */
+  .tagline {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  /* 16px let the text run too close to the edge on a phone. The figures give
+     back some of their own frame padding above so the diagrams don't lose the
+     width this costs them. */
+  .app {
+    padding: 20px 22px 56px;
+  }
 }
