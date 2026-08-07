@@ -849,15 +849,18 @@ a.prov-value {
 }
 
 /* A devnet build must never be mistaken for the real thing. */
+/* The nav ends in a border, so without a top margin this sits directly on
+   that line and reads as part of the tab row rather than a warning about it. */
 .cluster-banner {
   background: var(--accent);
   color: #1a1206;
   text-align: center;
   font-size: 12.5px;
   font-weight: 600;
-  padding: 7px 12px;
+  line-height: 1.45;
+  padding: 9px 16px;
   border-radius: 8px;
-  margin-bottom: 14px;
+  margin: 18px 0 20px;
 }
 
 /* --- Landing: engineering document --------------------------------- */
