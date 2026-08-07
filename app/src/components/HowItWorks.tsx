@@ -1,4 +1,5 @@
 import { LEGACY_TOKEN } from "../config";
+import { useUpgradeAuthority } from "../useUpgradeAuthority";
 
 /**
  * The plain-English explainer.
@@ -9,6 +10,11 @@ import { LEGACY_TOKEN } from "../config";
  * reads exactly like the last one they believed.
  */
 export function HowItWorks() {
+  // The burn is a future event until it isn't. This site is live weeks before
+  // launch day, so the claim below is written in whichever tense the chain
+  // currently supports rather than the one we would prefer.
+  const burned = useUpgradeAuthority().immutable === true;
+
   return (
     <div className="stack prose">
       <section className="card">
@@ -188,12 +194,22 @@ export function HowItWorks() {
           released over twelve months behind a cliff. There is no wallet holding
           a pile that could be sold tomorrow.
         </p>
-        <p>
-          <strong>The contract cannot be modified.</strong> The upgrade authority
-          was destroyed on launch day, before the token was announced. Not
-          transferred, not time-locked — destroyed. The code that is running is
-          the code that will always run.
-        </p>
+        {burned ? (
+          <p>
+            <strong>The contract cannot be modified.</strong> The upgrade
+            authority was destroyed on launch day, before the token was
+            announced. Not transferred, not time-locked — destroyed. The code
+            that is running is the code that will always run.
+          </p>
+        ) : (
+          <p>
+            <strong>The contract will not be modifiable.</strong> The upgrade
+            authority is due to be destroyed on launch day, before the token is
+            announced — not transferred, not time-locked. It has not happened
+            yet. Until the Verify tab reads <code>Authority: none</code>, this
+            is a promise rather than a fact, and you should treat it as one.
+          </p>
+        )}
         <p>
           <strong>Every number is public.</strong> The eligibility list, the
           influencer allocations and amounts, the source code, the balances. The

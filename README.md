@@ -37,7 +37,7 @@ claim opens.
 | `scripts/deploy-init.ts` | initialize → fund → lock, with a dry-run default |
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
 | `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
-| `app/` | claim dApp, dashboard, fee crank, live Verify page and explainer |
+| `app/` | landing page, claim dApp, dashboard, fee crank, live Verify page and explainer |
 | `app/src/pumpfun.ts` | the only pump.fun-coupled code — deliberately in the frontend |
 | `functions/` | basic-auth gate fronting the staging site |
 | `TO-THE-MOON.md` | **the complete checklist — start here** |

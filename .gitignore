@@ -25,3 +25,4 @@ functions/public/
 .env.*
 !.env.example
 !*.env.example
+.gstack/

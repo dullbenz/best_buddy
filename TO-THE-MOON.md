@@ -275,8 +275,16 @@ Everything is drafted in [docs/CONTENT.md](docs/CONTENT.md) — 60s and 30s TikT
 scripts, an 11-post X thread, FAQ answers, and the ask for independent
 verification. Fill in the placeholders and record.
 
-Also read `app/src/components/HowItWorks.tsx` end to end and confirm it matches
-what you actually built.
+Also read `app/src/components/Landing.tsx` and
+`app/src/components/HowItWorks.tsx` end to end and confirm every sentence
+matches what you actually built. These two files are where the site makes
+claims in prose rather than reading them from chain, so they are the only place
+it can be wrong without the RPC catching it.
+
+Both switch tense on the live upgrade-authority read: before the burn they say
+the authority is *not* burned yet and call the commitment an unkept promise.
+That is deliberate — the site is live from 0.4, weeks before launch — so do not
+"fix" it by hardcoding the post-burn wording.
 
 ### 2.5 Publish the pre-commitment document
 

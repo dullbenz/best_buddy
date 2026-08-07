@@ -5,15 +5,31 @@ import { Claims } from "./components/Claims";
 import { Dashboard } from "./components/Dashboard";
 import { FundPool } from "./components/FundPool";
 import { HowItWorks } from "./components/HowItWorks";
+import { Landing } from "./components/Landing";
 import { Staking } from "./components/Staking";
 import { Verify } from "./components/Verify";
 
-type Tab = "dashboard" | "claims" | "staking" | "fund pool" | "verify" | "how it works";
+type Tab =
+  | "home"
+  | "dashboard"
+  | "claims"
+  | "staking"
+  | "fund pool"
+  | "verify"
+  | "how it works";
 
-const TABS: Tab[] = ["dashboard", "claims", "staking", "fund pool", "verify", "how it works"];
+const TABS: Tab[] = [
+  "home",
+  "dashboard",
+  "claims",
+  "staking",
+  "fund pool",
+  "verify",
+  "how it works",
+];
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>("home");
 
   return (
     <div className="app">
@@ -45,6 +61,7 @@ export function App() {
       )}
 
       <main>
+        {tab === "home" && <Landing go={(t) => setTab(t as Tab)} />}
         {tab === "dashboard" && <Dashboard />}
         {tab === "claims" && <Claims />}
         {tab === "staking" && <Staking />}
