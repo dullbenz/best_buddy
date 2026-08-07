@@ -126,9 +126,13 @@ Three things ship with the launch, not after it:
   on the site under the **Verify** tab, which runs the checks it can in the
   visitor's browser and says "could not read" rather than guessing when it
   cannot.
-- **The How it works tab** — the plain-English explainer in
-  `app/src/components/HowItWorks.tsx`. Read it end to end and make sure it
-  matches what you actually built.
+- **The landing page and the How it works tab** —
+  `app/src/components/Landing.tsx` and `app/src/components/HowItWorks.tsx`.
+  Read both end to end and make sure they match what you actually built. These
+  are the only two places the site asserts something in prose instead of
+  reading it from chain, so they are the only two that can be wrong silently.
+  Both already switch tense on the live upgrade-authority read, so before the
+  burn they say so rather than claiming it.
 - **[CONTENT.md](./CONTENT.md)** — TikTok scripts, the X thread, and the ask for
   independent verification. Check every placeholder is filled and no post
   promises a price outcome.
