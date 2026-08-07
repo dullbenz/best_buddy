@@ -187,7 +187,7 @@ export function Staking() {
           keeps earning throughout the three days, the clock starts the moment
           you ask rather than the moment you staked, and once it elapses you can
           withdraw whenever suits you — there is no window to miss. Break a
-          locked tier early and you lose the whole bonus plus 10% of your stake;
+          locked tier early and you lose the whole bonus plus 20% of your stake;
           Flexible has no equivalent, because there is nothing to break.
           <br />
           The delay exists so nobody can watch a large reward land, stake for a
@@ -239,7 +239,7 @@ export function Staking() {
           {lockLeft && (
             <p className="muted small">
               Lock matures in {lockLeft}. Leaving before then forfeits the entire
-              boost escrow plus 10% of principal, both of which go to the stakers
+              boost escrow plus 20% of principal, both of which go to the stakers
               who stay.
             </p>
           )}
@@ -258,7 +258,7 @@ export function Staking() {
             </button>
             {lockLeft && (
               <button className="danger" disabled={busy} onClick={emergencyExit}>
-                Emergency exit (forfeit boost + 10%)
+                Emergency exit (forfeit boost + 20%)
               </button>
             )}
           </div>

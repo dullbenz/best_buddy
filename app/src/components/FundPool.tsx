@@ -217,8 +217,8 @@ export function FundPool() {
             has graduated (<code>transfer_creator_fees_to_pump_v2</code>).
           </li>
           <li>
-            Pays out to the frozen shareholder list — 90% our vault, 10% the
-            dev (<code>distribute_creator_fees_v2</code>).
+            Pays out to the frozen shareholder list — 90% the community vault,
+            10% the Token Creator (<code>distribute_creator_fees_v2</code>).
           </li>
           <li>
             Unwraps any wrapped SOL our vault received (<code>unwrap_wsol</code>).

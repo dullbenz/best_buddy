@@ -70,7 +70,11 @@ exports.terms = onRequest(
         .orderBy("signedAt")
         .get();
 
-      res.set("Cache-Control", "public, max-age=60");
+      // Deliberately not cached. This is a live register that grows as people
+      // sign, and it is meant to be audited — a reader who is checking whether
+      // a specific wallet accepted the terms must not be shown a minute-old
+      // answer and conclude the entry is missing. The CDN was doing exactly
+      // that in testing.
       res.json({
         terms: TERMS,
         termsSha256: TERMS_SHA256,

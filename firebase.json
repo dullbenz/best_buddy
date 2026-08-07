@@ -42,6 +42,19 @@
           ]
         },
         {
+          "source": "/snapshot/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            }
+          ]
+        },
+        {
           "source": "/index.html",
           "headers": [
             {

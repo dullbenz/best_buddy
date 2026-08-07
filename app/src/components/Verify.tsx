@@ -318,7 +318,7 @@ export function Verify() {
             <li>
               <strong>Broken staking locks.</strong> If somebody picks a locked
               tier — say 12 months at 3× — and then pulls their tokens out
-              early, they give up the entire bonus they had accrued plus 10% of
+              early, they give up the entire bonus they had accrued plus 20% of
               their stake. That is what "broken lock" means: a commitment ended
               before its term. The penalty is not burned and does not come to
               us; it is shared among the stakers who kept theirs.

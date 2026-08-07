@@ -539,7 +539,7 @@ async function main() {
   Not covered here (needs a fake clock — see the bankrun tests via 'npm test'):
     - the 30-day and 72-hour windows expiring
     - the three sweeps moving remainders into bucket 1
-    - emergency exit forfeiting boost + 10%
+    - emergency exit forfeiting boost + 20%
     - the 2030 original-signer deadline
 
   Not covered here at all (pump.fun has no devnet): the creator-fee chain.

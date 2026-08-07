@@ -38,7 +38,7 @@ pub const UNSTAKE_COOLDOWN: i64 = 3 * ONE_DAY;
 
 /// Penalty applied to *principal* when a locked position exits early, in bps.
 /// The forfeited boost escrow is on top of this. Both flow to the stake pool.
-pub const EMERGENCY_EXIT_SLASH_BPS: u64 = 1_000; // 10%
+pub const EMERGENCY_EXIT_SLASH_BPS: u64 = 2_000; // 20%
 
 /// Claim windows.
 pub const OLD_HOLDER_CLAIM_WINDOW: i64 = 30 * ONE_DAY;

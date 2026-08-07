@@ -194,7 +194,7 @@ export const TIERS = [
     ],
     costs: [
       "Locked for 30 days",
-      "Leaving early forfeits the entire bonus plus 10% of your stake",
+      "Leaving early forfeits the entire bonus plus 20% of your stake",
     ],
   },
   {
@@ -210,7 +210,7 @@ export const TIERS = [
     ],
     costs: [
       "Locked for 90 days",
-      "Leaving early forfeits the entire bonus plus 10% of your stake",
+      "Leaving early forfeits the entire bonus plus 20% of your stake",
     ],
   },
   {
@@ -228,7 +228,7 @@ export const TIERS = [
     ],
     costs: [
       "Locked for a full year",
-      "Leaving early forfeits the entire bonus plus 10% of your stake",
+      "Leaving early forfeits the entire bonus plus 20% of your stake",
     ],
   },
 ];

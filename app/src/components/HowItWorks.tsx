@@ -149,7 +149,7 @@ export function HowItWorks() {
         <p>
           <strong>Your base rewards are claimable at any time, in every tier.</strong>{" "}
           The extra your multiplier earns is held until your lock matures, and is
-          forfeited if you leave early, along with 10% of your stake.
+          forfeited if you leave early, along with 20% of your stake.
         </p>
         <p className="muted">
           Without that, someone could take the 3× rate, collect triple rewards

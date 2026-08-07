@@ -404,7 +404,7 @@ pub struct EmergencyExit<'info> {
 /// The staker keeps their settled base rewards — that is the part a flexible
 /// staker would have earned anyway, and it was always immediately claimable.
 /// They forfeit the boost escrow (the portion the multiplier bought, which they
-/// did not finish earning) plus 10% of principal. Both forfeitures are
+/// did not finish earning) plus 20% of principal. Both forfeitures are
 /// redistributed to the stakers who stayed, which is why the exiting position's
 /// weight is removed from the pool *before* the redistribution happens.
 pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {

@@ -31,6 +31,11 @@ import {
 } from "./helpers";
 
 const UNIT = 1_000_000n; // 6 decimals
+
+// Mirrors EMERGENCY_EXIT_SLASH_BPS in programs/buddy-distributor/src/constants.rs.
+// Kept as a named constant because two separate assertions depend on it, and
+// hard-coding the fraction meant changing the slash silently broke the suite.
+const EMERGENCY_EXIT_SLASH_BPS = 2_000n; // 20%
 const OLD_ALLOC = 550_000n * UNIT;
 const INF_ALLOC = 150_000n * UNIT;
 const SIGNER_ALLOC = 200_000n * UNIT;
@@ -781,18 +786,20 @@ describe("buddy-distributor", () => {
 
       const finalBalance = await tokenBalance(b.env, attacker.acct);
       const principalReturned = finalBalance - afterClaim;
-      const expectedPrincipal = (1_000n * UNIT * 90n) / 100n; // 10% slashed
+      const expectedPrincipal =
+        (1_000n * UNIT * (10_000n - EMERGENCY_EXIT_SLASH_BPS)) / 10_000n;
 
       assert.equal(
         principalReturned.toString(),
         expectedPrincipal.toString(),
-        "attacker gets 90% of principal and not one unit of the escrow"
+        "attacker gets principal minus the slash, and not one unit of the escrow"
       );
 
       const poolAfter = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       const redistributed =
         BigInt(poolAfter.lifetimeTokenRewards.toString()) - BigInt(poolBefore.lifetimeTokenRewards.toString());
-      const expectedRedistribution = escrowed + (1_000n * UNIT) / 10n;
+      const expectedRedistribution =
+        escrowed + (1_000n * UNIT * EMERGENCY_EXIT_SLASH_BPS) / 10_000n;
       assert.equal(
         redistributed.toString(),
         expectedRedistribution.toString(),
