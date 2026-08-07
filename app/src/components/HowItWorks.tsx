@@ -247,7 +247,7 @@ export function HowItWorks() {
 }
 
 /**
- * The old token, named and linked.
+ * The Legacy Buddy token, named and linked.
  *
  * Naming it is not a risk to manage — it is the evidence. Everything claimed
  * about the abandonment is visible in that token's own history, so the links
@@ -281,7 +281,7 @@ function LegacyToken() {
       ))}
       <p className="file-foot">
         Check the sell history against the launch date yourself. Nothing on this
-        page about the old token needs to be taken on our word.
+        page about the Legacy Buddy token needs to be taken on our word.
       </p>
     </div>
   );

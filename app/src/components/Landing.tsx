@@ -39,6 +39,8 @@ export function Landing({ go }: { go: (tab: string) => void }) {
   const signerLeft = countdown(ORIGINAL_SIGNER_DEADLINE, now);
   const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
   const chainReadable = !error && !loading && !!config;
+  // True only once the chain says so. Never assume the burn has happened.
+  const burned = upgrade.immutable === true;
 
   // The live mint, read from the contract rather than pasted into the source.
   // Before launch there is nothing to read and the buy route says so plainly —
@@ -110,7 +112,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
           label="Claim window"
           value={oldLeft ?? "—"}
           tone={oldLeft ? "warn" : "unknown"}
-          note="old-coin holders"
+          note="Legacy Buddy holders"
         />
         <SpecCell
           label="In the vault"
@@ -120,11 +122,16 @@ export function Landing({ go }: { go: (tab: string) => void }) {
         />
       </div>
 
+      {/* The first item tracks the chain rather than asserting a burn that has
+          not happened. The spec cell directly above reads "held" until launch
+          day, and a ticker claiming "immutable program" beside it would be the
+          page contradicting itself in the reader's eye-line. */}
       <div className="l-ticker" aria-hidden="true">
         <div className="l-ticker-run">
           {Array.from({ length: 2 }, (_, i) => (
             <span key={i}>
-              immutable program <i>·</i> merkle snapshot <i>·</i> no presale{" "}
+              {burned ? "immutable program" : "upgrade authority burns at launch"}{" "}
+              <i>·</i> merkle snapshot <i>·</i> no presale{" "}
               <i>·</i> no team wallet <i>·</i> permissionless payouts <i>·</i>{" "}
               on-chain bitcoin signature <i>·</i> published exclusions <i>·</i>{" "}
               reproducible build <i>·</i>{" "}
@@ -160,13 +167,13 @@ export function Landing({ go }: { go: (tab: string) => void }) {
         </ol>
 
         <Figure
-          caption="The trap: on the old coin, the fee from every trade kept paying the person who had already sold and left. That is why the community could not simply take it over — doing so would have funded him."
+          caption="The trap: on the Legacy Buddy coin, the fee from every trade kept paying the person who had already sold and left. That is why the community could not simply take it over — doing so would have funded him."
         >
           <FeeTrapDiagram />
         </Figure>
 
         <div className="l-source">
-          <span className="l-micro">Source · the old coin</span>
+          <span className="l-micro">Source · the Legacy Buddy coin</span>
           <code>{LEGACY_TOKEN.mint}</code>
           <span className="l-source-links">
             {LEGACY_TOKEN.links.map((l) => (
@@ -211,8 +218,8 @@ export function Landing({ go }: { go: (tab: string) => void }) {
           />
           <Route
             glyph="claim"
-            title="I held the old Buddy coin"
-            body="You have tokens waiting, free. A list of everyone who held the old coin was recorded from public blockchain history, and your share is reserved for your wallet. Connect it and the site tells you yes or no in a second."
+            title="I held the Legacy Buddy coin"
+            body="You have tokens waiting, free. A list of everyone who held the Legacy Buddy coin was recorded from public blockchain history, and your share is reserved for your wallet. Connect it and the site tells you yes or no in a second."
             note="Claimed tokens arrive instantly and are yours — sell them the same minute if you want."
             clock={oldLeft ? `${oldLeft} left` : null}
             cta="Check my wallet"
@@ -223,7 +230,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             glyph="stake"
             title="I want to earn from this coin"
             body="Staking means locking your tokens into the contract. While they sit there you earn a share of everything the project takes in — trading fees from pump.fun, plus every allocation nobody else claimed. Longer locks earn a bigger share."
-            note="You can also stake with no lock at all, and take your tokens back whenever you like."
+            note="There is also a no-lock option: nothing is ever forfeited, and leaving takes three days from the day you ask."
             cta="See the staking terms"
             onClick={() => go("staking")}
           />
@@ -247,7 +254,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
         <Sub title="The four splits" />
         <div className="l-alloc">
           <AllocRow
-            who="People who held the old coin"
+            who="People who held the Legacy Buddy coin"
             window="30 days to claim"
             body="Free tokens as restitution, paid the moment you claim, with no lockup of any kind."
             live={
@@ -315,7 +322,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             Anything nobody claims becomes rewards for the people who stake.
           </p>
           <p className="l-rule-body">
-            Influencers who never turn up. Old holders who never come back. The
+            Influencers who never turn up. Legacy Buddy holders who never come back. The
             2014 reserve if nobody ever proves it. Tokens given up by people who
             break a staking lock early. All of it goes to the same place, and
             none of it can come back to the team — there is no instruction in the
@@ -412,7 +419,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
           tone="check"
           plain={
             <>
-              The list of old-coin holders had to be worked out away from the
+              The list of Legacy Buddy holders had to be worked out away from the
               blockchain, because a Solana contract cannot read who holds what.
               That is only worth anything if anyone else can repeat the exercise
               and get an identical answer — so the full holder list is published,

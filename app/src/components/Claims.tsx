@@ -239,7 +239,7 @@ export function Claims() {
           If you held the <strong>original</strong> Buddy token when its creator
           walked away, this is your restitution. A snapshot of every holder was
           taken at a fixed moment in the past, so nothing you do now can change
-          what you are owed — and buying the old token today earns nothing.
+          what you are owed — and buying the Legacy Buddy token today earns nothing.
         </p>
         <p className="muted small">
           Paid in full the moment you claim. No lockup, no vesting, no strings:

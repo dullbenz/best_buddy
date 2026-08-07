@@ -15,7 +15,7 @@
 const MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace";
 
 /* ------------------------------------------------------------------ *
- * Why a community takeover of the old coin was impossible.
+ * Why a community takeover of the Legacy Buddy coin was impossible.
  * Before/after, because the whole argument is a comparison.
  * ------------------------------------------------------------------ */
 export function FeeTrapDiagram() {
@@ -28,13 +28,13 @@ export function FeeTrapDiagram() {
       style={{ maxWidth: 460 }}
     >
       <title id="feetrap-title">
-        On the old coin, the fee from every trade went to the creator who had
+        On the Legacy Buddy coin, the fee from every trade went to the creator who had
         left. On the new one it goes to the community staking pool.
       </title>
 
       {/* --- old --- */}
       <text x="0" y="14" fill="var(--muted)" fontSize="11" fontFamily={MONO} letterSpacing="1.6">
-        THE OLD COIN
+        LEGACY BUDDY
       </text>
 
       <rect x="0" y="30" width="120" height="44" rx="2" fill="var(--panel-2)" stroke="var(--border)" />
@@ -100,7 +100,7 @@ export function FeeTrapDiagram() {
  * ------------------------------------------------------------------ */
 export function BucketFlowDiagram() {
   const boxes = [
-    { label: "Old holders", sub: "30 days" },
+    { label: "Legacy holders", sub: "30 days" },
     { label: "Influencers", sub: "72 hours" },
     { label: "2014 signer", sub: "until 2030" },
     { label: "The builder", sub: "12 months" },
@@ -223,7 +223,7 @@ export function PayoutShapes() {
     <div className="l-shapes">
       <PayoutShape
         title="Instant"
-        sub="Old-coin holders. It all arrives the moment you claim."
+        sub="Legacy Buddy holders. It all arrives the moment you claim."
         path="M18 66 V 12 H 142"
         accent
       />
