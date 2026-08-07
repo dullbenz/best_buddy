@@ -35,7 +35,7 @@ const UNIT = 1_000_000n; // 6 decimals
 // Mirrors EMERGENCY_EXIT_SLASH_BPS in programs/buddy-distributor/src/constants.rs.
 // Kept as a named constant because two separate assertions depend on it, and
 // hard-coding the fraction meant changing the slash silently broke the suite.
-const EMERGENCY_EXIT_SLASH_BPS = 2_000n; // 20%
+const EMERGENCY_EXIT_SLASH_BPS = 1_500n; // 15%
 const OLD_ALLOC = 550_000n * UNIT;
 const INF_ALLOC = 150_000n * UNIT;
 const SIGNER_ALLOC = 200_000n * UNIT;
@@ -736,11 +736,11 @@ describe("buddy-distributor", () => {
       const attacker = await makeStaker(b.env, 1_000n * UNIT);
       const loyal = await makeStaker(b.env, 1_000n * UNIT);
 
-      await stake(b.env, attacker.staker, attacker.acct, 1_000n * UNIT, Tier.TwelveMonth); // 3.0x
+      await stake(b.env, attacker.staker, attacker.acct, 1_000n * UNIT, Tier.TwelveMonth); // 5.0x
       await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT, Tier.Flexible); // 1.0x
 
-      const donor = await makeStaker(b.env, 4_000n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 4_000n * UNIT);
+      const donor = await makeStaker(b.env, 6_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
 
       // Attacker drains everything claimable, then immediately breaks the lock.
       await b.env.program.methods
@@ -815,8 +815,8 @@ describe("buddy-distributor", () => {
       await stake(b.env, quitter.staker, quitter.acct, 1_000n * UNIT, Tier.TwelveMonth);
       await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT, Tier.Flexible);
 
-      const donor = await makeStaker(b.env, 4_000n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 4_000n * UNIT);
+      const donor = await makeStaker(b.env, 6_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
 
       await b.env.program.methods
         .emergencyExit()
@@ -941,10 +941,10 @@ describe("buddy-distributor", () => {
       const flex = await makeStaker(b.env, 1_000n * UNIT);
       const locked = await makeStaker(b.env, 1_000n * UNIT);
       await stake(b.env, flex.staker, flex.acct, 1_000n * UNIT, Tier.Flexible); // weight 1000
-      await stake(b.env, locked.staker, locked.acct, 1_000n * UNIT, Tier.TwelveMonth); // weight 3000
+      await stake(b.env, locked.staker, locked.acct, 1_000n * UNIT, Tier.TwelveMonth); // weight 5000
 
-      const donor = await makeStaker(b.env, 4_000n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 4_000n * UNIT);
+      const donor = await makeStaker(b.env, 6_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
 
       const flexPos = await (b.env.program.account as any).stakePosition.fetch(stakePda(flex.staker.publicKey, b.env.programId));
       const lockedPos = await (b.env.program.account as any).stakePosition.fetch(
@@ -952,10 +952,10 @@ describe("buddy-distributor", () => {
       );
       // Settlement is lazy, so read the pool accumulator and compute expectations.
       const pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
-      assert.equal(pool.totalWeight.toString(), (4_000n * UNIT).toString());
+      assert.equal(pool.totalWeight.toString(), (6_000n * UNIT).toString());
 
-      // Flexible: 1/4 of 4000 = 1000, all of it base.
-      // Locked:   3/4 of 4000 = 3000, of which 1000 base and 2000 boost.
+      // Flexible: 1/6 of 6000 = 1000, all of it base.
+      // Locked:   5/6 of 6000 = 5000, of which 1000 base and 4000 boost.
       await b.env.program.methods
         .claimRewards()
         .accountsPartial({
@@ -996,7 +996,7 @@ describe("buddy-distributor", () => {
       const lockedAfter = await (b.env.program.account as any).stakePosition.fetch(
         stakePda(locked.staker.publicKey, b.env.programId)
       );
-      assert.equal(lockedAfter.escrowToken.toString(), (2_000n * UNIT).toString(), "the 2.0x boost is escrowed");
+      assert.equal(lockedAfter.escrowToken.toString(), (4_000n * UNIT).toString(), "the 4x boost above base is escrowed");
     });
 
     it("buffers rewards that arrive with nobody staked, then flushes them", async () => {
@@ -1242,8 +1242,8 @@ describe("buddy-distributor", () => {
       await stake(b.env, quitter.staker, quitter.acct, 1_000n * UNIT, Tier.TwelveMonth);
       await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT, Tier.Flexible);
 
-      const donor = await makeStaker(b.env, 4_000n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 4_000n * UNIT);
+      const donor = await makeStaker(b.env, 6_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
 
       await b.env.program.methods
         .emergencyExit()

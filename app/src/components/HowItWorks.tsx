@@ -150,15 +150,15 @@ export function HowItWorks() {
         <h2>Staking, and why the multiplier is held back</h2>
         <p>
           Staking registers you for everything the ecosystem earns. Longer locks
-          earn more — up to 3× for twelve months.
+          earn more — up to 5× for twelve months.
         </p>
         <p>
           <strong>Your base rewards are claimable at any time, in every tier.</strong>{" "}
           The extra your multiplier earns is held until your lock matures, and is
-          forfeited if you leave early, along with 20% of your stake.
+          forfeited if you leave early, along with 15% of your stake.
         </p>
         <p className="muted">
-          Without that, someone could take the 3× rate, collect triple rewards
+          Without that, someone could take the 5× rate, collect five times the rewards
           for a few weeks, walk away, and have been paid the full multiplier for
           a commitment they never kept — diluting everyone who actually locked.
           Break a lock and you keep roughly what a flexible staker would have

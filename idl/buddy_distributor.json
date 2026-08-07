@@ -2728,7 +2728,7 @@
         "multiplier), but only the portion attributable to `amount x 1.0` is",
         "immediately claimable. The remainder — the part the multiplier bought — is",
         "escrowed until the lock matures, and is forfeited on early exit. Without",
-        "this, a staker could take the 3.0x rate, claim continuously, and leave after",
+        "this, a staker could take the 5.0x rate, claim continuously, and leave after",
         "a few weeks having honoured none of the commitment the multiplier paid for."
       ],
       "type": {

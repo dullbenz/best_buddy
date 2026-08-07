@@ -194,7 +194,7 @@ export const TIERS = [
     ],
     costs: [
       "Locked for 30 days",
-      "Leaving early forfeits the entire bonus plus 20% of your stake",
+      "Leaving early forfeits the entire bonus plus 15% of your stake",
     ],
   },
   {
@@ -210,25 +210,25 @@ export const TIERS = [
     ],
     costs: [
       "Locked for 90 days",
-      "Leaving early forfeits the entire bonus plus 20% of your stake",
+      "Leaving early forfeits the entire bonus plus 15% of your stake",
     ],
   },
   {
     id: 3,
     name: "12 months",
-    multiplier: "3.0x",
+    multiplier: "5.0x",
     lock: "365 days",
-    tagline: "The largest share available",
+    tagline: "Five times the share, for a full year",
     popular: true,
     perks: [
-      "Counts as 3× your stake when rewards are split",
+      "Counts as 5× your stake when rewards are split",
       "Base rewards still claimable any time",
       "Bonus paid in full at day 365",
       "Earns from everything others forfeit along the way",
     ],
     costs: [
       "Locked for a full year",
-      "Leaving early forfeits the entire bonus plus 20% of your stake",
+      "Leaving early forfeits the entire bonus plus 15% of your stake",
     ],
   },
 ];

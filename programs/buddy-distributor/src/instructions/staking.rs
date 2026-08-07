@@ -141,7 +141,7 @@ pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
         // Settle at the *old* weight before anything about the position changes.
         position.settle(pool)?;
         // A top-up may keep the current tier or move up to a longer lock, but it
-        // may never move down — that would let someone buy the 3.0x rate and
+        // may never move down — that would let someone buy the 5.0x rate and
         // then shorten the commitment it was paying for.
         require!(
             tier.multiplier_bps() >= position.tier.multiplier_bps(),
@@ -404,7 +404,7 @@ pub struct EmergencyExit<'info> {
 /// The staker keeps their settled base rewards — that is the part a flexible
 /// staker would have earned anyway, and it was always immediately claimable.
 /// They forfeit the boost escrow (the portion the multiplier bought, which they
-/// did not finish earning) plus 20% of principal. Both forfeitures are
+/// did not finish earning) plus 15% of principal. Both forfeitures are
 /// redistributed to the stakers who stayed, which is why the exiting position's
 /// weight is removed from the pool *before* the redistribution happens.
 pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {

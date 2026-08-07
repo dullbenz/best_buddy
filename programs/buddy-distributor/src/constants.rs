@@ -23,7 +23,7 @@ pub const BPS_DENOMINATOR: u64 = 10_000;
 pub const TIER_FLEXIBLE_BPS: u64 = 10_000; // 1.0x
 pub const TIER_ONE_MONTH_BPS: u64 = 15_000; // 1.5x
 pub const TIER_THREE_MONTH_BPS: u64 = 20_000; // 2.0x
-pub const TIER_TWELVE_MONTH_BPS: u64 = 30_000; // 3.0x
+pub const TIER_TWELVE_MONTH_BPS: u64 = 50_000; // 5.0x
 
 /// Lock durations in seconds.
 pub const ONE_DAY: i64 = 86_400;
@@ -38,7 +38,7 @@ pub const UNSTAKE_COOLDOWN: i64 = 3 * ONE_DAY;
 
 /// Penalty applied to *principal* when a locked position exits early, in bps.
 /// The forfeited boost escrow is on top of this. Both flow to the stake pool.
-pub const EMERGENCY_EXIT_SLASH_BPS: u64 = 2_000; // 20%
+pub const EMERGENCY_EXIT_SLASH_BPS: u64 = 1_500; // 15%
 
 /// Claim windows.
 pub const OLD_HOLDER_CLAIM_WINDOW: i64 = 30 * ONE_DAY;

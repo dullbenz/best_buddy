@@ -1,45 +1,47 @@
 # Brand assets
 
-`logo.png` is the master: 1024×1024, RGBA, transparent outside the badge.
-Everything else here is generated from it.
+Two marks, not one, because a boy and a dog cheek to cheek stop being
+readable somewhere around 64px. Which one to use is decided by size, not by
+context.
+
+| Source | Master | Used for |
+|---|---|---|
+| `logo.png` | 1024×1024 full badge | the scene, with the wordmark |
+| `favicons/favicon_512.png` | 512×512 dog's head | everything small |
+
+## Generated files
+
+| File | From | Used by |
+|---|---|---|
+| `badge-512.png` | `logo.png` | `og:image`, `twitter:image`, token metadata, pump.fun |
+| `mark-192.png` | the crop | site header (44px) |
+| `apple-touch-icon.png` | the crop | iOS home screen |
+| `mark-32.png`, `mark-16.png` | the crop | browser tab |
+| `favicon.ico` | supplied | browser tab, legacy |
+
+Nothing small is a downscale of the badge. That was the earlier mistake: the
+structure disappeared entirely in the tab.
 
 ## Regenerating
 
 ```bash
 cd app/public
-for s in 512 192 32 16; do sips -s format png -Z $s logo.png --out "icon-$s.png"; done
-sips -s format png -Z 180 logo.png --out apple-touch-icon.png
+sips -s format png -Z 512 logo.png --out badge-512.png
+for s in 192 32 16; do sips -s format png -Z $s favicons/favicon_512.png --out "mark-$s.png"; done
+sips -s format png -Z 180 favicons/favicon_512.png --out apple-touch-icon.png
 ```
 
-| File | Used by |
-|---|---|
-| `logo.png` | site header |
-| `icon-512.png` | `og:image`, `twitter:image`, token metadata |
-| `icon-192.png` | Android home screen |
-| `apple-touch-icon.png` | iOS home screen |
-| `icon-32.png`, `icon-16.png` | browser tab |
+`favicons/` holds the originals as supplied and is not referenced by the app
+except as the source above. `favicon.ico` is copied from it verbatim.
 
-## The favicon still needs a different crop
+## Note on the header
 
-The 32 and 16 are currently downscaled from the full badge, and at that size a
-boy and a dog cheek to cheek become an unreadable smudge. That is a property of
-the composition, not the file format — a vector version would be no better.
-
-The fix is a second mark: **the dog's head alone**, cropped from the same
-artwork so it is recognisably the same character. Save it as `mark.png`, square
-and 512×512 or larger, then:
-
-```bash
-cd app/public
-sips -s format png -Z 32 mark.png --out icon-32.png
-sips -s format png -Z 16 mark.png --out icon-16.png
-```
-
-Nothing else changes — `index.html` already points at those filenames.
+The header shows the dog's head, not the full badge — at 44px the scene is
+unreadable, and the wordmark next to it already says "Buddy". The badge earns
+its place on link previews and exchange listings, where it is shown big enough
+to be understood.
 
 ## Not served
 
-`logo.png` is 660 KB, which is heavy for a 44px header mark. It is kept at full
-resolution because it is also the source for every export above. If page weight
-ever matters, point the header at `icon-192.png` instead; the file is 48 KB and
-indistinguishable at that size.
+`logo.png` is 660 KB and is kept only as the export source. Markdown in this
+directory is excluded from the production deploy, so this file is not public.

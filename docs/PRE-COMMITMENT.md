@@ -150,22 +150,22 @@ Stake the token to register; rewards accrue continuously and pro-rata.
 | Tier | Multiplier | Lock | Early exit |
 |---|---|---|---|
 | Flexible | 1.0x | none, 3-day unstake cooldown | n/a |
-| 1 month | 1.5x | 30 days | forfeits boost + 20% |
-| 3 months | 2.0x | 90 days | forfeits boost + 20% |
-| 12 months | 3.0x | 365 days | forfeits boost + 20% |
+| 1 month | 1.5x | 30 days | forfeits boost + 15% |
+| 3 months | 2.0x | 90 days | forfeits boost + 15% |
+| 12 months | 5.0x | 365 days | forfeits boost + 15% |
 
 **Base rewards are claimable at any time, in every tier.** The portion your
 multiplier earns above 1.0x — the "boost" — is held in escrow until your lock
 matures.
 
-That split exists for a specific reason. Without it, someone could take the 3.0x
-rate, collect triple rewards continuously, exit after a few weeks, and have
+That split exists for a specific reason. Without it, someone could take the 5.0x
+rate, collect five times the rewards continuously, exit after a few weeks, and have
 captured the full multiplier while honouring almost none of the commitment it
 paid for — diluting everyone who actually locked. With it, breaking a lock
 leaves you with roughly what a flexible staker would have earned, which is
 exactly what you actually committed to.
 
-Early exit forfeits the escrowed boost plus 20% of principal. Both go straight
+Early exit forfeits the escrowed boost plus 15% of principal. Both go straight
 into the pool for the stakers who stayed.
 
 The pool is fed by a 90% share of pump.fun creator fees, donations from anyone,

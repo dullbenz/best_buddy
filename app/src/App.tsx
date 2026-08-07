@@ -37,9 +37,9 @@ export function App() {
         <div className="brand">
           {/* Decorative: the h1 beside it already names the project, so
               announcing the logo too would just repeat it to a screen reader. */}
-          {/* icon-192, not the 1024 master — 48 KB instead of 660 KB, and
-              indistinguishable at 44px. */}
-          <img className="brand-mark" src="/icon-192.png" alt="" width="44" height="44" />
+          {/* The dog's head, not the full badge: at 44px the two-figure scene
+              is unreadable, and the wordmark beside it already says "Buddy". */}
+          <img className="brand-mark" src="/mark-192.png" alt="" width="44" height="44" />
           <div className="brand-text">
             <h1>Buddy</h1>
             <span className="tagline">community-owned, on-chain, verifiable</span>

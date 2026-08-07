@@ -96,11 +96,11 @@ step 2.6.
 
 ### Base/boost split
 
-Staking tiers multiply your rewards (up to 3.0x for a 12-month lock), but only
+Staking tiers multiply your rewards (up to 5.0x for a 12-month lock), but only
 the base `amount × 1.0` portion is claimable while the lock runs. The rest is
 escrowed until maturity and forfeited on early exit.
 
-Without this, a staker could take the 3.0x rate, claim continuously, exit after
+Without this, a staker could take the 5.0x rate, claim continuously, exit after
 a few weeks, and have captured the full multiplier while honouring almost none
 of the commitment it paid for. `settle()` in `state.rs` splits every accrual at
 source; `emergency_exit` in `staking.rs` redistributes what a quitter forfeits —
