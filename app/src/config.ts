@@ -71,6 +71,75 @@ export const LEGACY_TOKEN = {
   ],
 };
 
+/**
+ * The two tokens, as the handover strip presents them.
+ *
+ * Legacy is historical and settled — its mint, name and links are facts that
+ * will never change. New is provisional until launch: the mint does not exist
+ * yet, so its links are nulls rather than dead URLs, and the UI renders them as
+ * pending instead of offering something to click.
+ *
+ * Artwork lives in two folders under `public/tokens/` precisely so the new
+ * mark can be replaced before deploy without touching the legacy one.
+ */
+const linkOrder = ["pump.fun", "DexScreener", "Solscan"];
+
+export const LEGACY_TOKEN_INFO = {
+  name: "The First Crypto Dog",
+  ticker: "$Buddy",
+  image: "/tokens/legacy/logo.png",
+  mint: LEGACY_TOKEN.mint,
+  // Same order as the new token's, so the two cards line up column for column
+  // and the eye can compare them rather than re-read each one.
+  links: linkOrder.map((label) => LEGACY_TOKEN.links.find((l) => l.label === label)!),
+};
+
+export const NEW_TOKEN_INFO = {
+  name: "Best Buddy",
+  ticker: "$BUDDY",
+  image: "/tokens/new/logo.png",
+  /** Set on launch day. Until then every link below stays null. */
+  mint: null as string | null,
+  links: [
+    { label: "pump.fun", note: "the launch page", url: null as string | null },
+    { label: "DexScreener", note: "the price chart", url: null as string | null },
+    { label: "Solscan", note: "holders and transfers", url: null as string | null },
+  ],
+};
+
+/**
+ * Where the community actually talks. The X group is live now; the market
+ * links only appear once there is a token behind them, because a dead link on
+ * a memecoin site reads as abandonment — the exact thing this project exists
+ * to answer.
+ */
+export const SOCIAL_LINKS = [
+  {
+    id: "x",
+    label: "Community",
+    title: "Join the community group chat on X",
+    url: "https://x.com/i/chat/group_join/g2087233994584654015/39GXoFqY6d",
+  },
+  {
+    id: "pumpfun",
+    label: "pump.fun",
+    title: "Trade on pump.fun — live at launch",
+    url: null as string | null,
+  },
+  {
+    id: "dexscreener",
+    label: "DexScreener",
+    title: "Price chart — live at launch",
+    url: null as string | null,
+  },
+  {
+    id: "solscan",
+    label: "Solscan",
+    title: "Holders and transfers — live at launch",
+    url: null as string | null,
+  },
+];
+
 /** Published proof files, served as static assets next to the app. */
 export const OLD_HOLDER_PROOFS_URL = "/proofs/old-holders.json";
 export const INFLUENCER_PROOFS_URL = "/proofs/influencers.json";

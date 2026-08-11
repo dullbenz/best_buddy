@@ -17,6 +17,7 @@ import {
   RouteGlyph,
   SnapshotDiagram,
 } from "./illustrations";
+import { TokenHandover } from "./TokenHandover";
 
 /**
  * The front door, laid out as an engineering document rather than a coin page.
@@ -62,16 +63,20 @@ export function Landing({ go }: { go: (tab: string) => void }) {
       {/* ---- what this is ---------------------------------- */}
       <section className="l-hero">
         <h2 className="l-display">
-          Same story.
+          Same story,
+          <br />
+          but built to last.
           <br />
           <span className="l-display-accent">Rules that can't be rewritten.</span>
         </h2>
         <p className="l-lede">
-          Buddy is a memecoin. The last one was abandoned by the person who made
-          it — he sold everything into the people who believed him, and kept
-          earning fees from it afterwards. This is the rebuild, and the only real
-          difference is this: the promises are written in code that nobody can
-          edit later, instead of in posts that anyone can delete.
+          <span className="accented italicized">$BUDDY</span> is the rebirth of an existing
+          memecoin by the same ticker. The last one was dumped and abandoned by the dev
+          — they sold everything into those who really saw the vision,
+          and worst part, they still benefited from trading fees collected.
+          This is the rebuild/rebirth/reimagining, and the only real
+          difference is this: the promises are written in code (smart contracts) that noone can
+          edit later, instead of posts that anyone can delete.
         </p>
 
         <div className="l-actions">
@@ -82,6 +87,11 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             Check all of this yourself <span aria-hidden="true">→</span>
           </button>
         </div>
+
+        {/* The hero's claim, drawn. Placed inside the hero rather than after
+            the spec strip so the narrative beat lands before the data does —
+            the strip below is the summary of this, not a separate section. */}
+        <TokenHandover />
       </section>
 
       {/* ---- the spec strip ------------------------------------------ */}

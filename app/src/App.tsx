@@ -2,6 +2,7 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useState } from "react";
 import { CLUSTER, IS_MAINNET } from "./config";
 import { Claims } from "./components/Claims";
+import { SocialLinks } from "./components/SocialLinks";
 import { Dashboard } from "./components/Dashboard";
 import { FundPool } from "./components/FundPool";
 import { HowItWorks } from "./components/HowItWorks";
@@ -43,6 +44,7 @@ export function App() {
           <div className="brand-text">
             <h1>Buddy</h1>
             <span className="tagline">community-owned, on-chain, verifiable</span>
+            <SocialLinks />
           </div>
         </div>
         <WalletMultiButton />
