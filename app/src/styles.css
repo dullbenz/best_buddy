@@ -2258,3 +2258,28 @@ a.ho-link:hover {
 .lookup-hits strong {
   color: var(--accent);
 }
+
+/* Provenance: block height and the explorer row */
+.prov-block {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.prov-explorers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.prov-explorers a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.prov-explorers a:hover {
+  text-decoration: underline;
+}

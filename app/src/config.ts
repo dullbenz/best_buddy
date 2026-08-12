@@ -189,22 +189,61 @@ export const ORIGINAL_SIGNER_DEADLINE = 1_924_991_999;
  * visitor can check that the key the contract is waiting for really is the key
  * from that 2014 transaction, without taking our word for it.
  *
- * Leave a field empty and the UI says so plainly rather than inventing it.
- * Fill all three before launch — the card is far weaker without them.
+ * Every value here was checked against the chain, not transcribed: the txid
+ * resolves, it confirmed in block 299825, its only input is the address below,
+ * and its OP_RETURN output decodes to exactly the 34 bytes of `message`.
  */
 export const ORIGINAL_MESSAGE = {
-  /** The Bitcoin address that signed in 2014. */
-  address: import.meta.env.VITE_BTC_ADDRESS ?? "",
-  /** The exact message text, byte for byte, that must be signed. */
-  message: import.meta.env.VITE_BTC_MESSAGE ?? "",
-  /** The 2014 transaction id carrying the message. */
-  txid: import.meta.env.VITE_BTC_TXID ?? "",
+  /** The Bitcoin address that sent the transaction carrying the message. */
+  address: "1GPXXpxtzyzLj2iqqcTFYW2TFC8rWqu92e",
+  /**
+   * The message, byte for byte, as it sits in the OP_RETURN output.
+   *
+   * Exactly 34 bytes, no trailing newline, no capitalisation beyond the B.
+   * Anyone re-deriving the signature has to hash precisely this — so it is a
+   * literal here rather than something reconstructed from a heading.
+   */
+  message: "Buddy is the best dog in the world",
+  /** The 2014 transaction carrying it. */
+  txid: "95156dbb48e957754a1fff53ccb9604ee5592dfdd2f117aa37baf635261ef93a",
+  /** Height it confirmed at, so the date can be placed without trusting us. */
+  block: 299825,
 };
 
-/** Block explorer links. mempool.space needs no account and has no tracking. */
+/**
+ * Where to go and look at it.
+ *
+ * mempool.space first: it is the explorer Bitcoin developers actually use, it
+ * decodes the OP_RETURN to readable text on the page, and it sets no cookies
+ * and runs no third-party trackers — which matters when the whole point of the
+ * link is "do not take our word for it".
+ *
+ * blockchain.com second because it is the one most people already recognise,
+ * and a familiar name is worth having for a reader who does not know what an
+ * OP_RETURN is.
+ */
 export const btcTxUrl = (txid: string) => `https://mempool.space/tx/${txid}`;
 export const btcAddressUrl = (address: string) =>
   `https://mempool.space/address/${address}`;
+
+export const BTC_EXPLORERS = [
+  {
+    label: "mempool.space",
+    note: "decodes the message on the page",
+    url: (txid: string) => `https://mempool.space/tx/${txid}`,
+  },
+  {
+    label: "blockchain.com",
+    note: "the familiar one",
+    url: (txid: string) =>
+      `https://www.blockchain.com/explorer/transactions/btc/${txid}`,
+  },
+  {
+    label: "blockstream.info",
+    note: "a third, independent view",
+    url: (txid: string) => `https://blockstream.info/tx/${txid}`,
+  },
+];
 
 /**
  * What an influencer agrees to by claiming.

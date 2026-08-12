@@ -1,9 +1,9 @@
 import { useState } from "react";
 import {
+  BTC_EXPLORERS,
   ORIGINAL_MESSAGE,
   ORIGINAL_SIGNER_DEADLINE,
   btcAddressUrl,
-  btcTxUrl,
 } from "../config";
 import { countdown, fmtDate, fmtSol, fmtTokens } from "../format";
 import { useDistributor } from "../useDistributor";
@@ -282,7 +282,7 @@ function Copy({ text }: { text: string }) {
  * published yet says so, rather than showing a plausible-looking blank.
  */
 function Provenance({ signerPubkey }: { signerPubkey: number[] | Uint8Array }) {
-  const { address, message, txid } = ORIGINAL_MESSAGE;
+  const { address, message, txid, block } = ORIGINAL_MESSAGE;
   const key = hex(signerPubkey);
   const empty = key.replace(/0/g, "") === "";
 
@@ -291,50 +291,51 @@ function Provenance({ signerPubkey }: { signerPubkey: number[] | Uint8Array }) {
       <div className="provenance-head">What has to be proved</div>
 
       <div className="prov-row">
-        <span className="prov-label">Signing address</span>
-        {address ? (
-          <>
-            <a
-              className="mono prov-value"
-              href={btcAddressUrl(address)}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              {address}
-            </a>
-            <Copy text={address} />
-          </>
-        ) : (
-          <span className="prov-value muted">published before launch</span>
-        )}
+        <span className="prov-label">Sending address</span>
+        <a
+          className="mono prov-value"
+          href={btcAddressUrl(address)}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          {address}
+        </a>
+        <Copy text={address} />
       </div>
 
       <div className="prov-row">
         <span className="prov-label">Message</span>
-        {message ? (
-          <>
-            <code className="prov-value prov-message">{message}</code>
-            <Copy text={message} />
-          </>
-        ) : (
-          <span className="prov-value muted">published before launch</span>
-        )}
+        <code className="prov-value prov-message">{message}</code>
+        <Copy text={message} />
       </div>
 
       <div className="prov-row">
         <span className="prov-label">2014 transaction</span>
-        {txid ? (
-          <a
-            className="mono prov-value"
-            href={btcTxUrl(txid)}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            {txid.slice(0, 16)}… ↗ view on mempool.space
-          </a>
-        ) : (
-          <span className="prov-value muted">published before launch</span>
-        )}
+        <span className="prov-value">
+          <span className="mono">{txid.slice(0, 20)}…</span>
+          <span className="prov-block">confirmed in block {block.toLocaleString()}</span>
+        </span>
+        <Copy text={txid} />
+      </div>
+
+      {/* Three explorers rather than one. A single link is a single company's
+          word for it; three independent operators showing the same bytes is
+          the actual argument. */}
+      <div className="prov-row">
+        <span className="prov-label">Look at it on</span>
+        <span className="prov-value prov-explorers">
+          {BTC_EXPLORERS.map((e) => (
+            <a
+              key={e.label}
+              href={e.url(txid)}
+              title={e.note}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {e.label} <span aria-hidden="true">↗</span>
+            </a>
+          ))}
+        </span>
       </div>
 
       <div className="prov-row">
@@ -352,9 +353,11 @@ function Provenance({ signerPubkey }: { signerPubkey: number[] | Uint8Array }) {
       </div>
 
       <p className="prov-foot">
-        The bottom row is the only one the program enforces, and the config lock
-        freezes it. The rows above let you confirm it is the same key that signed
-        in 2014 — check them against the Bitcoin blockchain, not against us.
+        The key row is the only one the program enforces, and the config lock
+        freezes it. Everything above it exists so you can confirm that key is
+        the one behind the 2014 transaction — checked against the Bitcoin
+        blockchain, not against us. The message is exact: 34 bytes, and the
+        signature will not verify against anything else.
       </p>
     </div>
   );
