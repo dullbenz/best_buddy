@@ -29,6 +29,27 @@ const TABS: Tab[] = [
   "how it works",
 ];
 
+/**
+ * Which chain this build talks to — but only when that is not mainnet.
+ *
+ * This replaced a full-width banner. The banner was honest but it cost a row
+ * of vertical space on every screen and every tab, which meant staging never
+ * looked like production and the spacing could not be judged. On mainnet this
+ * renders nothing at all, so the header is byte-identical to what ships.
+ */
+function ClusterBadge() {
+  if (IS_MAINNET) return null;
+  return (
+    <span
+      className="cluster-badge"
+      title={`Connected to ${CLUSTER}. Balances are not real, the tokens have no value, and explorer links point at ${CLUSTER}.`}
+    >
+      <span className="cluster-dot" aria-hidden="true" />
+      {CLUSTER}
+    </span>
+  );
+}
+
 export function App() {
   const [tab, setTab] = useState<Tab>("home");
 
@@ -43,11 +64,20 @@ export function App() {
           <img className="brand-mark" src="/mark-192.png" alt="" width="44" height="44" />
           <div className="brand-text">
             <h1>Buddy</h1>
-            <span className="tagline">community-owned, on-chain, verifiable</span>
-            <SocialLinks />
+            {/* The marks sit on the tagline's own line, not beside the whole
+                brand block — so they align to the text baseline rather than
+                floating against the full height of the logo. */}
+            <div className="brand-sub">
+              <span className="tagline">community-owned, on-chain, verifiable</span>
+              <SocialLinks />
+            </div>
           </div>
         </div>
-        <WalletMultiButton />
+
+        <div className="header-right">
+          <ClusterBadge />
+          <WalletMultiButton />
+        </div>
       </header>
 
       <nav>
@@ -61,13 +91,6 @@ export function App() {
           </button>
         ))}
       </nav>
-
-      {!IS_MAINNET && (
-        <div className="cluster-banner">
-          Test network ({CLUSTER}) — these balances are not real, and the tokens
-          have no value. Explorer links point at {CLUSTER}.
-        </div>
-      )}
 
       <main>
         {tab === "home" && <Landing go={(t) => setTab(t as Tab)} />}

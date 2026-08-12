@@ -11,7 +11,7 @@ export const RPC_URL =
 
 export const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID ??
-    "GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11"
+    "GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11",
 );
 
 /** Decimals of the new token; pump.fun mints use 6. */
@@ -27,10 +27,10 @@ export const CLUSTER: "mainnet" | "devnet" | "testnet" | "localnet" =
   /devnet/.test(RPC_URL)
     ? "devnet"
     : /testnet/.test(RPC_URL)
-    ? "testnet"
-    : /localhost|127\.0\.0\.1/.test(RPC_URL)
-    ? "localnet"
-    : "mainnet";
+      ? "testnet"
+      : /localhost|127\.0\.0\.1/.test(RPC_URL)
+        ? "localnet"
+        : "mainnet";
 
 export const IS_MAINNET = CLUSTER === "mainnet";
 
@@ -91,7 +91,9 @@ export const LEGACY_TOKEN_INFO = {
   mint: LEGACY_TOKEN.mint,
   // Same order as the new token's, so the two cards line up column for column
   // and the eye can compare them rather than re-read each one.
-  links: linkOrder.map((label) => LEGACY_TOKEN.links.find((l) => l.label === label)!),
+  links: linkOrder.map(
+    (label) => LEGACY_TOKEN.links.find((l) => l.label === label)!,
+  ),
 };
 
 export const NEW_TOKEN_INFO = {
@@ -102,8 +104,16 @@ export const NEW_TOKEN_INFO = {
   mint: null as string | null,
   links: [
     { label: "pump.fun", note: "the launch page", url: null as string | null },
-    { label: "DexScreener", note: "the price chart", url: null as string | null },
-    { label: "Solscan", note: "holders and transfers", url: null as string | null },
+    {
+      label: "DexScreener",
+      note: "the price chart",
+      url: null as string | null,
+    },
+    {
+      label: "Solscan",
+      note: "holders and transfers",
+      url: null as string | null,
+    },
   ],
 };
 

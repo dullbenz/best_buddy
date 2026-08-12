@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { LEGACY_TOKEN_INFO, NEW_TOKEN_INFO } from "../config";
-import { BRAND_ICONS } from "./BrandIcons";
+import { BrandMark, brandIdFor } from "./BrandIcons";
 
 type TokenInfo = typeof LEGACY_TOKEN_INFO | typeof NEW_TOKEN_INFO;
-
-/** Map a link label onto the glyph set, so both cards use the same icons. */
-const iconFor = (label: string) =>
-  BRAND_ICONS[label.toLowerCase().replace(/[^a-z]/g, "")] ?? BRAND_ICONS.solscan;
 
 /**
  * One token, as a card.
@@ -54,7 +50,7 @@ function TokenCard({
 
       <div className="ho-links">
         {token.links.map((l) => {
-          const Icon = iconFor(l.label);
+          const id = brandIdFor(l.label);
           return l.url ? (
             <a
               key={l.label}
@@ -64,7 +60,7 @@ function TokenCard({
               target="_blank"
               rel="noreferrer noopener"
             >
-              <Icon />
+              <BrandMark id={id} size={12} />
               <span>{l.label}</span>
             </a>
           ) : (
@@ -74,7 +70,7 @@ function TokenCard({
               title={`${l.label} — live at launch`}
               aria-disabled="true"
             >
-              <Icon />
+              <BrandMark id={id} size={12} />
               <span>{l.label}</span>
             </span>
           );

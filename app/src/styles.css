@@ -118,6 +118,56 @@ header {
   text-transform: uppercase;
 }
 
+/* Tagline and the outbound marks on one line, baseline-aligned. Wraps as a
+   unit on narrow screens rather than letting the icons orphan. */
+.brand-sub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Replaces the full-width devnet banner. Same warning, carried in the title,
+   but it costs no vertical space and vanishes entirely on mainnet — so what
+   staging looks like is what production looks like. */
+.cluster-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.cluster-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .cluster-badge {
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+}
+
 .tagline {
   display: block;
   font-family: var(--mono);
@@ -857,19 +907,7 @@ a.prov-value {
 }
 
 /* A devnet build must never be mistaken for the real thing. */
-/* The nav ends in a border, so without a top margin this sits directly on
-   that line and reads as part of the tab row rather than a warning about it. */
-.cluster-banner {
-  background: var(--accent);
-  color: #1a1206;
-  text-align: center;
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.45;
-  padding: 9px 16px;
-  border-radius: 8px;
-  margin: 18px 0 20px;
-}
+
 
 /* --- Landing: engineering document --------------------------------- */
 /*
@@ -1883,69 +1921,52 @@ footer .small {
   }
 }
 
-/* --- Outbound links under the wordmark ----------------------------- */
+/* --- Outbound links, inline beside the wordmark -------------------- */
 
+/* A rule separates the marks from the wordmark so they read as a distinct
+   group rather than as part of the logotype. */
+/* Sits inline after the tagline. No divider and no borders of its own — this
+   is a <nav>, so the element-level `nav` rule that underlines the tab bar has
+   to be cancelled explicitly or it draws a stray rule under the icons. */
 .social {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 8px;
+  gap: 2px;
+  border: none;
 }
 
 .social-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 9px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 11.5px;
-  letter-spacing: 0.01em;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   color: var(--muted);
   text-decoration: none;
-  white-space: nowrap;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
 a.social-link:hover {
-  color: var(--accent);
-  border-color: var(--accent-dim);
   background: var(--panel-2);
+  color: var(--text);
 }
 
+/* Dimmed rather than removed. The row keeps its shape through launch, and a
+   greyed chart icon answers "is there a chart?" better than an absence does. */
+/* Muted enough to read as inactive, legible enough that the brand is still
+   identifiable — at 0.32 with full grayscale these were nearly invisible on
+   the dark header, which defeats the point of showing them at all. */
 .social-link.is-pending {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: default;
+  filter: grayscale(0.85);
 }
 
-.social-soon {
-  font-family: var(--mono);
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: var(--panel-2);
-  color: var(--muted);
-}
-
-/* Below 560px the labels are what get dropped, not the links — four glyphs in
-   a row still fit, and the title attribute keeps them identifiable. */
 @media (max-width: 560px) {
-  .social-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-  .social-soon {
-    display: none;
-  }
   .social-link {
-    padding: 6px 8px;
+    width: 26px;
+    height: 26px;
   }
 }
 

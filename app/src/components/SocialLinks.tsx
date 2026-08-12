@@ -1,52 +1,36 @@
 import { SOCIAL_LINKS } from "../config";
-import { BRAND_ICONS } from "./BrandIcons";
+import { BrandMark, brandName } from "./BrandIcons";
 
 /**
- * The outbound link row under the wordmark.
+ * The outbound links, as marks only.
  *
- * Links with no URL are rendered as disabled spans rather than hidden. Hiding
- * them would leave visitors wondering where the chart is; showing them greyed
- * with "soon" answers the question before it is asked, and the row does not
- * reflow on launch day when the URLs land.
+ * Icon-only because these are four logos people already recognise, and because
+ * the row sits inline beside the wordmark — labels would push it onto a second
+ * line and cost vertical space in the one place the page cannot afford it.
  *
- * Each one carries its name as text, not just a glyph — three of the four
- * marks are not reproducible faithfully at this size, so the label is what
- * actually identifies them.
+ * Nothing is hidden before launch. A market link with no URL renders dimmed
+ * and unclickable rather than disappearing, so the row does not reflow on
+ * launch day and a visitor can see that a chart is coming rather than assuming
+ * there isn't one. The accessible name carries that state, since there is no
+ * visible text to carry it.
  */
 export function SocialLinks() {
   return (
     <nav className="social" aria-label="Community and market links">
       {SOCIAL_LINKS.map((l) => {
-        const Icon = BRAND_ICONS[l.id];
-        const content = (
-          <>
-            <Icon />
-            <span className="social-label">{l.label}</span>
-          </>
-        );
+        const name = brandName(l.id);
 
-        return l.url ? (
-          <a
+        return <a
             key={l.id}
             className="social-link"
             href={l.url}
             title={l.title}
+            aria-label={name}
             target="_blank"
             rel="noreferrer noopener"
           >
-            {content}
-          </a>
-        ) : (
-          <span
-            key={l.id}
-            className="social-link is-pending"
-            title={l.title}
-            aria-disabled="true"
-          >
-            {content}
-            <span className="social-soon">soon</span>
-          </span>
-        );
+            <BrandMark id={l.id} />
+          </a>;
       })}
     </nav>
   );
