@@ -126,26 +126,26 @@ export const NEW_TOKEN_INFO = {
 export const SOCIAL_LINKS = [
   {
     id: "x",
-    label: "Community",
-    title: "Join the community group chat on X",
-    url: "https://x.com/i/chat/group_join/g2087233994584654015/39GXoFqY6d",
+    label: "X Profile",
+    title: "Buddy on X",
+    url: "https://x.com/bestbuddy_meme",
   },
   {
     id: "pumpfun",
     label: "pump.fun",
-    title: "Trade on pump.fun — live at launch",
+    title: "Trade on pump.fun",
     url: null as string | null,
   },
   {
     id: "dexscreener",
     label: "DexScreener",
-    title: "Price chart — live at launch",
+    title: "Price chart",
     url: null as string | null,
   },
   {
     id: "solscan",
     label: "Solscan",
-    title: "Holders and transfers — live at launch",
+    title: "Holders and transfers",
     url: null as string | null,
   },
 ];

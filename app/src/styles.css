@@ -80,7 +80,9 @@ header {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  /* No bottom margin: the tab row's own padding is the gap. Having both put a
+     dead band between the header rule and the tabs. */
+  margin-bottom: 0;
 }
 
 /* The wordmark carries the whole brand in one word, so it is set as a mark
@@ -191,6 +193,13 @@ nav {
   margin-bottom: 0;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
+}
+
+/* Every tab gets the same breathing room under the rule, not just the one
+   whose first child happened to carry padding. */
+main {
+  display: block;
+  padding-top: 28px;
 }
 
 .tab {
@@ -932,7 +941,8 @@ a.prov-value {
 
 /* --- hero --- */
 .l-hero {
-  padding: 28px 0 32px;
+  /* Top spacing now comes from <main>, shared with every other tab. */
+  padding: 0 0 32px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2235,4 +2245,16 @@ a.ho-link:hover {
   .ho[data-shown="true"] .ho-rail-line {
     stroke-dashoffset: 0;
   }
+}
+
+/* Address lookup results */
+.lookup-hits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lookup-hits strong {
+  color: var(--accent);
 }

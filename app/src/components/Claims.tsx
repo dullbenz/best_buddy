@@ -58,12 +58,15 @@ export function Claims() {
 
   if (!publicKey) {
     return (
-      <div className="card">
-        <h2>Claims</h2>
-        <p className="muted">
-          Connect a wallet to see whether it has anything to claim. Nothing is
-          sent anywhere just by connecting.
-        </p>
+      <div className="stack">
+        <section className="card">
+          <h2>Claims</h2>
+          <p className="muted">
+            Connect a wallet to see whether it has anything to claim. Nothing is
+            sent anywhere just by connecting.
+          </p>
+        </section>
+        <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
       </div>
     );
   }
@@ -377,8 +380,132 @@ export function Claims() {
         </section>
       )}
 
+      <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
+
       {status && <div className="card status">{status}</div>}
     </div>
+  );
+}
+
+/**
+ * Check any address without connecting a wallet.
+ *
+ * The snapshot is a published fact, so requiring a wallet connection to read it
+ * was a barrier with nothing behind it — and a bad one for this audience
+ * specifically, who have been rugged once and are not keen to connect a wallet
+ * to a site they are still deciding about. It also lets someone check on behalf
+ * of a friend, or check a cold wallet from a hot one.
+ *
+ * Read-only by construction: this only looks up a local JSON file. Claiming
+ * still needs the wallet, and the result says so.
+ */
+function AddressLookup({
+  oldProofs,
+  infProofs,
+}: {
+  oldProofs: ProofFile | null;
+  infProofs: ProofFile | null;
+}) {
+  const [input, setInput] = useState("");
+  const [result, setResult] = useState<
+    | null
+    | { kind: "invalid" }
+    | { kind: "loading" }
+    | { kind: "none"; address: string }
+    | { kind: "found"; address: string; old?: string; inf?: string }
+  >(null);
+
+  function check() {
+    const value = input.trim();
+    if (!value) return;
+
+    // Validate as a real Solana address rather than by length: a typo'd
+    // base58 string of the right length would otherwise report "nothing
+    // found", which reads as a verdict when it is actually a bad input.
+    let address: string;
+    try {
+      address = new PublicKey(value).toBase58();
+    } catch {
+      setResult({ kind: "invalid" });
+      return;
+    }
+
+    if (!oldProofs || !infProofs) {
+      setResult({ kind: "loading" });
+      return;
+    }
+
+    const old = oldProofs[address]?.amount;
+    const inf = infProofs[address]?.amount;
+    setResult(old || inf ? { kind: "found", address, old, inf } : { kind: "none", address });
+  }
+
+  return (
+    <section className="card">
+      <h2>Check any address</h2>
+      <p className="muted">
+        The snapshot is public, so you do not need to connect anything to read
+        it. Paste a wallet address and this tells you what it is owed. Claiming
+        still requires that wallet's signature.
+      </p>
+
+      <div className="form-row">
+        <input
+          type="text"
+          spellCheck={false}
+          autoComplete="off"
+          placeholder="Solana wallet address"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && check()}
+        />
+        <button className="primary" disabled={!input.trim()} onClick={check}>
+          Check
+        </button>
+      </div>
+
+      {result?.kind === "invalid" && (
+        <p className="muted small">
+          That is not a valid Solana address. Check for a missing or extra
+          character — this is not a result, it is a typo.
+        </p>
+      )}
+
+      {result?.kind === "loading" && (
+        <p className="muted small">Still loading the published lists — try again in a moment.</p>
+      )}
+
+      {result?.kind === "none" && (
+        <p className="muted small">
+          <span className="mono">{result.address}</span> is not on either list.
+          It held no Buddy at the snapshot, or it was excluded — every exclusion
+          is published with a reason.
+        </p>
+      )}
+
+      {result?.kind === "found" && (
+        <div className="note">
+          <span className="mono small">{result.address}</span>
+          <div className="lookup-hits">
+            {result.old && (
+              <div>
+                <strong>{fmtTokens(result.old)}</strong> as a Legacy Buddy
+                holder — paid in full on claim, no lockup.
+              </div>
+            )}
+            {result.inf && (
+              <div>
+                <strong>{fmtTokens(result.inf)}</strong> as an influencer —
+                released across 30 days, nothing up front.
+              </div>
+            )}
+          </div>
+          <div className="note-cta">
+            Connect this wallet to claim. Nobody else can claim on its behalf.
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

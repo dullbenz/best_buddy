@@ -50,13 +50,17 @@ export function Landing({ go }: { go: (tab: string) => void }) {
     ? config.rewardMint?.toBase58?.() ?? null
     : null;
 
+  // Phrased as the answer to "can the code change", because that is the only
+  // thing a reader actually needs from it. "held" and "none" described the
+  // state of the upgrade authority — accurate, and meaningless to anyone who
+  // has not already been told what an upgrade authority is.
   const authorityCell = upgrade.loading
     ? { v: "reading", t: "unknown" as const }
     : upgrade.error || upgrade.immutable === null
     ? { v: "unread", t: "unknown" as const }
     : upgrade.immutable
-    ? { v: "none", t: "good" as const }
-    : { v: "held", t: "warn" as const };
+    ? { v: "permanent", t: "good" as const }
+    : { v: "changeable", t: "warn" as const };
 
   return (
     <div className="landing">
@@ -99,7 +103,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
           label="Upgrade authority"
           value={authorityCell.v}
           tone={authorityCell.t}
-          note="can the code change"
+          note="the contract's code"
         />
         <SpecCell
           label="Creator's tokens"
@@ -127,7 +131,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
           label="In the vault"
           value={chainReadable ? fmtTokens(vaultBalance, true) : "unread"}
           tone={chainReadable ? "plain" : "unknown"}
-          note="held, not promised"
+          note="held"
         />
       </div>
 
