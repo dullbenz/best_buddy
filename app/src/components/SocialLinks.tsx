@@ -20,7 +20,8 @@ export function SocialLinks() {
       {SOCIAL_LINKS.map((l) => {
         const name = brandName(l.id);
 
-        return <a
+        return l.url ? (
+          <a
             key={l.id}
             className="social-link"
             href={l.url}
@@ -30,7 +31,18 @@ export function SocialLinks() {
             rel="noreferrer noopener"
           >
             <BrandMark id={l.id} />
-          </a>;
+          </a>
+        ) : (
+          <span
+            key={l.id}
+            className="social-link is-pending"
+            title={l.title}
+            role="img"
+            aria-label={`${name} — live at launch`}
+          >
+            <BrandMark id={l.id} />
+          </span>
+        );
       })}
     </nav>
   );

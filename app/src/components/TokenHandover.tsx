@@ -14,11 +14,9 @@ type TokenInfo = typeof LEGACY_TOKEN_INFO | typeof NEW_TOKEN_INFO;
 function TokenCard({
   token,
   variant,
-  stamp,
 }: {
   token: TokenInfo;
   variant: "legacy" | "new";
-  stamp: string;
 }) {
   const [broken, setBroken] = useState(false);
 
@@ -43,7 +41,6 @@ function TokenCard({
       </div>
 
       <figcaption className="ho-meta">
-        <span className="ho-stamp">{stamp}</span>
         <span className="ho-name">{token.name}</span>
         <span className="ho-ticker">{token.ticker}</span>
       </figcaption>
@@ -124,18 +121,21 @@ export function TokenHandover() {
 
   return (
     <div className="ho" ref={ref} data-shown={shown ? "true" : "false"}>
-      <TokenCard token={LEGACY_TOKEN_INFO} variant="legacy" stamp="Abandoned" />
+      <TokenCard token={LEGACY_TOKEN_INFO} variant="legacy" />
 
       <div className="ho-track" aria-hidden="true">
         <svg viewBox="0 0 120 24" preserveAspectRatio="none" className="ho-rail">
           <path className="ho-rail-line" d="M2 12 H108" />
+          {/* Same geometry as the line above, drawn over it as a short bright
+              dash. Because it is the stroke rather than an element on top, it
+              cannot drift off the wire the way a positioned dot did. */}
+          <path className="ho-rail-flow" d="M2 12 H108" />
           <path className="ho-rail-head" d="M104 7 L112 12 L104 17" />
         </svg>
-        <span className="ho-pulse" />
-        <span className="ho-track-label">carries over</span>
+        <span className="ho-track-label">rebuilt as</span>
       </div>
 
-      <TokenCard token={NEW_TOKEN_INFO} variant="new" stamp="This one" />
+      <TokenCard token={NEW_TOKEN_INFO} variant="new" />
     </div>
   );
 }

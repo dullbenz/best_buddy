@@ -2048,18 +2048,6 @@ a.social-link:hover {
   gap: 2px;
 }
 
-.ho-stamp {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--muted);
-}
-
-.ho-new .ho-stamp {
-  color: var(--accent);
-}
-
 .ho-name {
   font-family: var(--serif);
   font-size: 16px;
@@ -2158,37 +2146,38 @@ a.ho-link:hover {
   transition: opacity 0.3s ease 0.95s;
 }
 
-/* A single travelling dot, slow and low-contrast. The page already loops one
-   marquee; this stays quieter than that. */
-.ho-pulse {
-  position: absolute;
-  top: 8px;
-  left: 0;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
+/* The travelling highlight.
+   Previously a positioned dot, which read as a bead resting on the wire rather
+   than something moving through it — and at the ends it visibly sat outside the
+   stroke. This is the stroke: an 18-unit dash on the same path, offset over
+   time, so it is geometrically incapable of leaving the line. */
+.ho-rail-flow {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 18 106;
+  stroke-dashoffset: 124;
   opacity: 0;
 }
 
-.ho[data-shown="true"] .ho-pulse {
-  animation: ho-travel 4.5s ease-in-out 1.3s infinite;
+.ho[data-shown="true"] .ho-rail-flow {
+  animation: ho-flow 3.6s cubic-bezier(0.4, 0, 0.2, 1) 1.2s infinite;
 }
 
-@keyframes ho-travel {
+@keyframes ho-flow {
   0% {
-    transform: translateX(2px);
+    stroke-dashoffset: 124;
     opacity: 0;
   }
-  12% {
+  15% {
     opacity: 1;
   }
-  70% {
+  75% {
     opacity: 1;
   }
-  85%,
   100% {
-    transform: translateX(108px);
+    stroke-dashoffset: 0;
     opacity: 0;
   }
 }
@@ -2227,7 +2216,7 @@ a.ho-link:hover {
   .ho-rail-line {
     stroke-dasharray: 106;
   }
-  .ho-pulse {
+  .ho-rail-flow {
     display: none;
   }
 }
@@ -2239,7 +2228,7 @@ a.ho-link:hover {
   .ho-track-label {
     transition: none !important;
   }
-  .ho-pulse {
+  .ho-rail-flow {
     animation: none !important;
     opacity: 0;
   }
