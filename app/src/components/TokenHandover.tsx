@@ -5,6 +5,74 @@ import { BrandMark, brandIdFor } from "./BrandIcons";
 type TokenInfo = typeof LEGACY_TOKEN_INFO | typeof NEW_TOKEN_INFO;
 
 /**
+ * The mint, truncated to first four and last four characters.
+ *
+ * Shown rather than linked because the identity of the contract is the thing
+ * people are checking here, and a full base58 string would dominate a card
+ * this size. The copy button hands over the whole address, so the shortened
+ * form is a label and never the thing you paste.
+ */
+function MintAddress({ mint }: { mint: string | null }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!mint) {
+    return <span className="ho-mint is-pending">mint address at launch</span>;
+  }
+
+  return (
+    <span className="ho-mint">
+      <span className="mono" title={mint}>
+        {mint.slice(0, 4)}…{mint.slice(-4)}
+      </span>
+      <button
+        type="button"
+        className="ho-copy"
+        aria-label={copied ? "Address copied" : "Copy the full mint address"}
+        title={copied ? "Copied" : "Copy the full mint address"}
+        onClick={() => {
+          navigator.clipboard?.writeText(mint);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        }}
+      >
+        {copied ? (
+          <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M3 8.5 L6.5 12 L13 4.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+            <rect
+              x="5.25"
+              y="5.25"
+              width="8"
+              height="8"
+              rx="1.6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
+            <path
+              d="M10.75 2.75 H4.35 A1.6 1.6 0 0 0 2.75 4.35 V10.75"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        )}
+      </button>
+    </span>
+  );
+}
+
+/**
  * One token, as a card.
  *
  * The image is the only thing here that can fail — the artwork is swapped
@@ -43,6 +111,7 @@ function TokenCard({
       <figcaption className="ho-meta">
         <span className="ho-name">{token.name}</span>
         <span className="ho-ticker">{token.ticker}</span>
+        <MintAddress mint={token.mint} />
       </figcaption>
 
       <div className="ho-links">

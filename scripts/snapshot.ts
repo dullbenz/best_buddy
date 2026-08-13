@@ -2,8 +2,15 @@
  * Snapshot holders of the old Buddy token and turn them into bucket-2
  * allocations.
  *
- * A Solana program cannot enumerate token holders, so eligibility is decided
- * off-chain here and committed on-chain as a single Merkle root. That is only
+ * A Solana program cannot enumerate token holders, so the holder set is read
+ * off-chain here and committed on-chain as a single Merkle root.
+ *
+ * There is no exclusion list. Every address holding the old token at the
+ * snapshot slot gets a pro-rata allocation, with no judgement applied to any of
+ * them — the rule is mechanical, which is the only kind of rule that can be
+ * re-derived by a stranger and checked against the root. Addresses that cannot
+ * sign (AMM pool vaults, burn addresses) therefore receive an allocation they
+ * will never claim; it is swept back to the stakers when the window closes. That is only
  * trustworthy because the input is public: anyone can re-run this script
  * against the same slot and must land on the identical root. `verify-snapshot.ts`
  * does exactly that.
@@ -29,25 +36,6 @@ const OLD_TOKEN_MINT = "7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump";
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 );
-
-/**
- * Addresses excluded from restitution, with the reason recorded so the
- * community can audit every exclusion rather than take it on faith.
- *
- * Fill this in from the receipts dossier before running for real. Liquidity
- * pool vaults must be excluded or the pool itself would claim a large share of
- * the bucket; the old dev's wallets are excluded on the merits.
- */
-interface Exclusion {
-  address: string;
-  reason: string;
-}
-
-const EXCLUSIONS: Exclusion[] = [
-  // { address: "<old dev wallet>", reason: "creator wallet — dumped on holders, see receipts #1" },
-  // { address: "<PumpSwap pool vault>", reason: "AMM pool vault, not a community holder" },
-  // { address: "<Meteora pool vault>",  reason: "AMM pool vault, not a community holder" },
-];
 
 /** Balances below this are ignored — dust accounts inflate the tree for nothing. */
 const MIN_BALANCE_BASE_UNITS = 1n;
@@ -103,25 +91,6 @@ async function fetchHolders(connection: Connection): Promise<{
   return { holders: [...byOwner.values()], slot };
 }
 
-function applyExclusions(holders: HolderRow[]): {
-  eligible: HolderRow[];
-  excluded: Array<HolderRow & { reason: string }>;
-} {
-  const index = new Map(EXCLUSIONS.map((e) => [e.address, e.reason]));
-  const eligible: HolderRow[] = [];
-  const excluded: Array<HolderRow & { reason: string }> = [];
-
-  for (const h of holders) {
-    const reason = index.get(h.owner) ?? index.get(h.tokenAccount);
-    if (reason) {
-      excluded.push({ ...h, reason });
-    } else {
-      eligible.push(h);
-    }
-  }
-  return { eligible, excluded };
-}
-
 /**
  * Distribute the bucket pro-rata to old holdings. The largest holder absorbs
  * the rounding remainder so the allocations sum to exactly the bucket total —
@@ -163,13 +132,10 @@ async function main() {
 
   const connection = new Connection(rpc, "finalized");
   const { holders, slot } = await fetchHolders(connection);
-  const { eligible, excluded } = applyExclusions(holders);
 
-  console.log(
-    `eligible wallets: ${eligible.length}, excluded: ${excluded.length}`
-  );
+  console.log(`eligible wallets: ${holders.length}`);
 
-  const allocations = allocate(eligible, BUCKET_TWO_ALLOCATION);
+  const allocations = allocate(holders, BUCKET_TWO_ALLOCATION);
   const { tree, proofs, total } = buildTree(allocations);
 
   if (total !== BUCKET_TWO_ALLOCATION) {
@@ -188,7 +154,6 @@ async function main() {
     bucketTwoAllocation: BUCKET_TWO_ALLOCATION.toString(),
     eligibleWallets: allocations.length,
     merkleRoot: tree.rootHex,
-    exclusions: EXCLUSIONS,
     minBalanceBaseUnits: MIN_BALANCE_BASE_UNITS.toString(),
   };
 
@@ -209,19 +174,12 @@ async function main() {
     ["owner,old_balance,new_allocation"]
       .concat(
         allocations.map((a) => {
-          const h = eligible.find((e) => e.owner === a.address);
+          const h = holders.find((e) => e.owner === a.address);
           return `${a.address},${h ? h.balance.toString() : "0"},${a.amount}`;
         })
       )
       .join("\n")
   );
-  fs.writeFileSync(
-    path.join(outDir, "excluded.csv"),
-    ["owner,balance,reason"]
-      .concat(excluded.map((e) => `${e.owner},${e.balance},"${e.reason}"`))
-      .join("\n")
-  );
-
   console.log(`\nmerkle root: ${tree.rootHex}`);
   console.log(`wallets:     ${allocations.length}`);
   console.log(`total:       ${total}`);

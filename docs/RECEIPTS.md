@@ -2,8 +2,9 @@
 
 > Fill this in **now**, before launch. Links rot, socials get deleted, and
 > screenshots without dates convince nobody. This file is both your defence if
-> the old dev objects and the justification for every wallet excluded from the
-> snapshot.
+> the old dev objects and the public record behind the relaunch. The snapshot
+> itself excludes nobody, so nothing in here gates an allocation — it is
+> evidence, not eligibility.
 
 Old token: `7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump`
 
@@ -53,15 +54,17 @@ today. A deleted tweet you did not capture is worth nothing later.
 
 ## 5. Pool and infrastructure addresses
 
-Not wrongdoing — these are excluded from restitution because they are contracts,
-not people. Left unexcluded, the AMM would claim a large share of a bucket meant
-for the community.
+Not wrongdoing, and not excluded either. The snapshot applies no judgement to
+any address, so these appear in `holders.csv` like everyone else. They cannot
+sign, so their allocations are never claimed and are swept to the stakers when
+the window closes. They are listed here so nobody mistakes a large unclaimed
+line in the CSV for something being held back.
 
-| Address | What it is | Excluded |
+| Address | What it is | Can claim |
 |---|---|---|
-| `<address>` | PumpSwap pool vault | yes |
-| `<address>` | Meteora pool vault | yes |
-| `<address>` | burn address | yes |
+| `<address>` | PumpSwap pool vault | no — no signer exists |
+| `<address>` | Meteora pool vault | no — no signer exists |
+| `<address>` | burn address | no — no signer exists |
 
 ## 6. Optional — the pump.fun CTO application
 

@@ -2,15 +2,16 @@ import { BN } from "@coral-xyz/anchor";
 import bs58 from "bs58";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   INFLUENCER_PROOFS_URL,
   OLD_HOLDER_PROOFS_URL,
   INFLUENCER_TERMS,
   SEEDS,
+  SNAPSHOT,
   TERMS_API,
-  SNAPSHOT_FILES,
   pda,
 } from "../config";
 import { countdown, fmtTokens } from "../format";
@@ -56,36 +57,20 @@ export function Claims() {
     loadProofs(INFLUENCER_PROOFS_URL).then(setInfProofs).catch(() => setInfProofs({}));
   }, []);
 
-  if (!publicKey) {
-    return (
-      <div className="stack">
-        <section className="card">
-          <h2>Claims</h2>
-          <p className="muted">
-            Connect a wallet to see whether it has anything to claim. Nothing is
-            sent anywhere just by connecting.
-          </p>
-        </section>
-        <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
-      </div>
-    );
-  }
-  if (!config) return <div className="card">Loading…</div>;
-
-  const address = publicKey.toBase58();
-  const oldEntry = oldProofs?.[address];
-  const infEntry = infProofs?.[address];
+  const address = publicKey?.toBase58() ?? null;
+  const oldEntry = address ? oldProofs?.[address] : undefined;
+  const infEntry = address ? infProofs?.[address] : undefined;
   const now = Date.now() / 1000;
-  const oldLeft = countdown(Number(config.oldHolderDeadline), now);
-  const infLeft = countdown(Number(config.influencerDeadline), now);
+  const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
+  const infLeft = config ? countdown(Number(config.influencerDeadline), now) : null;
 
   /** Make sure the wallet has an ATA for the token before anything pays into it. */
   async function ensureAta(): Promise<PublicKey> {
-    const ata = getAssociatedTokenAddressSync(config.rewardMint, publicKey!);
+    const ata = getAssociatedTokenAddressSync(config!.rewardMint, publicKey!);
     const info = await connection.getAccountInfo(ata);
     if (!info) {
       const tx = new Transaction().add(
-        createAssociatedTokenAccountInstruction(publicKey!, ata, publicKey!, config.rewardMint)
+        createAssociatedTokenAccountInstruction(publicKey!, ata, publicKey!, config!.rewardMint)
       );
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, "confirmed");
@@ -137,10 +122,10 @@ export function Claims() {
     try {
       const raw = await signMessage(new TextEncoder().encode(INFLUENCER_TERMS));
       const encoded = bs58.encode(raw);
-      const address = publicKey.toBase58();
+      const signer = publicKey.toBase58();
 
       setTermsSig(encoded);
-      localStorage.setItem(`buddy.terms.${address}`, encoded);
+      localStorage.setItem(`buddy.terms.${signer}`, encoded);
 
       // Publishing is best-effort on purpose. The register is a transparency
       // aid, not a gate — refusing to let someone claim their allocation
@@ -149,7 +134,7 @@ export function Claims() {
         const res = await fetch(TERMS_API, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address, signature: encoded }),
+          body: JSON.stringify({ address: signer, signature: encoded }),
         });
         setStatus(
           res.ok
@@ -234,128 +219,208 @@ export function Claims() {
     : 0;
   const withdrawable = stream ? Math.max(0, vested - Number(stream.withdrawn)) : 0;
 
+  /**
+   * Both bucket cards render whether or not a wallet is connected.
+   *
+   * What they say is the substance of the offer — who is owed what, and on
+   * what terms. Hiding that behind a connect button asks people to plug a
+   * wallet into a site before it has told them anything, which is exactly the
+   * instinct this project should not be punishing.
+   */
+  const legacyCard = (
+    <section className="card">
+      <h2>Legacy Buddy holders</h2>
+      <p className="muted">
+        If you held the <strong>original</strong> Buddy token when its creator
+        walked away, this is your restitution. <SnapshotMoment />
+      </p>
+      <p className="muted small">
+        Paid in full the moment you claim. No lockup, no vesting, no strings.
+      </p>
+
+      {!publicKey ? (
+        <ConnectToClaim question="Held the original Buddy?" />
+      ) : oldProofs === null ? (
+        <p className="muted">Checking the snapshot…</p>
+      ) : oldEntry ? (
+        <>
+          <p>
+            This wallet is in the snapshot for{" "}
+            <strong>{fmtTokens(oldEntry.amount)}</strong> tokens.
+          </p>
+          <p className="muted small">
+            {oldLeft ? `Window closes in ${oldLeft}.` : "The window has closed."}
+          </p>
+          <button className="primary" disabled={busy || !oldLeft} onClick={claimOldHolder}>
+            {oldLeft ? "Claim" : "Window closed"}
+          </button>
+        </>
+      ) : (
+        <p className="muted">
+          <strong>This wallet is not in the snapshot.</strong> It held no Buddy
+          at the snapshot moment. The whole snapshot is published below, so you
+          can check that for yourself rather than ask us.
+        </p>
+      )}
+
+      <SnapshotFiles
+        files={SNAPSHOT.legacy}
+        foot={
+          <>
+            The list is built only from public Solana history, so anyone can
+            rebuild it and get the same answer. Rebuild the tree from{" "}
+            <span className="mono">holders.csv</span> and its root must equal
+            the one stored on chain — the <strong>Verify</strong> tab has the
+            command.
+          </>
+        }
+      />
+
+      <ForfeitNote>
+        <strong>Nothing unclaimed comes back to us.</strong> When the 30-day
+        window closes, every allocation nobody claimed becomes staking rewards
+        for the community. There is no instruction that returns it to the team,
+        and no wallet that could receive it.
+      </ForfeitNote>
+    </section>
+  );
+
+  const influencerCard = (
+    <section className="card">
+      <h2>Influencer allocation</h2>
+      <p className="muted">
+        A named list of people asked to talk about the project publicly.
+        Claiming pays <strong>nothing up front</strong> — the tokens are
+        released gradually across 30 days instead of arriving in one lump.
+      </p>
+      <p className="muted small">
+        To be exact about what that does and does not do: it removes the
+        incentive to claim and dump on day one, and it means anyone promoting
+        this is still holding while they do it. It is <em>not</em> a
+        performance condition. The contract cannot tell whether you posted,
+        and there is no instruction that cancels a stream — so someone who
+        claims and never says a word still collects the full amount by day 30.
+        The commitment below is a matter of your word and your reputation, not
+        of code.
+      </p>
+      <p className="muted small">
+        The window is 72 hours from launch. Everyone on this list was told in
+        writing to disclose that they were compensated.
+      </p>
+
+      <StreamExplainer />
+
+      {!publicKey ? (
+        <ConnectToClaim question="On the influencer list?" />
+      ) : infProofs === null ? (
+        <p className="muted">Checking the list…</p>
+      ) : infEntry ? (
+        <>
+          <p>
+            This wallet is on the published list for{" "}
+            <strong>{fmtTokens(infEntry.amount)}</strong> tokens.
+          </p>
+          <p className="muted small">
+            {infLeft ? `You have ${infLeft} left.` : "The 72-hour window has closed."}
+          </p>
+
+          <details className="terms" open={!termsSig}>
+            <summary>The terms you are agreeing to</summary>
+            <pre className="terms-body">{INFLUENCER_TERMS}</pre>
+          </details>
+
+          {termsSig ? (
+            <p className="muted small">
+              ✓ Terms signed by this wallet, and added to the{" "}
+              <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
+                public register
+              </a>
+              .
+            </p>
+          ) : (
+            <p className="muted small">
+              Sign the terms before claiming. This costs nothing and is not a
+              transaction; it is a message signed with your key, proving these
+              terms were shown and accepted. Your wallet will display the
+              full text, so you can read exactly what you are agreeing to.
+            </p>
+          )}
+
+          <div className="button-row">
+            {!termsSig && (
+              <button disabled={busy || !infLeft || !signMessage} onClick={signTerms}>
+                {signMessage ? "Sign the terms" : "Wallet cannot sign messages"}
+              </button>
+            )}
+            <button
+              className="primary"
+              disabled={busy || !infLeft || !termsSig}
+              onClick={claimInfluencer}
+            >
+              {infLeft ? "Claim and open stream" : "Window closed"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="muted">
+          <strong>This wallet is not on the influencer list.</strong> The list
+          is published below, so you can read every name on it.
+        </p>
+      )}
+
+      <SnapshotFiles
+        files={SNAPSHOT.influencers}
+        foot={
+          <>
+            This list is chosen by hand rather than derived from chain, so
+            there is no way to re-derive it — which is exactly why it is
+            published in full. Rebuild the tree from{" "}
+            <span className="mono">influencers.csv</span> and its root must
+            equal the one stored on chain, so the list you are reading is
+            provably the list the contract pays.
+          </>
+        }
+      />
+
+      <ForfeitNote>
+        <strong>The unclaimed tokens go back to the community.</strong> After
+        the 72-hour window closes, everything nobody claimed becomes staking
+        rewards — it goes to the stakers, not to us.
+      </ForfeitNote>
+    </section>
+  );
+
+  // The lookup leads when there is no wallet, and the connect prompt follows
+  // it. Checking is what a stranger can do straight away; connecting is the
+  // thing they are still deciding about.
+  if (!publicKey) {
+    return (
+      <div className="stack">
+        <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
+
+        <section className="card">
+          <h2>Got the wallet? Claim with it</h2>
+          <p className="muted">
+            Checking needs no wallet — claiming does, because only the wallet
+            itself can sign for what it is owed. Nobody can claim on its
+            behalf, us included. Connecting sends nothing anywhere and costs
+            nothing.
+          </p>
+          <ConnectButton label="Select wallet" />
+        </section>
+
+        {legacyCard}
+        {influencerCard}
+      </div>
+    );
+  }
+
+  if (!config) return <div className="card">Loading…</div>;
+
   return (
     <div className="stack">
-      <section className="card">
-        <h2>Legacy Buddy holders</h2>
-        <p className="muted">
-          If you held the <strong>original</strong> Buddy token when its creator
-          walked away, this is your restitution. A snapshot of every holder was
-          taken at a fixed moment in the past, so nothing you do now can change
-          what you are owed — and buying the Legacy Buddy token today earns nothing.
-        </p>
-        <p className="muted small">
-          Paid in full the moment you claim. No lockup, no vesting, no strings:
-          sell it the same minute if you want to.
-        </p>
-
-        {oldProofs === null ? (
-          <p className="muted">Checking the published snapshot…</p>
-        ) : oldEntry ? (
-          <>
-            <p>
-              This wallet is in the snapshot for{" "}
-              <strong>{fmtTokens(oldEntry.amount)}</strong> tokens.
-            </p>
-            <p className="muted small">
-              {oldLeft ? `Window closes in ${oldLeft}.` : "The window has closed."}{" "}
-              Anything unclaimed when it closes becomes staking rewards for the
-              community — it does not come back to us.
-            </p>
-            <button className="primary" disabled={busy || !oldLeft} onClick={claimOldHolder}>
-              {oldLeft ? "Claim" : "Window closed"}
-            </button>
-          </>
-        ) : (
-          <p className="muted">
-            <strong>This wallet is not in the snapshot.</strong> That means it
-            held no Buddy at the snapshot moment, or it was excluded — the
-            excluded list below gives a reason for every address on it. The
-            whole snapshot is published, so you can check rather than ask.
-          </p>
-        )}
-
-        <SnapshotFiles />
-      </section>
-
-      <section className="card">
-        <h2>Influencer allocation</h2>
-        <p className="muted">
-          A named list of people asked to talk about the project publicly.
-          Claiming pays <strong>nothing up front</strong> — the tokens are
-          released gradually across 30 days instead of arriving in one lump.
-        </p>
-        <p className="muted small">
-          To be exact about what that does and does not do: it removes the
-          incentive to claim and dump on day one, and it means anyone promoting
-          this is still holding while they do it. It is <em>not</em> a
-          performance condition. The contract cannot tell whether you posted,
-          and there is no instruction that cancels a stream — so someone who
-          claims and never says a word still collects the full amount by day 30.
-          The commitment below is a matter of your word and your reputation, not
-          of code.
-        </p>
-        <p className="muted small">
-          The window is 72 hours from launch. Everyone on this list was told in
-          writing to disclose that they were compensated.
-        </p>
-
-        <StreamExplainer />
-
-        {infProofs === null ? (
-          <p className="muted">Checking the published list…</p>
-        ) : infEntry ? (
-          <>
-            <p>
-              This wallet is on the published list for{" "}
-              <strong>{fmtTokens(infEntry.amount)}</strong> tokens.
-            </p>
-            <p className="muted small">
-              {infLeft ? `You have ${infLeft} left.` : "The 72-hour window has closed."}{" "}
-              Unclaimed allocations become staking rewards for the community.
-            </p>
-
-            <details className="terms" open={!termsSig}>
-              <summary>The terms you are agreeing to</summary>
-              <pre className="terms-body">{INFLUENCER_TERMS}</pre>
-            </details>
-
-            {termsSig ? (
-              <p className="muted small">
-                ✓ Terms signed by this wallet, and added to the{" "}
-                <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
-                  public register
-                </a>
-                .
-              </p>
-            ) : (
-              <p className="muted small">
-                Sign the terms before claiming. This costs nothing and is not a
-                transaction; it is a message signed with your key, proving these
-                terms were shown and accepted. Your wallet will display the
-                full text, so you can read exactly what you are agreeing to.
-              </p>
-            )}
-
-            <div className="button-row">
-              {!termsSig && (
-                <button disabled={busy || !infLeft || !signMessage} onClick={signTerms}>
-                  {signMessage ? "Sign the terms" : "Wallet cannot sign messages"}
-                </button>
-              )}
-              <button
-                className="primary"
-                disabled={busy || !infLeft || !termsSig}
-                onClick={claimInfluencer}
-              >
-                {infLeft ? "Claim and open stream" : "Window closed"}
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="muted">This wallet is not on the influencer list.</p>
-        )}
-      </section>
+      {legacyCard}
+      {influencerCard}
 
       {stream && (
         <section className="card">
@@ -385,6 +450,61 @@ export function Claims() {
       {status && <div className="card status">{status}</div>}
     </div>
   );
+}
+
+/** Opens the wallet picker without re-implementing the header's button. */
+function ConnectButton({ label = "Connect wallet" }: { label?: string }) {
+  const { setVisible } = useWalletModal();
+  return (
+    <button className="primary" onClick={() => setVisible(true)}>
+      {label}
+    </button>
+  );
+}
+
+function ConnectToClaim({ question }: { question: string }) {
+  return (
+    <div className="claim-cta">
+      <span>{question} Connect the wallet to find out.</span>
+      <ConnectButton />
+    </div>
+  );
+}
+
+/**
+ * The exact moment the holder list was frozen.
+ *
+ * Until the snapshot is actually taken these render as visible blanks rather
+ * than a plausible date. A confident but wrong timestamp on the one fact that
+ * decides who gets paid would be worse than an obvious gap.
+ */
+function SnapshotMoment() {
+  const when = SNAPSHOT.takenAt ? new Date(SNAPSHOT.takenAt).toUTCString() : null;
+  const slot = SNAPSHOT.slot;
+
+  return (
+    <>
+      A snapshot of every holder of the legacy token was taken just before the
+      launch of this new token — at{" "}
+      {when ? (
+        <strong>{when}</strong>
+      ) : (
+        <span className="placeholder">snapshot date and time</span>
+      )}
+      , covering all holders of the legacy token at block number{" "}
+      {slot ? (
+        <strong>{slot.toLocaleString()}</strong>
+      ) : (
+        <span className="placeholder">snapshot block number</span>
+      )}
+      . Nothing you do now can change what you are owed.
+    </>
+  );
+}
+
+/** A closing callout: what happens to everything nobody claims. */
+function ForfeitNote({ children }: { children: ReactNode }) {
+  return <div className="note note-forfeit">{children}</div>;
 }
 
 /**
@@ -477,9 +597,8 @@ function AddressLookup({
 
       {result?.kind === "none" && (
         <p className="muted small">
-          <span className="mono">{result.address}</span> is not on either list.
-          It held no Buddy at the snapshot, or it was excluded — every exclusion
-          is published with a reason.
+          <span className="mono">{result.address}</span> is not on either list —
+          it held no Buddy at the snapshot moment, and it is not an influencer.
         </p>
       )}
 
@@ -509,38 +628,106 @@ function AddressLookup({
   );
 }
 
+type FileStatus = "checking" | "published" | "pending";
+
 /**
- * Links to the raw snapshot.
+ * Whether each published file is actually there.
  *
- * "Check the published CSV" is only meaningful if the CSV is one click away,
+ * A single-page app answers 200 with index.html for any path that does not
+ * exist, so a link to a file that has not been generated yet silently "works"
+ * and hands the visitor a copy of the website instead. On a page whose whole
+ * argument is "check this yourself", that is the worst available failure — so
+ * probe the content type and say plainly when a file is not published yet.
+ */
+function useFileStatus(files: ReadonlyArray<{ url: string }>) {
+  const [status, setStatus] = useState<Record<string, FileStatus>>({});
+
+  useEffect(() => {
+    let live = true;
+    Promise.all(
+      files.map(async (f) => {
+        try {
+          const res = await fetch(f.url, { method: "HEAD" });
+          const type = res.headers.get("content-type") ?? "";
+          const ok = res.ok && !type.includes("text/html");
+          return [f.url, ok ? "published" : "pending"] as const;
+        } catch {
+          return [f.url, "pending"] as const;
+        }
+      })
+    ).then((entries) => {
+      if (live) setStatus(Object.fromEntries(entries));
+    });
+    return () => {
+      live = false;
+    };
+  }, [files]);
+
+  return status;
+}
+
+/**
+ * Links to the raw list behind a bucket.
+ *
+ * "Check the published list" is only meaningful if the list is one click away,
  * so both actions are offered: view it in the browser to settle a question now,
  * download it to rebuild the Merkle tree and check the root yourself.
  */
-function SnapshotFiles() {
+function SnapshotFiles({
+  files,
+  foot,
+}: {
+  files: ReadonlyArray<{ name: string; url: string; description: string }>;
+  foot: ReactNode;
+}) {
+  const status = useFileStatus(files);
+  const allPublished = files.every((f) => status[f.url] === "published");
+
   return (
     <div className="files">
-      <div className="files-head">The published snapshot</div>
-      {SNAPSHOT_FILES.map((f) => (
+      <div className="files-head">
+        Published — and what published means
+        <span className="files-note">
+          served from this domain, and committed in the public repository. Two
+          copies of the same bytes, so a list quietly edited here would stop
+          matching the one on GitHub.
+        </span>
+      </div>
+
+      {files.map((f) => (
         <div className="file-row" key={f.name}>
           <div className="file-meta">
             <span className="mono file-name">{f.name}</span>
             <span className="file-desc">{f.description}</span>
           </div>
           <div className="file-actions">
-            <a href={f.url} target="_blank" rel="noreferrer noopener">
-              view
-            </a>
-            <a href={f.url} download>
-              download
-            </a>
+            {status[f.url] === "published" ? (
+              <>
+                <a href={f.url} target="_blank" rel="noreferrer noopener">
+                  view
+                </a>
+                <a href={f.url} download>
+                  download
+                </a>
+              </>
+            ) : (
+              <span className="file-pending">
+                {status[f.url] === "pending" ? "not published yet" : "…"}
+              </span>
+            )}
           </div>
         </div>
       ))}
+
       <p className="file-foot">
-        The list is built only from public Solana history, so anyone can rebuild
-        it and get the same answer. Rebuild the tree from{" "}
-        <span className="mono">holders.csv</span> and its root must equal the one
-        stored on chain — the <strong>Verify</strong> tab has the command.
+        {allPublished ? null : (
+          <>
+            These appear the moment the snapshot is taken, just before launch —
+            publishing them earlier would mean publishing a list that is still
+            going to change.{" "}
+          </>
+        )}
+        {foot}
       </p>
     </div>
   );

@@ -128,7 +128,7 @@ export const SOCIAL_LINKS = [
     id: "x",
     label: "X Profile",
     title: "Buddy on X",
-    url: "https://x.com/bestbuddy_meme",
+    url: "https://x.com/iam_d_bestbuddy",
   },
   {
     id: "pumpfun",
@@ -155,27 +155,52 @@ export const OLD_HOLDER_PROOFS_URL = "/proofs/old-holders.json";
 export const INFLUENCER_PROOFS_URL = "/proofs/influencers.json";
 
 /**
- * The snapshot itself, published so the claim list can be audited rather than
- * trusted. `holders.csv` is the list the Merkle root commits to; `excluded.csv`
- * says who was left out and why, which is the half most projects quietly omit.
+ * The snapshot, published so the claim list can be audited rather than trusted.
+ *
+ * "Published" means these exact files are served from this domain and are in
+ * the public repository — two independent copies of the same bytes, so a
+ * quietly edited list here would not match the one on GitHub.
+ *
+ * The influencer list gets the same treatment as the holder list. It is
+ * hand-picked rather than derived from chain, which makes publishing it more
+ * important, not less: there is no way to re-derive it, so the only check
+ * available is that the names are stated openly and the Merkle root matches.
  */
-export const SNAPSHOT_FILES = [
-  {
-    name: "holders.csv",
-    url: "/snapshot/holders.csv",
-    description: "Every wallet in the snapshot and its allocation",
-  },
-  {
-    name: "excluded.csv",
-    url: "/snapshot/excluded.csv",
-    description: "Addresses deliberately left out, each with a reason",
-  },
-  {
-    name: "manifest.json",
-    url: "/snapshot/manifest.json",
-    description: "Snapshot slot, totals and the Merkle root, for re-derivation",
-  },
-];
+export const SNAPSHOT = {
+  /**
+   * Filled in when the snapshot is taken, just before launch. Until then the
+   * UI says it has not happened rather than printing a date that would be a
+   * guess — the whole point of the moment is that it is fixed and checkable.
+   */
+  takenAt: null as string | null,
+  slot: null as number | null,
+
+  legacy: [
+    {
+      name: "holders.csv",
+      url: "/snapshot/holders.csv",
+      description: "Every wallet in the snapshot and its allocation",
+    },
+    {
+      name: "manifest.json",
+      url: "/snapshot/manifest.json",
+      description: "The slot, the totals and the Merkle root, for re-derivation",
+    },
+  ],
+
+  influencers: [
+    {
+      name: "influencers.csv",
+      url: "/snapshot/influencers.csv",
+      description: "Everyone on the influencer list and their allocation",
+    },
+    {
+      name: "influencers-manifest.json",
+      url: "/snapshot/influencers-manifest.json",
+      description: "The totals and the Merkle root for that list",
+    },
+  ],
+};
 
 /** 2030-12-31T23:59:59Z — the original signer's deadline. */
 export const ORIGINAL_SIGNER_DEADLINE = 1_924_991_999;
