@@ -209,9 +209,9 @@ site is live and talking to the chain.
 The claim page reads two files from the deployed site:
 
 - `app/public/proofs/old-holders.json`
-- `app/public/snapshot/holders.csv`, `manifest.json`, `influencers.csv`,
-  `influencers-manifest.json` — the Claims and Verify tabs link to these
-  directly. Missing, they are detected and shown as "not published yet" rather
+- `app/public/snapshot/holders.csv`, `excluded.csv`, `manifest.json`,
+  `influencers.csv`, `influencers-manifest.json` — the Claims and Verify tabs
+  link to these directly. Missing, they are detected and shown as "not published yet" rather
   than linked, because the SPA rewrite would otherwise serve `index.html` under
   a `.csv` name and look like a working download
 - `app/public/proofs/influencers.json`
@@ -219,7 +219,7 @@ The claim page reads two files from the deployed site:
 After you run the snapshot:
 
 ```bash
-cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && cp snapshot/holders.csv snapshot/manifest.json snapshot/influencers.csv snapshot/influencers-manifest.json app/public/snapshot/
+cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && cp snapshot/holders.csv snapshot/excluded.csv snapshot/manifest.json snapshot/influencers.csv snapshot/influencers-manifest.json app/public/snapshot/
 ```
 
 Commit and push — CI validates the JSON and the deploy publishes them.

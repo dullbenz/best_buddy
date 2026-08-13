@@ -333,7 +333,7 @@ npx ts-node scripts/build-tree.ts influencers.csv snapshot/influencers
 ### 3.5 Publish everything and wire up the site
 
 ```bash
-cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && cp snapshot/holders.csv snapshot/manifest.json snapshot/influencers.csv snapshot/influencers-manifest.json app/public/snapshot/ && git add -A && git commit -m "publish snapshot" && git push
+cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && cp snapshot/holders.csv snapshot/excluded.csv snapshot/manifest.json snapshot/influencers.csv snapshot/influencers-manifest.json app/public/snapshot/ && git add -A && git commit -m "publish snapshot" && git push
 ```
 
 Publish the whole `snapshot/` directory too, and invite people to re-run the
@@ -539,7 +539,7 @@ has the numbers; the post is a summary and a link.
 
 **Snapshot**
 - [ ] Slot chosen retroactively, anchored to a documented event
-- [ ] No exclusions applied — every holder at the slot is in the tree
+- [ ] Both AMM pool vaults and the dev's wallets excluded, each with a published reason
 - [ ] Snapshot verified and published
 - [ ] Proof files committed and deployed to the site
 

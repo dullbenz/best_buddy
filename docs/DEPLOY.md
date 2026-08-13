@@ -191,9 +191,10 @@ npx ts-node scripts/verify-snapshot.ts
 ```
 
 Publish the entire `snapshot/` directory — `manifest.json`, `allocations.json`,
-`proofs.json`, `holders.csv`. Invite people to re-run `verify-snapshot.ts`
-themselves. There is no exclusion list: every holder at the slot is in the tree,
-which is what makes the result re-derivable by a stranger. Note the `merkleRoot`; it goes on chain next.
+`proofs.json`, `holders.csv`, `excluded.csv`. Invite people to re-run
+`verify-snapshot.ts` themselves. Publishing only the eligible addresses would
+let you drop anyone without it showing, so every exclusion ships with its
+reason. Note the `merkleRoot`; it goes on chain next.
 
 ### 1.5 Build the influencer tree
 
@@ -361,7 +362,7 @@ you write yourself substitutes for that.
 ### 3.1 Deploy the app
 
 ```bash
-cd app && cp ../snapshot/proofs.json public/proofs/old-holders.json && cp ../snapshot/holders.csv ../snapshot/manifest.json ../snapshot/influencers.csv ../snapshot/influencers-manifest.json public/snapshot/ && npm run build
+cd app && cp ../snapshot/proofs.json public/proofs/old-holders.json && cp ../snapshot/holders.csv ../snapshot/excluded.csv ../snapshot/manifest.json ../snapshot/influencers.csv ../snapshot/influencers-manifest.json public/snapshot/ && npm run build
 ```
 
 Copy the influencer proofs to `public/proofs/influencers.json`, set

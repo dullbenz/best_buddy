@@ -257,9 +257,11 @@ export function Claims() {
         </>
       ) : (
         <p className="muted">
-          <strong>This wallet is not in the snapshot.</strong> It held no Buddy
-          at the snapshot moment. The whole snapshot is published below, so you
-          can check that for yourself rather than ask us.
+          <strong>This wallet is not in the snapshot.</strong> Either it held no
+          Buddy at the snapshot moment, or it was excluded —{" "}
+          <span className="mono">excluded.csv</span> below names every excluded
+          address and the reason for it. Both files are published, so you can
+          check which it was rather than ask us.
         </p>
       )}
 
@@ -271,7 +273,9 @@ export function Claims() {
             rebuild it and get the same answer. Rebuild the tree from{" "}
             <span className="mono">holders.csv</span> and its root must equal
             the one stored on chain — the <strong>Verify</strong> tab has the
-            command.
+            command. Publishing only the eligible addresses would let us drop
+            anyone we liked without it showing, so the exclusions are published
+            too, each with a reason you can disagree with.
           </>
         }
       />
@@ -597,8 +601,9 @@ function AddressLookup({
 
       {result?.kind === "none" && (
         <p className="muted small">
-          <span className="mono">{result.address}</span> is not on either list —
-          it held no Buddy at the snapshot moment, and it is not an influencer.
+          <span className="mono">{result.address}</span> is not on either list.
+          It held no Buddy at the snapshot moment, it is not an influencer, or
+          it was excluded — and every exclusion is published with its reason.
         </p>
       )}
 

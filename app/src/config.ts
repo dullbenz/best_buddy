@@ -161,6 +161,13 @@ export const INFLUENCER_PROOFS_URL = "/proofs/influencers.json";
  * the public repository — two independent copies of the same bytes, so a
  * quietly edited list here would not match the one on GitHub.
  *
+ * `excluded.csv` is published for the same reason the holder list is. A project
+ * that publishes only the winners can drop anyone it likes and nobody can tell,
+ * so every exclusion is listed with its reason and can be argued with. The
+ * exclusions themselves exist because pool vaults and burn addresses are not
+ * people — left in, an AMM vault would take a pro-rata slice of restitution
+ * meant for the holders it was trading against.
+ *
  * The influencer list gets the same treatment as the holder list. It is
  * hand-picked rather than derived from chain, which makes publishing it more
  * important, not less: there is no way to re-derive it, so the only check
@@ -180,6 +187,11 @@ export const SNAPSHOT = {
       name: "holders.csv",
       url: "/snapshot/holders.csv",
       description: "Every wallet in the snapshot and its allocation",
+    },
+    {
+      name: "excluded.csv",
+      url: "/snapshot/excluded.csv",
+      description: "Every address left out, with the reason for each one",
     },
     {
       name: "manifest.json",

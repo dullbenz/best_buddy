@@ -146,7 +146,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
               {burned ? "immutable program" : "upgrade authority burns at launch"}{" "}
               <i>·</i> merkle snapshot <i>·</i> no presale{" "}
               <i>·</i> no team wallet <i>·</i> permissionless payouts <i>·</i>{" "}
-              on-chain bitcoin signature <i>·</i> published holder list <i>·</i>{" "}
+              on-chain bitcoin signature <i>·</i> published exclusions <i>·</i>{" "}
               reproducible build <i>·</i>{" "}
             </span>
           ))}
