@@ -1,0 +1,54 @@
+{
+  "AGtVqLrjwb8JjjMyTRjoGLyzxT31SQytzvJgaswWSNuS": {
+    "address": "AGtVqLrjwb8JjjMyTRjoGLyzxT31SQytzvJgaswWSNuS",
+    "amount": "9000000000000",
+    "proof": [
+      "189c13278d72304b94e2cff1bf75f0ee3e437ca6bb2cfc1bc3a26006d2038b1b",
+      "25031d5c478805bc3bfdb7ae4045fb4a1d1bc107f2174940cc4f3b553652ba80",
+      "98645516b2b372e4bb98106d05fd93450d87458632575fda177c672916d440e5"
+    ]
+  },
+  "Ew8wePZE3GUUwVGVkRvtxW175RGcXLnuawZFdskv2ijL": {
+    "address": "Ew8wePZE3GUUwVGVkRvtxW175RGcXLnuawZFdskv2ijL",
+    "amount": "7500000000000",
+    "proof": [
+      "ca850deb4253c2a298a9c1af794b13a8605cd99ca3ae918d75a272cfd2462ccb",
+      "15dcdbf9db471a06a0a48cde2797f0eec49d2ffced4adb51ddc0458b42de6612"
+    ]
+  },
+  "Pm9o1hzfGjzXsBFd8hgw2d4LEPqrs1YDxwN5kbQ1Rho": {
+    "address": "Pm9o1hzfGjzXsBFd8hgw2d4LEPqrs1YDxwN5kbQ1Rho",
+    "amount": "5500000000000",
+    "proof": [
+      "acaef942a3c05cc1fadc267c35a5488882f9631e040aaadc8b88a23d8b547a64",
+      "15dcdbf9db471a06a0a48cde2797f0eec49d2ffced4adb51ddc0458b42de6612"
+    ]
+  },
+  "Dsx8qwtnLund3oVd9RZUxYMiPerrvMQfriQJb4LctZQb": {
+    "address": "Dsx8qwtnLund3oVd9RZUxYMiPerrvMQfriQJb4LctZQb",
+    "amount": "4000000000000",
+    "proof": [
+      "1f21ec750f8da0218c1ee315b5138fd9c6c20f63fb6f96609d2dd04a9c4e6760",
+      "25031d5c478805bc3bfdb7ae4045fb4a1d1bc107f2174940cc4f3b553652ba80",
+      "98645516b2b372e4bb98106d05fd93450d87458632575fda177c672916d440e5"
+    ]
+  },
+  "E6yvbY2jrVepQHRCsJgwndBrFi6dJ9SUYppZCHE4G5S5": {
+    "address": "E6yvbY2jrVepQHRCsJgwndBrFi6dJ9SUYppZCHE4G5S5",
+    "amount": "2500000000000",
+    "proof": [
+      "4a6e49f6a089ae1c15a5d1d7ecead5bf1b926a1ded54677e8b69ba13515ced32",
+      "8286ebdcb7c9eff85a409de5b74a09d7c5a528bfaf7e7c1bd21a624140ef9e8f",
+      "98645516b2b372e4bb98106d05fd93450d87458632575fda177c672916d440e5"
+    ]
+  },
+  "FoW3HMxBWiCiZgucdTFgGi5npR8LPbTboBjD6tzzk3c3": {
+    "address": "FoW3HMxBWiCiZgucdTFgGi5npR8LPbTboBjD6tzzk3c3",
+    "amount": "1500000000000",
+    "proof": [
+      "64a5bf15bfe82e98af3c4f109306db99258ddcf85404f84f2143a1641cf88695",
+      "8286ebdcb7c9eff85a409de5b74a09d7c5a528bfaf7e7c1bd21a624140ef9e8f",
+      "98645516b2b372e4bb98106d05fd93450d87458632575fda177c672916d440e5"
+    ]
+  }
+}

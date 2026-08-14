@@ -540,6 +540,9 @@ has the numbers; the post is a summary and a link.
 **Snapshot**
 - [ ] Slot chosen retroactively, anchored to a documented event
 - [ ] Both AMM pool vaults and the dev's wallets excluded, each with a published reason
+- [ ] `SNAPSHOT.takenAt` and `SNAPSHOT.slot` in `app/src/config.ts` replaced
+      with the mainnet snapshot's own date and slot — they currently hold the
+      devnet fixture's values
 - [ ] Snapshot verified and published
 - [ ] Proof files committed and deployed to the site
 

@@ -150,9 +150,19 @@ export const SOCIAL_LINKS = [
   },
 ];
 
-/** Published proof files, served as static assets next to the app. */
-export const OLD_HOLDER_PROOFS_URL = "/proofs/old-holders.json";
-export const INFLUENCER_PROOFS_URL = "/proofs/influencers.json";
+/**
+ * Published proof and snapshot files, served as static assets next to the app.
+ *
+ * Everything is namespaced by cluster off mainnet. A devnet build has to be
+ * loaded with fabricated allocations to be testable at all, and those files
+ * must never be reachable at the paths the real ones will occupy — a test
+ * fixture served as the published snapshot would be indistinguishable from
+ * quietly rewriting who is owed what. Mainnet keeps the bare paths.
+ */
+const publishedDir = IS_MAINNET ? "" : `/${CLUSTER}`;
+
+export const OLD_HOLDER_PROOFS_URL = `/proofs${publishedDir}/old-holders.json`;
+export const INFLUENCER_PROOFS_URL = `/proofs${publishedDir}/influencers.json`;
 
 /**
  * The snapshot, published so the claim list can be audited rather than trusted.
@@ -175,27 +185,33 @@ export const INFLUENCER_PROOFS_URL = "/proofs/influencers.json";
  */
 export const SNAPSHOT = {
   /**
-   * Filled in when the snapshot is taken, just before launch. Until then the
-   * UI says it has not happened rather than printing a date that would be a
-   * guess — the whole point of the moment is that it is fixed and checkable.
+   * The moment the holder list was frozen.
+   *
+   * These are the devnet fixture's real values, standing in so the sentence
+   * reads the way it will on launch day rather than as two dashed blanks.
+   * **Both must be replaced with the mainnet snapshot's own date and slot**
+   * before the production deploy — they are the one claim on the page that a
+   * reader can check against the chain, and shipping devnet numbers to
+   * mainnet would make the page provably wrong on its most checkable fact.
+   * The launch checklist carries this as a step.
    */
-  takenAt: null as string | null,
-  slot: null as number | null,
+  takenAt: "2026-08-14T00:52:17Z" as string | null,
+  slot: 483_637_296 as number | null,
 
   legacy: [
     {
       name: "holders.csv",
-      url: "/snapshot/holders.csv",
+      url: `/snapshot${publishedDir}/holders.csv`,
       description: "Every wallet in the snapshot and its allocation",
     },
     {
       name: "excluded.csv",
-      url: "/snapshot/excluded.csv",
+      url: `/snapshot${publishedDir}/excluded.csv`,
       description: "Every address left out, with the reason for each one",
     },
     {
       name: "manifest.json",
-      url: "/snapshot/manifest.json",
+      url: `/snapshot${publishedDir}/manifest.json`,
       description: "The slot, the totals and the Merkle root, for re-derivation",
     },
   ],
@@ -203,12 +219,12 @@ export const SNAPSHOT = {
   influencers: [
     {
       name: "influencers.csv",
-      url: "/snapshot/influencers.csv",
+      url: `/snapshot${publishedDir}/influencers.csv`,
       description: "Everyone on the influencer list and their allocation",
     },
     {
       name: "influencers-manifest.json",
-      url: "/snapshot/influencers-manifest.json",
+      url: `/snapshot${publishedDir}/influencers-manifest.json`,
       description: "The totals and the Merkle root for that list",
     },
   ],
