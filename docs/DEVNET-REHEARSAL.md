@@ -68,7 +68,7 @@ Confirm it landed, and note the `Authority` line — this is exactly what you'll
 be checking and changing on mainnet:
 
 ```bash
-solana program show GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11
+solana program show 4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V
 ```
 
 ---
@@ -125,7 +125,7 @@ it's worth seeing what they'll see.
 Then run the real app against it:
 
 ```bash
-cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11 npm run dev
+cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V npm run dev
 ```
 
 Open http://localhost:5173. The dashboard should show live bucket balances and

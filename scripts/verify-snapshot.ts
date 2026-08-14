@@ -15,7 +15,7 @@ import * as path from "path";
 import { Allocation, MerkleTree, buildTree, hashLeaf } from "./merkle";
 
 const PROGRAM_ID = new PublicKey(
-  process.env.PROGRAM_ID ?? "GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11"
+  process.env.PROGRAM_ID ?? "4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V"
 );
 
 function fail(message: string): never {

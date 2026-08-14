@@ -40,7 +40,18 @@ This file is your contract's identity. It lives in `target/`, a build folder
 that `anchor clean` wipes without asking. Put a copy in a password manager or
 an encrypted drive. Never in Git, never in Google Drive, never in a chat.
 
-Current program ID: `GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11`
+Current program ID: `4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V`
+
+> **This is a devnet identity, not the launch one.** The roots a claim is
+> checked against can only be set at `initialize`, and only once, so putting
+> test wallets into the claim lists meant a new config account — which means a
+> new program id, because the config PDA is derived from it. The previous
+> devnet program was closed and its rent reclaimed.
+>
+> **Generate a fresh keypair for mainnet at §0.1 on launch day** and update
+> `declare_id!` and both `Anchor.toml` entries to match, exactly as written
+> above. Deploying to mainnet under this id would put the real token behind a
+> key that has been sitting in a development `target/` directory.
 
 ### 0.2 Confirm the toolchain works
 
@@ -124,7 +135,7 @@ Set these in **Settings → Secrets and variables → Actions**:
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | the service-account JSON |
 | Variable | `FIREBASE_PROJECT_ID` | your Firebase project ID |
 | Variable | `VITE_RPC_URL` | your Helius RPC URL |
-| Variable | `VITE_PROGRAM_ID` | `GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11` |
+| Variable | `VITE_PROGRAM_ID` | `4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V` |
 | Secret | `STAGING_PASSWORD` | the staging basic-auth password |
 | Variable | `STAGING_RPC_URL` | a devnet RPC endpoint |
 
@@ -193,7 +204,7 @@ Full guide, including how to re-run it: [docs/DEVNET-REHEARSAL.md](docs/DEVNET-R
 Locally:
 
 ```bash
-cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11 npm run dev
+cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V npm run dev
 ```
 
 Or push to `develop` and use `staging.mybestbuddy.fun`, which is the same build
@@ -418,7 +429,7 @@ becomes the eighth check on the Verify page.
 **Point of no return. Do the checks first.**
 
 ```bash
-solana program show GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11
+solana program show 4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V
 ```
 
 Confirm, one by one:
@@ -435,11 +446,11 @@ Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
 
 ```bash
-solana program set-upgrade-authority GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11 --final
+solana program set-upgrade-authority 4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V --final
 ```
 
 ```bash
-solana program show GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11
+solana program show 4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V
 ```
 
 `Authority` must read **`none`**. Save that transaction signature — it leads the
@@ -545,6 +556,13 @@ has the numbers; the post is a summary and a link.
       devnet fixture's values
 - [ ] Snapshot verified and published
 - [ ] Proof files committed and deployed to the site
+
+**Program identity** — the repo currently carries a devnet id
+- [ ] Fresh mainnet keypair generated at §0.1, `declare_id!` and both
+      `Anchor.toml` entries updated to match, then rebuilt
+- [ ] `VITE_PROGRAM_ID` repository variable set to the mainnet id — it holds
+      the devnet one today, so a production deploy right now would ship a site
+      pointing at a program that does not exist on mainnet
 
 **Launch**
 - [ ] Program deployed (no `--final` yet)
