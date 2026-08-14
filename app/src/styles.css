@@ -887,10 +887,14 @@ a.prov-value {
 /* A standing rule about the bucket, set as a specification footnote. It has to
    stay legible without competing with the verdict for the same attention —
    two accent boxes in one card and neither one lands. */
-.card-foot {
-  margin: 18px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+/* `.card .card-foot`, not `.card-foot`: this is a <p>, and `.card p` sets its
+   own margin at equal specificity, which silently collapsed the gap to zero
+   and left the footnote flush against the box above it. */
+.card .card-foot {
+  /* No top rule. The block above is the bordered file list, so a line here
+     read as a doubled border with a sliver of gap between the two. The
+     spacing on its own is enough separation. */
+  margin: 16px 0 0;
   font-size: 12px;
   line-height: 1.6;
   color: var(--muted);

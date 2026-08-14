@@ -1,6 +1,14 @@
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { SEEDS, pda } from "./config";
 import { useProgram } from "./useProgram";
 
@@ -22,8 +30,21 @@ export interface DistributorState {
   refresh: () => void;
 }
 
-/** Live read of every public number the dashboard shows. */
-export function useDistributor(): DistributorState {
+/**
+ * Live read of every public number the dashboard shows.
+ *
+ * Fetched once for the whole app rather than once per component. Seven of the
+ * eight tabs want this same data, and each used to mount its own copy of the
+ * hook and re-read the chain from scratch — so simply clicking through the
+ * tabs cost around seventy RPC calls for numbers that never differed between
+ * them, and the public devnet endpoint started answering 429.
+ *
+ * The reads are also batched. config, pool and the SOL vault are three
+ * accounts fetched in one `getMultipleAccounts`, and the rent floor is a
+ * constant for a given data length, so it is cached after the first look.
+ * Three round trips for the whole session, against twelve per tab before.
+ */
+function useDistributorSource(): DistributorState {
   const program = useProgram();
   const { connection } = useConnection();
   const [config, setConfig] = useState<any>(null);
@@ -44,21 +65,30 @@ export function useDistributor(): DistributorState {
     (async () => {
       try {
         setLoading(true);
-        const [cfg, pl] = await Promise.all([
-          (program.account as any).config.fetch(pda([SEEDS.config])),
-          (program.account as any).stakePool.fetch(pda([SEEDS.pool])),
+        const configPda = pda([SEEDS.config]);
+        const poolPda = pda([SEEDS.pool]);
+        const solVaultPda = pda([SEEDS.solVault]);
+
+        // One round trip for three accounts, decoded locally. Anchor's
+        // `.fetch()` is one request each and there is no reason to pay that
+        // three times for accounts read together every time.
+        const [cfgInfo, poolInfo, solInfo] = await connection.getMultipleAccountsInfo([
+          configPda,
+          poolPda,
+          solVaultPda,
         ]);
+        if (!cfgInfo) throw new Error("config account not found — is the program initialized?");
+        if (!poolInfo) throw new Error("stake pool account not found");
+
+        const coder = (program.account as any).config.coder.accounts;
+        const cfg = coder.decode("config", cfgInfo.data);
+        const pl = coder.decode("stakePool", poolInfo.data);
 
         const vaultInfo = await connection.getTokenAccountBalance(pda([SEEDS.vault]));
-        const solInfo = await connection.getAccountInfo(pda([SEEDS.solVault]));
 
         // Mirror the program: floor = rent for the vault's own data length.
         const floor = solInfo
-          ? BigInt(
-              await connection.getMinimumBalanceForRentExemption(
-                solInfo.data.length
-              )
-            )
+          ? await rentFloorFor(connection, solInfo.data.length)
           : 0n;
 
         if (cancelled) return;
@@ -97,6 +127,41 @@ export function useDistributor(): DistributorState {
     error,
     refresh,
   };
+}
+
+/**
+ * Rent for a given account size, cached.
+ *
+ * The rent rate is a chain constant that changes at most across epochs and
+ * never in a way that matters to a page open for a few minutes, so asking the
+ * RPC for the same data length on every read was pure waste.
+ */
+const rentCache = new Map<number, bigint>();
+async function rentFloorFor(
+  connection: { getMinimumBalanceForRentExemption: (n: number) => Promise<number> },
+  dataLength: number
+): Promise<bigint> {
+  const hit = rentCache.get(dataLength);
+  if (hit !== undefined) return hit;
+  const value = BigInt(await connection.getMinimumBalanceForRentExemption(dataLength));
+  rentCache.set(dataLength, value);
+  return value;
+}
+
+const DistributorContext = createContext<DistributorState | null>(null);
+
+/** Wrap the app once; every `useDistributor()` below shares this one read. */
+export function DistributorProvider({ children }: { children: ReactNode }) {
+  const value = useDistributorSource();
+  return createElement(DistributorContext.Provider, { value }, children);
+}
+
+export function useDistributor(): DistributorState {
+  const ctx = useContext(DistributorContext);
+  if (!ctx) {
+    throw new Error("useDistributor must be used inside <DistributorProvider>");
+  }
+  return ctx;
 }
 
 export interface StakeInfo {
