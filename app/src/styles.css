@@ -792,15 +792,77 @@ a.prov-value {
   color: var(--muted);
 }
 
-/* The last word on every bucket: what happens to whatever nobody claims.
-   Boxed on all four sides rather than the usual left rule, so it reads as a
-   closing statement instead of another aside. */
-.note-forfeit {
+/* The answer about *your* wallet — the one thing on the card addressed to the
+   reader personally, and the only element on it with a full border. Everything
+   else in the card is explanation; this is the result. */
+.verdict {
   margin-top: 16px;
-  border: 1px solid var(--accent);
+  padding: 14px 16px;
+  border: 1px solid var(--border);
   border-left-width: 3px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.verdict p {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.verdict p strong {
   color: var(--text);
+}
+
+.verdict button {
+  margin-top: 12px;
+}
+
+.verdict-head {
+  display: block;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+/* Owed something. */
+.verdict-hit {
+  border-color: var(--good);
+  background: color-mix(in srgb, var(--good) 9%, var(--panel-2));
+}
+
+.verdict-hit .verdict-head {
+  color: var(--good);
+}
+
+/* Owed nothing. Muted rather than red — being absent from a snapshot is an
+   answer, not an error, and colouring it like a failure would read as though
+   something had gone wrong with the check. */
+.verdict-miss {
+  border-color: var(--muted);
+  background: var(--panel-2);
+}
+
+/* A standing rule about the bucket, set as a specification footnote. It has to
+   stay legible without competing with the verdict for the same attention —
+   two accent boxes in one card and neither one lands. */
+.card-foot {
+  margin: 18px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.card-foot-label {
+  margin-right: 8px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 /* ---- Staking tiers as selectable plans ---- */

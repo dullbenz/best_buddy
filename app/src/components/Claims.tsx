@@ -243,26 +243,25 @@ export function Claims() {
       ) : oldProofs === null ? (
         <p className="muted">Checking the snapshot…</p>
       ) : oldEntry ? (
-        <>
+        <Verdict tone="hit" heading="This wallet is in the snapshot.">
           <p>
-            This wallet is in the snapshot for{" "}
-            <strong>{fmtTokens(oldEntry.amount)}</strong> tokens.
-          </p>
-          <p className="muted small">
-            {oldLeft ? `Window closes in ${oldLeft}.` : "The window has closed."}
+            It is owed <strong>{fmtTokens(oldEntry.amount)}</strong> tokens.{" "}
+            {oldLeft ? `The window closes in ${oldLeft}.` : "The window has closed."}
           </p>
           <button className="primary" disabled={busy || !oldLeft} onClick={claimOldHolder}>
             {oldLeft ? "Claim" : "Window closed"}
           </button>
-        </>
+        </Verdict>
       ) : (
-        <p className="muted">
-          <strong>This wallet is not in the snapshot.</strong> Either it held no
-          Buddy at the snapshot moment, or it was excluded —{" "}
-          <span className="mono">excluded.csv</span> below names every excluded
-          address and the reason for it. Both files are published, so you can
-          check which it was rather than ask us.
-        </p>
+        <Verdict tone="miss" heading="This wallet is not in the snapshot.">
+          <p>
+            Either it held no Buddy at the snapshot moment, or it was excluded.{" "}
+            <span className="mono">excluded.csv</span> below names every excluded
+            address and the reason for it, and{" "}
+            <span className="mono">holders.csv</span> names everyone who is in —
+            so you can settle which of the two it was rather than ask us.
+          </p>
+        </Verdict>
       )}
 
       <SnapshotFiles
@@ -280,11 +279,10 @@ export function Claims() {
         }
       />
 
-      <ForfeitNote>
-        <strong>Nothing unclaimed comes back to us.</strong> When the 30-day
-        window closes, every allocation nobody claimed becomes staking rewards
-        for the community. There is no instruction that returns it to the team,
-        and no wallet that could receive it.
+      <ForfeitNote label="If nobody claims">
+        Every allocation left unclaimed when the 30-day window closes becomes
+        staking rewards for the community. There is no instruction that returns
+        it to the team, and no upgrade authority to change it.
       </ForfeitNote>
     </section>
   );
@@ -320,13 +318,13 @@ export function Claims() {
         <p className="muted">Checking the list…</p>
       ) : infEntry ? (
         <>
-          <p>
-            This wallet is on the published list for{" "}
-            <strong>{fmtTokens(infEntry.amount)}</strong> tokens.
-          </p>
-          <p className="muted small">
-            {infLeft ? `You have ${infLeft} left.` : "The 72-hour window has closed."}
-          </p>
+          <Verdict tone="hit" heading="This wallet is on the influencer list.">
+            <p>
+              It is allocated <strong>{fmtTokens(infEntry.amount)}</strong>{" "}
+              tokens.{" "}
+              {infLeft ? `You have ${infLeft} left to claim.` : "The 72-hour window has closed."}
+            </p>
+          </Verdict>
 
           <details className="terms" open={!termsSig}>
             <summary>The terms you are agreeing to</summary>
@@ -366,10 +364,12 @@ export function Claims() {
           </div>
         </>
       ) : (
-        <p className="muted">
-          <strong>This wallet is not on the influencer list.</strong> The list
-          is published below, so you can read every name on it.
-        </p>
+        <Verdict tone="miss" heading="This wallet is not on the influencer list.">
+          <p>
+            The list is published below in full, so you can read every name on
+            it rather than wonder whether yours was left off quietly.
+          </p>
+        </Verdict>
       )}
 
       <SnapshotFiles
@@ -386,33 +386,21 @@ export function Claims() {
         }
       />
 
-      <ForfeitNote>
-        <strong>The unclaimed tokens go back to the community.</strong> After
-        the 72-hour window closes, everything nobody claimed becomes staking
+      <ForfeitNote label="If nobody claims">
+        Everything left unclaimed when the 72-hour window closes becomes staking
         rewards — it goes to the stakers, not to us.
       </ForfeitNote>
     </section>
   );
 
-  // The lookup leads when there is no wallet, and the connect prompt follows
-  // it. Checking is what a stranger can do straight away; connecting is the
-  // thing they are still deciding about.
+  // The lookup leads when there is no wallet: checking is what a stranger can
+  // do straight away, and connecting is the thing they are still deciding
+  // about. There is no standalone connect card — each bucket carries its own
+  // prompt, so a third one would just be the same button asked for twice.
   if (!publicKey) {
     return (
       <div className="stack">
         <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
-
-        <section className="card">
-          <h2>Got the wallet? Claim with it</h2>
-          <p className="muted">
-            Checking needs no wallet — claiming does, because only the wallet
-            itself can sign for what it is owed. Nobody can claim on its
-            behalf, us included. Connecting sends nothing anywhere and costs
-            nothing.
-          </p>
-          <ConnectButton label="Select wallet" />
-        </section>
-
         {legacyCard}
         {influencerCard}
       </div>
@@ -456,21 +444,20 @@ export function Claims() {
   );
 }
 
-/** Opens the wallet picker without re-implementing the header's button. */
-function ConnectButton({ label = "Connect wallet" }: { label?: string }) {
-  const { setVisible } = useWalletModal();
-  return (
-    <button className="primary" onClick={() => setVisible(true)}>
-      {label}
-    </button>
-  );
-}
-
+/**
+ * The way in, at the end of each bucket card.
+ *
+ * Opens the wallet picker rather than re-implementing the header's button, so
+ * there is one wallet flow on the page and not two that can disagree.
+ */
 function ConnectToClaim({ question }: { question: string }) {
+  const { setVisible } = useWalletModal();
   return (
     <div className="claim-cta">
       <span>{question} Connect the wallet to find out.</span>
-      <ConnectButton />
+      <button className="primary" onClick={() => setVisible(true)}>
+        Connect wallet
+      </button>
     </div>
   );
 }
@@ -506,9 +493,53 @@ function SnapshotMoment() {
   );
 }
 
-/** A closing callout: what happens to everything nobody claims. */
-function ForfeitNote({ children }: { children: ReactNode }) {
-  return <div className="note note-forfeit">{children}</div>;
+/**
+ * The answer to "does this wallet have anything", boxed.
+ *
+ * This is what the visitor came for, and it was a paragraph of muted body text
+ * indistinguishable from the explanation around it — a "no" that scrolled past
+ * unread. It is the one thing on the card addressed to them personally, so it
+ * gets the only strong border on the card.
+ */
+function Verdict({
+  tone,
+  heading,
+  children,
+}: {
+  tone: "hit" | "miss";
+  heading: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`verdict verdict-${tone}`} role="status">
+      <strong className="verdict-head">{heading}</strong>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * What happens to everything nobody claims.
+ *
+ * A standing rule rather than news, so it reads as a specification footnote
+ * instead of competing with the verdict above it for the same attention. The
+ * fact still matters — it is the difference between a forfeited allocation
+ * going to the community and going back to the team — but it is the same fact
+ * on every visit, and it should not shout on every visit.
+ */
+function ForfeitNote({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <p className="card-foot">
+      <span className="card-foot-label">{label}</span>
+      {children}
+    </p>
+  );
 }
 
 /**
