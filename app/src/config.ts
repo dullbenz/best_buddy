@@ -6,8 +6,44 @@ import influencerTerms from "./generated/influencer-terms.txt?raw";
  * public information by design — the dashboard is meant to be verifiable by
  * anyone, including people who never open this app.
  */
+/**
+ * Which RPC this page talks to, decided at runtime from the hostname.
+ *
+ * A keyed endpoint has to be locked to an Origin or the key is free for anyone
+ * to spend, and Helius will not accept "localhost" as an allowlist entry — so
+ * a keyed URL simply cannot work from a dev server on localhost. Build-time
+ * env cannot resolve this either: one `npm run dev` is reachable *both* at
+ * localhost and through the tunnel, from the same bundle.
+ *
+ * So the choice is made per request, by where the page was actually served
+ * from. Real hostname — staging, the tunnel, production — uses the keyed
+ * endpoint. localhost falls back to the public one, which needs no key and
+ * enforces no Origin. Both must point at the same cluster; nothing here
+ * guesses.
+ */
+const KEYED_RPC = import.meta.env.VITE_RPC_URL as string | undefined;
+const LOCAL_RPC = import.meta.env.VITE_LOCAL_RPC_URL as string | undefined;
+
+const servedFromLocalhost =
+  typeof window !== "undefined" &&
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+
 export const RPC_URL =
-  import.meta.env.VITE_RPC_URL ?? "https://api.mainnet-beta.solana.com";
+  (servedFromLocalhost
+    ? LOCAL_RPC ?? KEYED_RPC
+    : KEYED_RPC ?? LOCAL_RPC) ?? "https://api.mainnet-beta.solana.com";
+
+/** Host only — the API key never belongs in anything rendered. */
+export const RPC_HOST = (() => {
+  try {
+    return new URL(RPC_URL).host;
+  } catch {
+    return RPC_URL;
+  }
+})();
+
+/** True when this page is going through our own keyed endpoint. */
+export const RPC_IS_KEYED = !servedFromLocalhost && !!KEYED_RPC;
 
 export const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID ??
@@ -16,6 +52,23 @@ export const PROGRAM_ID = new PublicKey(
 
 /** Decimals of the new token; pump.fun mints use 6. */
 export const TOKEN_DECIMALS = 6;
+
+/**
+ * Ticker, appended to token amounts everywhere.
+ *
+ * A bare number on a page that also quotes SOL is ambiguous, and the ambiguity
+ * lands exactly where it matters most — on the figure telling somebody what
+ * they are owed.
+ */
+export const TOKEN_SYMBOL = "$BUDDY";
+
+/**
+ * The public source. Everything the project runs on is in here: the program,
+ * this website, the snapshot scripts and the runbooks.
+ */
+export const REPO_URL = "https://github.com/dullbenz/best_buddy";
+export const repoPath = (path: string) => `${REPO_URL}/blob/main/${path}`;
+export const REPO_ACTIONS_URL = `${REPO_URL}/actions`;
 
 /**
  * Which chain this build talks to, inferred from the RPC URL rather than set

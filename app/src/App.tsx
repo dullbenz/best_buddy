@@ -1,6 +1,7 @@
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CLUSTER, IS_MAINNET } from "./config";
+import { NAVIGATE_EVENT, type NavigateDetail } from "./nav";
 import { Claims } from "./components/Claims";
 import { SocialLinks } from "./components/SocialLinks";
 import { Dashboard } from "./components/Dashboard";
@@ -52,6 +53,89 @@ function ClusterBadge() {
 
 export function App() {
   const [tab, setTab] = useState<Tab>("home");
+
+  /**
+   * Cross-tab links, e.g. a claim on the Claims page pointing at the check on
+   * Verify that settles it.
+   *
+   * Two steps, because the target does not exist when the event fires: the
+   * listener records where to go, and a second effect scrolls once the new tab
+   * has rendered. Deliberately not requestAnimationFrame — rAF is throttled to
+   * a standstill in a background tab, so a link followed on an inactive tab
+   * would change tabs and then just sit there.
+   */
+  // A ref, not state: clearing it must not re-render. Clearing state from
+  // inside the effect below re-runs the effect, whose cleanup then cancels the
+  // re-aim timers a few milliseconds after they are set — which is exactly the
+  // bug this replaced. `navSeq` is what drives the effect, so following the
+  // same link twice still works.
+  const pendingAnchor = useRef<string | null>(null);
+  const [navSeq, setNavSeq] = useState(0);
+
+  const scrollBehavior = (): ScrollBehavior =>
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth";
+
+  useEffect(() => {
+    const onNavigate = (event: Event) => {
+      const { tab: next, anchor } = (event as CustomEvent<NavigateDetail>).detail;
+      if (!TABS.includes(next as Tab)) return;
+      setTab(next as Tab);
+      pendingAnchor.current = anchor ?? null;
+      setNavSeq((n) => n + 1);
+      if (!anchor) window.scrollTo({ top: 0, behavior: scrollBehavior() });
+    };
+    window.addEventListener(NAVIGATE_EVENT, onNavigate);
+    return () => window.removeEventListener(NAVIGATE_EVENT, onNavigate);
+  }, []);
+
+  useEffect(() => {
+    const anchor = pendingAnchor.current;
+    if (!anchor) return;
+    pendingAnchor.current = null;
+    const el = document.getElementById(anchor);
+
+    // Top of the page rather than staying put: landing on the right tab having
+    // missed the card is a minor annoyance, whereas not moving reads as a dead
+    // link.
+    if (!el) {
+      window.scrollTo({ top: 0, behavior: scrollBehavior() });
+      return;
+    }
+
+    const jump = () => el.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
+    jump();
+
+    // Verify's cards grow as their live checks resolve — the origin census and
+    // the pump.fun fee config both land after first paint, and between them
+    // they pushed the target most of a screen below where it had just been
+    // scrolled to. So re-aim a few times while the page settles.
+    //
+    // Timers rather than a ResizeObserver: observers are delivered through the
+    // rendering pipeline, which is throttled to nothing in a background tab —
+    // exactly the case where someone follows a link and then switches away.
+    // Timers still fire, and they also cover growth an observer on body would
+    // miss, such as a late image inside a fixed-height box.
+    let live = true;
+    const ticks = [150, 600, 1500, 2800].map((ms) =>
+      setTimeout(() => live && jump(), ms)
+    );
+
+    // Stop the moment the reader takes over, rather than yanking them back.
+    const stop = () => {
+      live = false;
+      ticks.forEach(clearTimeout);
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("keydown", stop);
+    };
+    window.addEventListener("wheel", stop, { passive: true });
+    window.addEventListener("touchstart", stop, { passive: true });
+    window.addEventListener("keydown", stop);
+
+    return stop;
+  }, [navSeq]);
 
   return (
     <div className="app">

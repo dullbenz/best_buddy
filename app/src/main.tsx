@@ -6,7 +6,7 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { enforceCanonicalHost } from "./canonicalHost";
 import { RPC_URL } from "./config";
-import "@solana/wallet-adapter-react-ui/styles.css";
+import "./vendor/wallet-adapter-ui.css";
 import "./styles.css";
 
 function Root() {

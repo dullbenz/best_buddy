@@ -40,6 +40,7 @@ jobs:
         working-directory: app
         env:
           VITE_RPC_URL: ${{ vars.STAGING_RPC_URL || 'https://api.devnet.solana.com' }}
+          VITE_LOCAL_RPC_URL: https://api.devnet.solana.com
           VITE_PROGRAM_ID: ${{ vars.STAGING_PROGRAM_ID || vars.VITE_PROGRAM_ID }}
           VITE_CANONICAL_HOST: ${{ vars.STAGING_CANONICAL_HOST || 'staging.mybestbuddy.fun' }}
         run: |

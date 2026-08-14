@@ -5,7 +5,7 @@ import {
   ORIGINAL_SIGNER_DEADLINE,
   btcAddressUrl,
 } from "../config";
-import { countdown, fmtDate, fmtSol, fmtTokens } from "../format";
+import { countdown, fmtAmount, fmtDate, fmtSol } from "../format";
 import { useDistributor } from "../useDistributor";
 
 /**
@@ -67,7 +67,7 @@ export function Dashboard() {
             </div>
 
             <p className="muted small">
-              {fmtTokens(config.originalSignerAllocation, true)} tokens, waiting
+              {fmtAmount(config.originalSignerAllocation, true)}, waiting
               for whoever holds the Bitcoin key that signed the 2014 message
               this coin is named after. They prove it by signing — no
               permission, no paperwork, nothing we can veto. Unclaimed by 2030,
@@ -86,7 +86,7 @@ export function Dashboard() {
             </div>
 
             <div className="bigstat">
-              <span className="value">{fmtTokens(config.devAllocation, true)}</span>
+              <span className="value">{fmtAmount(config.devAllocation, true)}</span>
               <span className="label">over 12 months, behind a cliff</span>
             </div>
 
@@ -116,7 +116,7 @@ export function Dashboard() {
             value={`${fmtSol(untrackedSol)} SOL`}
             emphasis={untrackedSol > 0n}
           />
-          <Stat label="Total staked" value={fmtTokens(pool.totalStaked, true)} />
+          <Stat label="Total staked" value={fmtAmount(pool.totalStaked, true)} />
           <Stat label="Paid out to date" value={`${fmtSol(pool.lifetimeSolRewards)} SOL`} />
         </div>
 
@@ -140,7 +140,7 @@ export function Dashboard() {
 
         {BigInt(pool.pendingTokenRewards) > 0n && (
           <p className="muted small">
-            {fmtTokens(pool.pendingTokenRewards)} tokens are buffered until
+            {fmtAmount(pool.pendingTokenRewards)} is buffered until
             somebody stakes — they arrived while the pool was empty, and are
             held rather than lost.
           </p>
@@ -154,9 +154,9 @@ export function Dashboard() {
           Paid instantly, yours to do anything with.
         </p>
         <div className="stat-row">
-          <Stat label="Allocation" value={fmtTokens(config.oldHolderAllocation, true)} />
-          <Stat label="Claimed" value={fmtTokens(config.oldHolderClaimed, true)} />
-          <Stat label="Unclaimed" value={fmtTokens(oldRemaining, true)} />
+          <Stat label="Allocation" value={fmtAmount(config.oldHolderAllocation, true)} />
+          <Stat label="Claimed" value={fmtAmount(config.oldHolderClaimed, true)} />
+          <Stat label="Unclaimed" value={fmtAmount(oldRemaining, true)} />
           <Stat
             label={oldLeft ? "Closes in" : "Window"}
             value={oldLeft ?? (config.oldHolderSwept ? "swept" : "closed")}
@@ -175,9 +175,9 @@ export function Dashboard() {
           claimed goes to the stakers.
         </p>
         <div className="stat-row">
-          <Stat label="Allocation" value={fmtTokens(config.influencerAllocation, true)} />
-          <Stat label="Claimed" value={fmtTokens(config.influencerClaimed, true)} />
-          <Stat label="Forfeited so far" value={config.influencerSwept ? fmtTokens(infRemaining, true) : "—"} />
+          <Stat label="Allocation" value={fmtAmount(config.influencerAllocation, true)} />
+          <Stat label="Claimed" value={fmtAmount(config.influencerClaimed, true)} />
+          <Stat label="Forfeited so far" value={config.influencerSwept ? fmtAmount(infRemaining, true) : "—"} />
           <Stat
             label={infLeft ? "Closes in" : "Window"}
             value={infLeft ?? (config.influencerSwept ? "swept" : "closed")}
@@ -197,7 +197,7 @@ export function Dashboard() {
           in, and whether the rules governing them can still be edited.
         </p>
         <div className="stat-row">
-          <Stat label="Tokens held" value={fmtTokens(vaultBalance, true)} />
+          <Stat label="Tokens held" value={fmtAmount(vaultBalance, true)} />
           <Stat label="SOL held" value={`${fmtSol(solVaultBalance)} SOL`} />
           <Stat
             label="Rules"

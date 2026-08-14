@@ -8,7 +8,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
 import { useState } from "react";
 import { SEEDS, TIERS, TOKEN_DECIMALS, pda } from "../config";
-import { countdown, fmtSol, fmtTokens } from "../format";
+import { countdown, fmtAmount, fmtSol } from "../format";
 import { useDistributor, useStakePosition } from "../useDistributor";
 import { useProgram } from "../useProgram";
 
@@ -220,15 +220,15 @@ export function Staking() {
           <h2>Your position</h2>
           <div className="stat-row">
             <div className="stat">
-              <span className="stat-value">{fmtTokens(position.amount)}</span>
+              <span className="stat-value">{fmtAmount(position.amount, true)}</span>
               <span className="stat-label">Staked</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtTokens(position.claimableToken)}</span>
+              <span className="stat-value">{fmtAmount(position.claimableToken, true)}</span>
               <span className="stat-label">Base, claimable now</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtTokens(position.escrowToken)}</span>
+              <span className="stat-value">{fmtAmount(position.escrowToken, true)}</span>
               <span className="stat-label">Boost, held to maturity</span>
             </div>
             <div className="stat">

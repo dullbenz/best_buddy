@@ -1,14 +1,40 @@
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react";
-import { PROGRAM_ID, SEEDS, pda, solscanAccount } from "../config";
-import { fmtTokens } from "../format";
+import {
+  PROGRAM_ID,
+  REPO_ACTIONS_URL,
+  REPO_URL,
+  RPC_HOST,
+  RPC_IS_KEYED,
+  SEEDS,
+  pda,
+  repoPath,
+  solscanAccount,
+} from "../config";
+import { fmtAmount } from "../format";
 import { SharingConfigView, readSharingConfig, sharingConfigPda } from "../pumpfun";
+import { VERIFY_ANCHORS } from "../nav";
 import { useDistributor } from "../useDistributor";
 import { useUpgradeAuthority } from "../useUpgradeAuthority";
 
 type Status = "pass" | "fail" | "pending";
 
+/**
+ * Rebuild the frontend and compare it to what is being served.
+ *
+ * Vite hashes each asset by content, so the filename in the served HTML is
+ * itself the claim: if the locally built bundle carries the same name, the
+ * bytes are the same bytes.
+ */
+const BUNDLE_DIFF = [
+  "git clone https://github.com/dullbenz/best_buddy && cd best_buddy/app",
+  "npm ci && npm run build && ls dist/assets",
+  "curl -s https://mybestbuddy.fun | grep -o 'assets/[^\"]*\.js'",
+].join("\n");
+
 interface Check {
+  /** Stable id, so other pages can deep-link to the check that settles them. */
+  id?: string;
   title: string;
   status: Status;
   detail: string;
@@ -44,6 +70,33 @@ export function Verify() {
       cancelled = true;
     };
   }, [connection, config?.rewardMint?.toBase58()]);
+
+  // Every distinct host this page has actually talked to, read from the
+  // browser's own resource timings rather than asserted by us. It is the same
+  // data the network tab shows, gathered by the page itself — which turns "we
+  // have no backend" from a promise into something visible on the page making
+  // the promise.
+  const [origins, setOrigins] = useState<string[]>([]);
+  useEffect(() => {
+    const read = () => {
+      const here = window.location.origin;
+      const seen = new Set<string>();
+      for (const entry of performance.getEntriesByType("resource")) {
+        try {
+          const origin = new URL(entry.name, here).origin;
+          if (origin !== here) seen.add(new URL(origin).host);
+        } catch {
+          /* data: and blob: URLs have no host and are not network calls */
+        }
+      }
+      setOrigins([...seen].sort());
+    };
+    read();
+    // Re-read after the chain calls have had time to fire; the first paint
+    // happens before the RPC has been touched.
+    const t = setTimeout(read, 2500);
+    return () => clearTimeout(t);
+  }, []);
 
   const copy = (text: string, id: string) => {
     navigator.clipboard?.writeText(text);
@@ -132,7 +185,7 @@ export function Verify() {
       ? "reading the vault…"
       : outstanding === null
       ? UNREADABLE
-      : `Vault holds ${fmtTokens(vaultBalance)}, against ${fmtTokens(outstanding)} in unclaimed allocations plus staked principal.`,
+      : `Vault holds ${fmtAmount(vaultBalance)}, against ${fmtAmount(outstanding)} in unclaimed allocations plus staked principal.`,
     why:
       "Unclaimed restitution and everyone's staked tokens have to be physically present, not merely promised. The balance falls as people claim — that is correct — so what matters is that it never falls below what is still owed.",
     command: `spl-token balance --address ${vaultPda}`,
@@ -147,7 +200,7 @@ export function Verify() {
       : !config
       ? UNREADABLE
       : config.devStreamCreated
-      ? `${fmtTokens(config.devAllocation)} released linearly over 12 months behind a cliff. The Token Creator's wallet holds none of it.`
+      ? `${fmtAmount(config.devAllocation)} released linearly over 12 months behind a cliff. The Token Creator's wallet holds none of it.`
       : "The dev stream has not been created yet.",
     why:
       "The original token failed because its creator could sell whenever he liked. Here the Token Creator's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate.",
@@ -155,12 +208,13 @@ export function Verify() {
 
   // 5 — reproduce the snapshot.
   checks.push({
+    id: VERIFY_ANCHORS.snapshotReproducible,
     title: "The Legacy Buddy holder snapshot is reproducible from public data",
     status: "pending",
     detail:
-      "Run the verifier against the published files. It rebuilds the Merkle tree from scratch and compares the root to what is committed on chain.",
+      "The contract stores one 32-byte fingerprint per list — a Merkle root. The verifier rebuilds that fingerprint from the published CSV and compares it to the one on chain. Change a single digit in the file and the fingerprint no longer matches.",
     why:
-      "The eligibility list was produced off-chain, because Solana programs cannot enumerate token holders. That is only trustworthy if anyone can regenerate the identical result — which they can, because the input is public chain history.",
+      "The eligibility list was produced off-chain, because Solana programs cannot enumerate token holders. That is only trustworthy if anyone can regenerate the identical result — which they can, because the input is public chain history. The fingerprint is what makes the published file binding rather than decorative: the contract pays against the root, so a list that does not reproduce it is not the list being paid.",
     command: `RPC_URL=<your-rpc> npx ts-node scripts/verify-snapshot.ts --onchain`,
   });
 
@@ -197,14 +251,32 @@ export function Verify() {
     linkLabel: "Inspect the fee-sharing config on Solscan",
   });
 
-  // 7 — source matches what is deployed.
+  // 7 — there is nothing between you and the chain.
+  const unexpectedOrigins = origins.filter((h) => h !== RPC_HOST);
   checks.push({
+    id: VERIFY_ANCHORS.noBackend,
+    title: "This site has no server in the path of your money",
+    status: origins.length === 0 ? "pending" : unexpectedOrigins.length === 0 ? "pass" : "fail",
+    detail:
+      origins.length === 0
+        ? "Reading this page's own network activity…"
+        : `Besides this domain, this page has contacted ${origins.length === 1 ? "one host" : `${origins.length} hosts`}: ${origins.join(", ")}.` +
+          (unexpectedOrigins.length === 0
+            ? ` That is the Solana RPC${RPC_IS_KEYED ? "" : " (public endpoint)"} and nothing else — every balance, deadline and allocation on this site was read straight from the chain by your own browser.`
+            : ` ${unexpectedOrigins.join(", ")} ${unexpectedOrigins.length === 1 ? "is" : "are"} not the RPC and should not be there.`),
+    why:
+      "There is no API of ours in the middle. Your browser asks the chain directly and renders the answer, which means we have no opportunity to change a number on the way past — if this page showed you a balance the chain disagrees with, any explorer would catch it instantly. It also means your wallet only ever signs transactions built in front of you, and never sends anything to a server of ours. The list above is measured live by the page itself, and you can confirm it independently in your browser's network tab: open developer tools, reload, and see the same hosts. The one server-side component in this project is the public influencer terms register, which records signatures for transparency and cannot affect who can claim what — a claim is verified on chain against the Merkle root, not against us.",
+  });
+
+  // 8 — source matches what is deployed.
+  checks.push({
+    id: VERIFY_ANCHORS.sourceMatchesDeployed,
     title: "The published source matches the deployed bytecode",
     status: "pending",
     detail:
-      "Build the repository yourself and compare the hash to the on-chain program.",
+      "Every line of this project is public — the Solana program, this website, the snapshot scripts and the runbooks. Build the repository yourself and compare the hash to the bytecode on chain.",
     why:
-      "Reading the source proves nothing unless the source is what actually got deployed. This closes that gap.",
+      "Open source on its own proves nothing: reading code is only meaningful if that code is what actually got deployed. solana-verify rebuilds the program in a fixed container and compares the resulting hash to the bytecode the chain is executing. If they match, the program you can read is the program that holds the tokens.",
     command: `solana-verify verify-from-repo -um --program-id ${programId} <repo-url>`,
   });
 
@@ -234,7 +306,7 @@ export function Verify() {
       )}
 
       {checks.map((check, i) => (
-        <section className="card" key={i}>
+        <section className="card" key={i} id={check.id}>
           <div className="check-head">
             <span className={`badge ${check.status}`}>
               {check.status === "pass" ? "VERIFIED" : check.status === "fail" ? "FAILED" : "CHECK IT"}
@@ -260,6 +332,74 @@ export function Verify() {
           )}
         </section>
       ))}
+
+      {/* Deliberately not framed as a check, because it cannot pass. Putting a
+          weaker guarantee inside the same VERIFIED badge as the on-chain ones
+          would quietly borrow their credibility. */}
+      <section className="card">
+        <h2>What this page cannot prove about itself</h2>
+        <p className="muted">
+          The contract can be pinned down completely: rebuild it, hash it,
+          compare it to the bytecode the chain is running. A website cannot be
+          pinned down the same way, and anyone telling you otherwise is
+          overselling. A web server can serve different files to different
+          people, so no page can prove its own authenticity from the inside.
+          That is true here and it is true of every web app you have ever used.
+        </p>
+
+        <p className="muted small">
+          What we can do instead is narrow the gap, in three ways.
+        </p>
+
+        <ol className="verify-gap">
+          <li>
+            <strong>The source is public and the build is public.</strong> Every
+            deploy runs in GitHub Actions from a named commit, with the log
+            open. You can read what was built and from what.
+          </li>
+          <li>
+            <strong>You can diff the bytes yourself.</strong> Build the same
+            commit locally and compare the hash of the bundle against the one
+            this site is actually serving. Same input, same output — a
+            difference means the served file is not the published one.
+          </li>
+          <li>
+            <strong>The site is not load-bearing, which is the real answer.</strong>{" "}
+            This page holds no keys and can move nothing. Every action is a
+            transaction your own wallet shows you before you sign it, and every
+            number here is read from the chain and contradicted by any explorer
+            if it is wrong. A tampered frontend could lie to you or propose a
+            transaction you should refuse — it could not take anything, and it
+            could not change who is owed what, because that is decided by a
+            Merkle root on chain and not by this website.
+          </li>
+        </ol>
+
+        <div className="cmd">
+          <code>{BUNDLE_DIFF}</code>
+          <button onClick={() => copy(BUNDLE_DIFF, "bundle")}>
+            {copied === "bundle" ? "copied" : "copy"}
+          </button>
+        </div>
+
+        <p className="small" style={{ marginTop: 12, marginBottom: 0 }}>
+          <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
+            Read the source
+          </a>
+          {" · "}
+          <a href={REPO_ACTIONS_URL} target="_blank" rel="noreferrer noopener">
+            Every build, with logs
+          </a>
+          {" · "}
+          <a
+            href={repoPath("programs/buddy-distributor/src")}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            The contract itself
+          </a>
+        </p>
+      </section>
 
       <section className="card">
         <h2>Addresses</h2>
@@ -334,11 +474,11 @@ export function Verify() {
           </p>
           <div className="stat-row">
             <div className="stat">
-              <span className="stat-value">{fmtTokens(pool.lifetimeTokenRewards, true)}</span>
+              <span className="stat-value">{fmtAmount(pool.lifetimeTokenRewards, true)}</span>
               <span className="stat-label">Lifetime rewards into the pool</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtTokens(pool.totalStaked, true)}</span>
+              <span className="stat-value">{fmtAmount(pool.totalStaked, true)}</span>
               <span className="stat-label">Currently staked</span>
             </div>
           </div>

@@ -6,7 +6,7 @@ import {
   SEEDS,
   pda,
 } from "../config";
-import { countdown, fmtTokens } from "../format";
+import { countdown, fmtAmount, fmtTokens } from "../format";
 import { useDistributor } from "../useDistributor";
 import { useUpgradeAuthority } from "../useUpgradeAuthority";
 import {
@@ -129,7 +129,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
         />
         <SpecCell
           label="In the vault"
-          value={chainReadable ? fmtTokens(vaultBalance, true) : "unread"}
+          value={chainReadable ? fmtAmount(vaultBalance, true) : "unread"}
           tone={chainReadable ? "plain" : "unknown"}
           note="held"
         />
@@ -272,7 +272,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             body="Free tokens as restitution, paid the moment you claim, with no lockup of any kind."
             live={
               config
-                ? `${fmtTokens(config.oldHolderClaimed, true)} of ${fmtTokens(config.oldHolderAllocation, true)} claimed`
+                ? `${fmtTokens(config.oldHolderClaimed, true)} of ${fmtAmount(config.oldHolderAllocation, true)} claimed`
                 : null
             }
           />
@@ -282,7 +282,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             body="People asked to talk about the project publicly. Their tokens release slowly across 30 days rather than arriving at once, so nobody can promote it and dump the same day. To be straight about the limit: the contract cannot tell whether they actually posted, so this is their word, not code."
             live={
               config
-                ? `${fmtTokens(config.influencerClaimed, true)} of ${fmtTokens(config.influencerAllocation, true)} claimed`
+                ? `${fmtTokens(config.influencerClaimed, true)} of ${fmtAmount(config.influencerAllocation, true)} claimed`
                 : null
             }
           />
@@ -294,7 +294,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
               config
                 ? config.originalSignerClaimed
                   ? "claimed — the original signer came back"
-                  : `${fmtTokens(config.originalSignerAllocation, true)} still waiting`
+                  : `${fmtAmount(config.originalSignerAllocation, true)} still waiting`
                 : null
             }
             clock={signerLeft ?? null}
@@ -306,7 +306,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             live={
               config
                 ? config.devStreamCreated
-                  ? `${fmtTokens(config.devAllocation, true)} locked in the contract`
+                  ? `${fmtAmount(config.devAllocation, true)} locked in the contract`
                   : "not set up yet"
                 : null
             }
@@ -344,7 +344,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
           {pool && (
             <p className="l-rule-live">
               <span className="l-rule-num">
-                {fmtTokens(pool.lifetimeTokenRewards, true)}
+                {fmtAmount(pool.lifetimeTokenRewards, true)}
               </span>
               <span className="l-micro">has gone into that pool so far</span>
             </p>
@@ -422,7 +422,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
           command={`spl-token balance --address ${pda([SEEDS.vault]).toBase58()}`}
           hint="This is the contract's own balance. Everything owed to people who haven't claimed yet, plus everyone's staked tokens, has to physically be in there."
           live={
-            chainReadable ? `Holding ${fmtTokens(vaultBalance)} tokens right now` : null
+            chainReadable ? `Holding ${fmtAmount(vaultBalance)} right now` : null
           }
         />
 

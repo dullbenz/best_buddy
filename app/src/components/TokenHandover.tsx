@@ -19,22 +19,25 @@ function MintAddress({ mint }: { mint: string | null }) {
     return <span className="ho-mint is-pending">mint address at launch</span>;
   }
 
+  // The whole row is the button, not just the icon. A 12px icon is a tiny
+  // target for the one interaction on this card, and people reach for the
+  // address itself long before they aim at a glyph beside it.
   return (
-    <span className="ho-mint">
-      <span className="mono" title={mint}>
+    <button
+      type="button"
+      className="ho-mint"
+      aria-label={copied ? "Address copied" : `Copy the full mint address ${mint}`}
+      title={copied ? "Copied" : `Copy ${mint}`}
+      onClick={() => {
+        navigator.clipboard?.writeText(mint);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+      }}
+    >
+      <span className="mono">
         {mint.slice(0, 4)}…{mint.slice(-4)}
       </span>
-      <button
-        type="button"
-        className="ho-copy"
-        aria-label={copied ? "Address copied" : "Copy the full mint address"}
-        title={copied ? "Copied" : "Copy the full mint address"}
-        onClick={() => {
-          navigator.clipboard?.writeText(mint);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        }}
-      >
+      <span className="ho-copy" aria-hidden="true">
         {copied ? (
           <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
             <path
@@ -67,8 +70,8 @@ function MintAddress({ mint }: { mint: string | null }) {
             />
           </svg>
         )}
-      </button>
-    </span>
+      </span>
+    </button>
   );
 }
 

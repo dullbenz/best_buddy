@@ -1,4 +1,4 @@
-import { TOKEN_DECIMALS } from "./config";
+import { TOKEN_DECIMALS, TOKEN_SYMBOL } from "./config";
 
 const compact = new Intl.NumberFormat("en", {
   notation: "compact",
@@ -14,6 +14,19 @@ export function toTokens(baseUnits: bigint | string | number): number {
 export function fmtTokens(baseUnits: bigint | string | number, short = false): string {
   const n = toTokens(baseUnits);
   return short ? compact.format(n) : plain.format(n);
+}
+
+/**
+ * A token amount with its ticker.
+ *
+ * Use this anywhere the number stands on its own. The page quotes both token
+ * amounts and SOL, so a bare figure is ambiguous — and it is most ambiguous on
+ * the line telling somebody what they are owed, which is the worst place for
+ * it. `fmtTokens` stays for the cases where the surrounding sentence already
+ * names the unit.
+ */
+export function fmtAmount(baseUnits: bigint | string | number, short = false): string {
+  return `${fmtTokens(baseUnits, short)} ${TOKEN_SYMBOL}`;
 }
 
 export function fmtSol(lamports: bigint | string | number): string {

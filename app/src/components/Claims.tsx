@@ -14,7 +14,8 @@ import {
   TERMS_API,
   pda,
 } from "../config";
-import { countdown, fmtTokens } from "../format";
+import { countdown, fmtAmount, fmtDate } from "../format";
+import { VERIFY_ANCHORS, goTo } from "../nav";
 import { useDistributor, useStream } from "../useDistributor";
 import { useProgram } from "../useProgram";
 
@@ -243,19 +244,19 @@ export function Claims() {
       ) : oldProofs === null ? (
         <p className="muted">Checking the snapshot…</p>
       ) : oldEntry ? (
-        <Verdict tone="hit" heading="This wallet is in the snapshot.">
+        <Verdict tone="hit" heading="This wallet is in the legacy buddy holder snapshot.">
           <p>
-            It is owed <strong>{fmtTokens(oldEntry.amount)}</strong> tokens.{" "}
-            {oldLeft ? `The window closes in ${oldLeft}.` : "The window has closed."}
+            It is owed <strong>{fmtAmount(oldEntry.amount)}</strong>.{" "}
+            {oldLeft ? `The claim window closes in ${oldLeft}.` : "The window has closed."}
           </p>
           <button className="primary" disabled={busy || !oldLeft} onClick={claimOldHolder}>
             {oldLeft ? "Claim" : "Window closed"}
           </button>
         </Verdict>
       ) : (
-        <Verdict tone="miss" heading="This wallet is not in the snapshot.">
+        <Verdict tone="miss" heading="This wallet is not in the legacy buddy holder snapshot.">
           <p>
-            Either it held no Buddy at the snapshot moment, or it was excluded.{" "}
+            Either it held no $Buddy at the snapshot moment, or it was excluded.{" "}
             <span className="mono">excluded.csv</span> below names every excluded
             address and the reason for it, and{" "}
             <span className="mono">holders.csv</span> names everyone who is in —
@@ -269,9 +270,9 @@ export function Claims() {
         foot={
           <>
             The list is built only from public Solana history, so anyone can
-            rebuild it and get the same answer. Rebuild the tree from{" "}
-            <span className="mono">holders.csv</span> and its root must equal
-            the one stored on chain — the <strong>Verify</strong> tab has the
+            rebuild it and get the same answer. Rebuild the fingerprint from{" "}
+            <span className="mono">holders.csv</span> and it must equal the one
+            stored on chain — the <strong>Verify</strong> tab has the
             command. Publishing only the eligible addresses would let us drop
             anyone we liked without it showing, so the exclusions are published
             too, each with a reason you can disagree with.
@@ -320,8 +321,7 @@ export function Claims() {
         <>
           <Verdict tone="hit" heading="This wallet is on the influencer list.">
             <p>
-              It is allocated <strong>{fmtTokens(infEntry.amount)}</strong>{" "}
-              tokens.{" "}
+              It is allocated <strong>{fmtAmount(infEntry.amount)}</strong>.{" "}
               {infLeft ? `You have ${infLeft} left to claim.` : "The 72-hour window has closed."}
             </p>
           </Verdict>
@@ -378,9 +378,9 @@ export function Claims() {
           <>
             This list is chosen by hand rather than derived from chain, so
             there is no way to re-derive it — which is exactly why it is
-            published in full. Rebuild the tree from{" "}
-            <span className="mono">influencers.csv</span> and its root must
-            equal the one stored on chain, so the list you are reading is
+            published in full. Rebuild the fingerprint from{" "}
+            <span className="mono">influencers.csv</span> and it must equal the
+            one stored on chain, so the list you are reading is
             provably the list the contract pays.
           </>
         }
@@ -419,15 +419,15 @@ export function Claims() {
           <h2>Your stream</h2>
           <div className="stat-row">
             <div className="stat">
-              <span className="stat-value">{fmtTokens(stream.total)}</span>
+              <span className="stat-value">{fmtAmount(stream.total, true)}</span>
               <span className="stat-label">Total</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtTokens(stream.withdrawn)}</span>
+              <span className="stat-value">{fmtAmount(stream.withdrawn, true)}</span>
               <span className="stat-label">Withdrawn</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtTokens(BigInt(Math.floor(withdrawable)))}</span>
+              <span className="stat-value">{fmtAmount(BigInt(Math.floor(withdrawable)), true)}</span>
               <span className="stat-label">Available now</span>
             </div>
           </div>
@@ -454,7 +454,7 @@ function ConnectToClaim({ question }: { question: string }) {
   const { setVisible } = useWalletModal();
   return (
     <div className="claim-cta">
-      <span>{question} Connect the wallet to find out.</span>
+      <span>{question} Connect wallet to claim.</span>
       <button className="primary" onClick={() => setVisible(true)}>
         Connect wallet
       </button>
@@ -470,13 +470,18 @@ function ConnectToClaim({ question }: { question: string }) {
  * decides who gets paid would be worse than an obvious gap.
  */
 function SnapshotMoment() {
-  const when = SNAPSHOT.takenAt ? new Date(SNAPSHOT.takenAt).toUTCString() : null;
+  // Not toUTCString(): that renders "GMT", which is a different label for the
+  // same offset and invites the question of whether it is the same thing.
+  // Every other timestamp on the site says UTC, so this one does too.
+  const when = SNAPSHOT.takenAt
+    ? fmtDate(new Date(SNAPSHOT.takenAt).getTime() / 1000)
+    : null;
   const slot = SNAPSHOT.slot;
 
   return (
     <>
       A snapshot of every holder of the legacy token was taken just before the
-      launch of the reborn i.e at{" "}
+      launch of the rebirthed token i.e at{" "}
       {when ? (
         <strong>{when}</strong>
       ) : (
@@ -644,14 +649,14 @@ function AddressLookup({
           <div className="lookup-hits">
             {result.old && (
               <div>
-                <strong>{fmtTokens(result.old)}</strong> as a Legacy Buddy
+                <strong>{fmtAmount(result.old)}</strong> as a Legacy Buddy
                 holder — paid in full on claim, no lockup.
               </div>
             )}
             {result.inf && (
               <div>
-                <strong>{fmtTokens(result.inf)}</strong> as an influencer —
-                released across 30 days, nothing up front.
+                <strong>{fmtAmount(result.inf)}</strong> as an influencer —
+                released in a stream across 30 days, nothing up front.
               </div>
             )}
           </div>
@@ -717,16 +722,21 @@ function SnapshotFiles({
   foot: ReactNode;
 }) {
   const status = useFileStatus(files);
+  const verifyHere = () => goTo("verify", VERIFY_ANCHORS.snapshotReproducible);
   const allPublished = files.every((f) => status[f.url] === "published");
 
   return (
     <div className="files">
       <div className="files-head">
-        Published — and what published means
+        Published
         <span className="files-note">
-          served from this domain, and committed in the public repository. Two
-          copies of the same bytes, so a list quietly edited here would stop
-          matching the one on GitHub.
+          served from this domain, committed in the public repository, and both
+          matching the fingerprint stored in the contract. Editing a single
+          digit in these files breaks that fingerprint — and the contract pays
+          against the fingerprint, not against whatever is written here.
+          <button type="button" className="files-verify" onClick={verifyHere}>
+            Verify this yourself <span aria-hidden="true">→</span>
+          </button>
         </span>
       </div>
 
