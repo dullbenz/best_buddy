@@ -153,7 +153,8 @@ Under **Variables** (visible in logs — never put a secret here):
 | Name | Value |
 |---|---|
 | `FIREBASE_PROJECT_ID` | your Firebase project ID |
-| `VITE_RPC_URL` | your Helius/Triton RPC URL |
+| `VITE_RPC_URL` | your Helius/Triton RPC URL, used whenever the page is served from a real domain |
+| `STAGING_RPC_URL` | the same key against `devnet.helius-rpc.com`, so staging exercises the real endpoint rather than the public one |
 | `VITE_PROGRAM_ID` | `GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11` |
 
 > **On `VITE_RPC_URL`:** anything in a frontend build is public by definition —
@@ -161,16 +162,55 @@ Under **Variables** (visible in logs — never put a secret here):
 > unavoidable for a browser dApp. Protect it at the provider instead.
 >
 > Done, for this project: Helius → RPCs → **RPC Access Control Rules** →
-> Allowed Domains is set to `mybestbuddy.fun`, `www.mybestbuddy.fun` and the
-> ngrok dev domain. Any other Origin gets `Forbidden`. Verify it in one line:
+> Allowed Domains is `mybestbuddy.fun`, `www.mybestbuddy.fun`,
+> `staging.mybestbuddy.fun` and the ngrok dev domain. Any other Origin, and any
+> request with no Origin at all, gets `Forbidden`. Verify in one line:
 >
 > ```bash
 > curl -sS -X POST -H 'Content-Type: application/json' -H 'Origin: https://attacker.example.com' -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' "$VITE_RPC_URL"
 > ```
 >
 > That must print `Forbidden`. If it prints `ok`, the lock is off and the key is
-> free for anyone to spend. Local dev works through the tunnel — see
-> [ENVIRONMENTS.md](./ENVIRONMENTS.md) "Local development against mainnet".
+> free for anyone to spend.
+
+### What the access controls can and cannot do
+
+Helius offers three rules — **Allowed Domains**, **Allowed IPs**, **Allowed
+CIDRs**. All three are allowlists. **There is no per-IP rate limiting**, and
+asking for one is asking for something the product does not have; rate limits
+are per plan and apply to the key as a whole.
+
+Do **not** set Allowed IPs or Allowed CIDRs on this key. They are for
+server-side callers with fixed addresses. A public website's visitors arrive
+from arbitrary IPs, so any value there locks out everyone who is not on the
+list — which is every real user.
+
+Two limits worth knowing, both established by testing rather than from the
+docs:
+
+- **Allowed Domains is not enforced on the devnet endpoint.** The rules are
+  shared across networks in the dashboard, but `devnet.helius-rpc.com` answers
+  any Origin, and answers requests with no Origin header at all. Only
+  `mainnet.helius-rpc.com` enforces. Treat the key as public on devnet and
+  assume anyone can spend credits against it there; the mainnet lock is the one
+  that matters, and it does work.
+- **`localhost` is rejected as an allowlist entry** — the dashboard says so
+  explicitly. That is why the app picks its RPC by hostname at runtime
+  (`VITE_RPC_URL` for real domains, `VITE_LOCAL_RPC_URL` for localhost) instead
+  of baking one endpoint into the build. See [ENVIRONMENTS.md](./ENVIRONMENTS.md).
+
+Re-check both after any dashboard change:
+
+```bash
+for net in mainnet devnet; do
+  printf "%s no-origin: " "$net"
+  curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' "https://$net.helius-rpc.com/?api-key=$HELIUS_KEY"
+done
+```
+
+Mainnet must be `403`. Devnet returning `200` is expected and cannot currently
+be fixed from the dashboard.
 
 The deploy workflow fails fast if `VITE_RPC_URL` is unset, rather than shipping
 a site that 403s for every visitor.

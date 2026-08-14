@@ -190,6 +190,7 @@ that are allowed to use it. Requests from anywhere else get `Forbidden`.
 |---|---|
 | `mybestbuddy.fun` | production |
 | `www.mybestbuddy.fun` | production, www |
+| `staging.mybestbuddy.fun` | staging, so it exercises the real endpoint |
 | `ryleigh-companyless-outbully.ngrok-free.dev` | local dev and shared test links |
 
 **`localhost` is not on that list and cannot be.** Helius rejects `localhost` as
@@ -198,7 +199,25 @@ unrestricted key for local use — is worse than it looks: an unrestricted key i
 exactly the thing the lock exists to prevent, and it tends to end up pasted
 somewhere public.
 
-So route the dev server through the tunnel instead. Two terminals, from the
+### Which endpoint a page uses
+
+The app decides at runtime, from the hostname it was served on:
+
+| Served from | Endpoint | Env var |
+|---|---|---|
+| `localhost`, `127.0.0.1`, `[::1]` | public, keyless | `VITE_LOCAL_RPC_URL` |
+| anything else | ours, keyed | `VITE_RPC_URL` |
+
+It has to be a runtime decision rather than a build-time one, because a single
+`npm run dev` is reachable *both* at `localhost:5173` and through the tunnel,
+from the same bundle. Set both variables and neither needs commenting in and
+out; open the two URLs side by side to compare the endpoints directly.
+
+Both must point at the same cluster. The cluster badge, every explorer link and
+the `?cluster=` query are inferred from whichever URL is actually used, so a
+mismatched pair produces a page that describes the wrong chain.
+
+To exercise the keyed endpoint locally, route the dev server through the tunnel. Two terminals, from the
 repo root (both scripts also exist in `app/`, and forward to the same place):
 
 ```bash
