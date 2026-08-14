@@ -2,6 +2,7 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useEffect, useRef, useState } from "react";
 import { CLUSTER, IS_MAINNET } from "./config";
 import { NAVIGATE_EVENT, type NavigateDetail } from "./nav";
+import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "./router";
 import { Claims } from "./components/Claims";
 import { SocialLinks } from "./components/SocialLinks";
 import { Dashboard } from "./components/Dashboard";
@@ -52,7 +53,30 @@ function ClusterBadge() {
 }
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("home");
+  // Initial tab comes from the URL, so a deep link and a refresh both land
+  // where they should instead of bouncing to the landing page.
+  const [tab, setTabState] = useState<Tab>(() => parseLocation(TABS).tab as Tab);
+
+  /**
+   * Change tab and the address bar together.
+   *
+   * `fromPopstate` exists because the back button has already changed the URL
+   * by the time we hear about it — pushing again there would append a new
+   * entry and make Back a no-op that needs pressing twice.
+   */
+  const setTab = (next: Tab, fromPopstate = false) => {
+    setTabState(next);
+    if (!fromPopstate) pushRoute(next);
+  };
+
+  useEffect(() => {
+    // Normalise whatever we landed on: an unknown path renders home, and the
+    // URL should say so rather than keep showing a route that does not exist.
+    // Checking the parsed tab would never fire — parseLocation has already
+    // turned it into "home" by then, which is what `matched` is for.
+    if (!parseLocation(TABS).matched) replaceRoute("home");
+    return onRouteChange(() => setTabState(parseLocation(TABS).tab as Tab));
+  }, []);
 
   /**
    * Cross-tab links, e.g. a claim on the Claims page pointing at the check on

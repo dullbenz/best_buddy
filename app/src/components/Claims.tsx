@@ -16,7 +16,8 @@ import {
 } from "../config";
 import { countdown, fmtAmount, fmtDate } from "../format";
 import { VERIFY_ANCHORS, goTo } from "../nav";
-import { useDistributor, useStream } from "../useDistributor";
+import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "../router";
+import { useClaimReceipts, useDistributor, useStream } from "../useDistributor";
 import { useProgram } from "../useProgram";
 
 interface ProofEntry {
@@ -40,7 +41,8 @@ export function Claims() {
   const { connection } = useConnection();
   const program = useProgram();
   const { config, refresh } = useDistributor();
-  const { stream } = useStream(publicKey ?? null);
+  const { stream, refresh: refreshStream } = useStream(publicKey ?? null);
+  const receipts = useClaimReceipts(publicKey ?? null);
 
   const [oldProofs, setOldProofs] = useState<ProofFile | null>(null);
   const [infProofs, setInfProofs] = useState<ProofFile | null>(null);
@@ -55,9 +57,20 @@ export function Claims() {
     publicKey ? localStorage.getItem(`buddy.terms.${publicKey.toBase58()}`) : null
   );
 
-  const [tab, setTab] = useState<ClaimTab>("check");
+  const CLAIM_TABS: ClaimTab[] = ["check", "legacy", "influencer", "stream"];
+  const sectionFromUrl = (): ClaimTab => {
+    const { section } = parseLocation(["claims"]);
+    return (CLAIM_TABS as string[]).includes(section ?? "")
+      ? (section as ClaimTab)
+      : "check";
+  };
+
+  const [tab, setTab] = useState<ClaimTab>(sectionFromUrl);
   /** Set once the reader picks a tab, so nothing moves under them after that. */
-  const chosen = useRef(false);
+  const chosen = useRef(window.location.pathname.split("/").length > 2);
+
+  // Back and forward move between sections too, not just between tabs.
+  useEffect(() => onRouteChange(() => setTab(sectionFromUrl())), []);
 
   useEffect(() => {
     loadProofs(OLD_HOLDER_PROOFS_URL).then(setOldProofs).catch(() => setOldProofs({}));
@@ -79,8 +92,16 @@ export function Claims() {
   useEffect(() => {
     if (chosen.current || !address || !oldProofs || !infProofs) return;
     chosen.current = true;
-    if (oldProofs[address]) setTab("legacy");
-    else if (infProofs[address]) setTab("influencer");
+    const pick = oldProofs[address]
+      ? "legacy"
+      : infProofs[address]
+        ? "influencer"
+        : null;
+    if (!pick) return;
+    setTab(pick);
+    // replace, not push: the reader did not navigate here, so Back should
+    // still take them to wherever they actually came from.
+    replaceRoute("claims", pick);
   }, [address, oldProofs, infProofs]);
   const now = Date.now() / 1000;
   const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
@@ -123,6 +144,7 @@ export function Claims() {
         .rpc();
       setStatus(`Claimed. Transaction ${sig}`);
       refresh();
+      receipts.refresh();
     } catch (e: any) {
       setStatus(`Failed: ${e?.message ?? String(e)}`);
     } finally {
@@ -195,6 +217,8 @@ export function Claims() {
         .rpc();
       setStatus(`Stream opened. Transaction ${sig}`);
       refresh();
+      receipts.refresh();
+      refreshStream();
     } catch (e: any) {
       setStatus(`Failed: ${e?.message ?? String(e)}`);
     } finally {
@@ -221,6 +245,7 @@ export function Claims() {
         .rpc();
       setStatus(`Withdrawn. Transaction ${sig}`);
       refresh();
+      refreshStream();
     } catch (e: any) {
       setStatus(`Failed: ${e?.message ?? String(e)}`);
     } finally {
@@ -264,6 +289,15 @@ export function Claims() {
         <ConnectToClaim question="Held the legacy $Buddy?" />
       ) : oldProofs === null ? (
         <p className="muted">Checking the snapshot…</p>
+      ) : receipts.oldHolder ? (
+        <Verdict tone="done" heading="Claimed. This allocation has been paid out.">
+          <p>
+            <strong>{fmtAmount(receipts.oldHolder.amount)}</strong> was sent to
+            this wallet on {fmtDate(receipts.oldHolder.claimedAt)}. The contract
+            records one receipt per wallet and will not pay a second time, so
+            there is nothing left to do here.
+          </p>
+        </Verdict>
       ) : oldEntry ? (
         <Verdict tone="hit" heading="This wallet is in the legacy $Buddy holder snapshot.">
           <p>
@@ -338,14 +372,26 @@ export function Claims() {
         <ConnectToClaim question="On the influencer list?" />
       ) : infProofs === null ? (
         <p className="muted">Checking the list…</p>
+      ) : receipts.influencer ? (
+        <Verdict tone="done" heading="Claimed. The stream is open.">
+          <p>
+            <strong>{fmtAmount(receipts.influencer.amount)}</strong> was
+            committed to this wallet on {fmtDate(receipts.influencer.claimedAt)}
+            , and is releasing across 30 days from then. Nothing further is
+            claimed here — withdraw from it on the{" "}
+            <strong>Your stream</strong> tab whenever you like.
+          </p>
+        </Verdict>
       ) : infEntry ? (
-        <>
-          <Verdict tone="hit" heading="This wallet is on the influencer list.">
-            <p>
-              It is allocated <strong>{fmtAmount(infEntry.amount)}</strong>.{" "}
-              {infLeft ? `You have ${infLeft} left to claim.` : "The 72-hour window has closed."}
-            </p>
-          </Verdict>
+        // Terms and buttons live inside the verdict, not beside it. They are
+        // the actions belonging to this answer, and splitting them out left a
+        // green box making a statement and an unexplained row of buttons under
+        // it that looked like they belonged to the card as a whole.
+        <Verdict tone="hit" heading="This wallet is on the influencer list.">
+          <p>
+            It is allocated <strong>{fmtAmount(infEntry.amount)}</strong>.{" "}
+            {infLeft ? `You have ${infLeft} left to claim.` : "The 72-hour window has closed."}
+          </p>
 
           <details className="terms" open={!termsSig}>
             <summary>The terms you are agreeing to</summary>
@@ -353,7 +399,7 @@ export function Claims() {
           </details>
 
           {termsSig ? (
-            <p className="muted small">
+            <p>
               ✓ Terms signed by this wallet, and added to the{" "}
               <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
                 public register
@@ -361,7 +407,7 @@ export function Claims() {
               .
             </p>
           ) : (
-            <p className="muted small">
+            <p>
               Sign the terms before claiming. This costs nothing and is not a
               transaction; it is a message signed with your key, proving these
               terms were shown and accepted. Your wallet will display the
@@ -383,7 +429,7 @@ export function Claims() {
               {infLeft ? "Claim and open stream" : "Window closed"}
             </button>
           </div>
-        </>
+        </Verdict>
       ) : (
         <Verdict tone="miss" heading="This wallet is not on the influencer list.">
           <p>
@@ -467,13 +513,13 @@ export function Claims() {
     {
       id: "legacy",
       label: "Legacy holder",
-      marked: !!oldEntry,
+      marked: !!oldEntry && !receipts.oldHolder,
       body: legacyCard,
     },
     {
       id: "influencer",
       label: "Influencer",
-      marked: !!infEntry,
+      marked: !!infEntry && !receipts.influencer,
       body: influencerCard,
     },
   ];
@@ -500,6 +546,7 @@ export function Claims() {
             onClick={() => {
               chosen.current = true;
               setTab(t.id);
+              pushRoute("claims", t.id);
             }}
           >
             {t.label}
@@ -584,7 +631,7 @@ function Verdict({
   heading,
   children,
 }: {
-  tone: "hit" | "miss";
+  tone: "hit" | "miss" | "done";
   heading: string;
   children: ReactNode;
 }) {

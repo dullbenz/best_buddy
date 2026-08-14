@@ -932,11 +932,30 @@ a.prov-value {
   margin-top: 12px;
 }
 
+.verdict .button-row {
+  margin-top: 12px;
+}
+
+.verdict details.terms {
+  margin-top: 12px;
+}
+
 .verdict-head {
   display: block;
   font-size: 15px;
   line-height: 1.35;
   color: var(--text);
+}
+
+/* Already claimed. Neutral rather than green: green says "there is something
+   here for you", and there no longer is — the money has arrived. */
+.verdict-done {
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+
+.verdict-done .verdict-head {
+  color: var(--muted);
 }
 
 /* Owed something. */
