@@ -76,8 +76,8 @@ export function Landing({ go }: { go: (tab: string) => void }) {
         <p className="l-lede">
           <span className="accented italicized">$BUDDY</span> is the rebirth of an existing
           memecoin by the same ticker. The last one was dumped and abandoned by the dev
-          — they sold everything into those who really saw the vision.
-          This is the rebuild/rebirth/reimagining, and the only real
+          — they sold everything into the community.
+          This is the rebirth, and the only real
           difference is this: the promises are written in code (smart contracts) that no one can
           edit later, instead of posts that can be deleted.
         </p>
@@ -293,7 +293,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             live={
               config
                 ? config.originalSignerClaimed
-                  ? "claimed — the original Buddy came back"
+                  ? "claimed — the original signer came back"
                   : `${fmtTokens(config.originalSignerAllocation, true)} still waiting`
                 : null
             }

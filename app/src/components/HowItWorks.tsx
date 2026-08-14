@@ -20,7 +20,7 @@ export function HowItWorks() {
       <section className="card">
         <h2>Why this exists</h2>
         <p>
-          The original Buddy token was abandoned by its creator, who sold into
+          The legacy Buddy token was abandoned by its creator, who sold into
           the community he built and kept collecting creator fees from a project
           he had walked away from.
         </p>

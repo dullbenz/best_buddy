@@ -61,7 +61,7 @@ export function Dashboard() {
               <span className="value">{signerLeft ?? "expired"}</span>
               <span className="label">
                 {config.originalSignerClaimed
-                  ? "CLAIMED — the original Buddy came back"
+                  ? "CLAIMED — the original signer came back"
                   : `remaining · deadline ${fmtDate(ORIGINAL_SIGNER_DEADLINE)}`}
               </span>
             </div>

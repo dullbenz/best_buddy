@@ -2145,6 +2145,9 @@ a.social-link:hover {
 .ho-mint {
   display: inline-flex;
   align-items: center;
+  /* The card centres its text, but text-align does not reach flex children —
+     this row has to centre itself or it hangs off the left edge. */
+  justify-content: center;
   gap: 5px;
   margin-top: 1px;
   font-size: 11.5px;

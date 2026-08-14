@@ -57,7 +57,7 @@ pub const BITCOIN_MSG_PREFIX: &[u8] = b"\x18Bitcoin Signed Message:\n";
 /// The claim message template the original signer must sign. The full message
 /// is this prefix followed by the base58 destination Solana address, binding
 /// the signature to one specific recipient so it cannot be replayed elsewhere.
-pub const SIGNER_CLAIM_MESSAGE_PREFIX: &str = "I am the original Buddy. Claim to Solana address: ";
+pub const SIGNER_CLAIM_MESSAGE_PREFIX: &str = "I am the original Signer. Claim to Solana address: ";
 
 #[constant]
 pub const PROGRAM_VERSION: u8 = 1;

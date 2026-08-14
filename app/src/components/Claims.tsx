@@ -231,7 +231,7 @@ export function Claims() {
     <section className="card">
       <h2>Legacy Buddy holders</h2>
       <p className="muted">
-        If you held the <strong>original</strong> Buddy token when its creator
+        If you held the <strong>legacy</strong> Buddy token when its creator
         walked away, this is your restitution. <SnapshotMoment />
       </p>
       <p className="muted small">
@@ -239,7 +239,7 @@ export function Claims() {
       </p>
 
       {!publicKey ? (
-        <ConnectToClaim question="Held the original Buddy?" />
+        <ConnectToClaim question="Held the legacy Buddy?" />
       ) : oldProofs === null ? (
         <p className="muted">Checking the snapshot…</p>
       ) : oldEntry ? (
@@ -489,7 +489,7 @@ function SnapshotMoment() {
   return (
     <>
       A snapshot of every holder of the legacy token was taken just before the
-      launch of this new token — at{" "}
+      launch of the reborn i.e at{" "}
       {when ? (
         <strong>{when}</strong>
       ) : (

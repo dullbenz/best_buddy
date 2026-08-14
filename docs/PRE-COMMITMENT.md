@@ -8,7 +8,7 @@
 
 ## Why this exists
 
-The original Buddy token (`7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump`) was
+The legacy Buddy token (`7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump`) was
 abandoned by its creator, who sold into the community he built and continued
 collecting creator fees from a project he had walked away from. The evidence is
 in [RECEIPTS.md](./RECEIPTS.md) — transaction by transaction.
