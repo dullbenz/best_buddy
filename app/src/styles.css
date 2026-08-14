@@ -233,6 +233,79 @@ main {
   gap: 16px;
 }
 
+/* Sections inside a tab, as a segmented control.
+   Deliberately not the same treatment as the main nav — an identical
+   underlined row nested under another one reads as two competing levels of
+   the same thing. Pills in a tray are obviously subordinate. */
+.subtabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  /* The main nav sets a bottom rule on every nav; this is not that nav. */
+  border-bottom: 1px solid var(--border);
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.subtab:hover:not(.is-active) {
+  color: var(--text);
+  background: var(--panel-2);
+  border: 0;
+}
+
+.subtab.is-active {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* Marks a section this wallet is actually owed something in, so the right tab
+   is findable without opening each one in turn. */
+.subtab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--good);
+  flex-shrink: 0;
+}
+
+.subtab.is-active .subtab-dot {
+  background: var(--bg);
+}
+
+@media (max-width: 560px) {
+  .subtabs {
+    border-radius: 12px;
+  }
+
+  .subtab {
+    padding: 8px 11px;
+    font-size: 10px;
+  }
+}
+
 .card {
   background: var(--panel);
   border: 1px solid var(--border);

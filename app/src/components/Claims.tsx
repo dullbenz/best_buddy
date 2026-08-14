@@ -4,7 +4,7 @@ import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, createAssociatedTokenA
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   INFLUENCER_PROOFS_URL,
   OLD_HOLDER_PROOFS_URL,
@@ -26,6 +26,8 @@ interface ProofEntry {
 }
 
 type ProofFile = Record<string, ProofEntry>;
+
+type ClaimTab = "check" | "legacy" | "influencer" | "stream";
 
 async function loadProofs(url: string): Promise<ProofFile> {
   const res = await fetch(url);
@@ -53,6 +55,10 @@ export function Claims() {
     publicKey ? localStorage.getItem(`buddy.terms.${publicKey.toBase58()}`) : null
   );
 
+  const [tab, setTab] = useState<ClaimTab>("check");
+  /** Set once the reader picks a tab, so nothing moves under them after that. */
+  const chosen = useRef(false);
+
   useEffect(() => {
     loadProofs(OLD_HOLDER_PROOFS_URL).then(setOldProofs).catch(() => setOldProofs({}));
     loadProofs(INFLUENCER_PROOFS_URL).then(setInfProofs).catch(() => setInfProofs({}));
@@ -61,6 +67,21 @@ export function Claims() {
   const address = publicKey?.toBase58() ?? null;
   const oldEntry = address ? oldProofs?.[address] : undefined;
   const infEntry = address ? infProofs?.[address] : undefined;
+
+  /**
+   * Open on the section that applies to this wallet.
+   *
+   * Landing an influencer on "this wallet is not in the snapshot" is a bad
+   * first answer to give someone who is in fact owed something. Runs once, and
+   * never after the reader has picked a tab themselves — a page that keeps
+   * re-deciding where you are is worse than one that guesses wrong once.
+   */
+  useEffect(() => {
+    if (chosen.current || !address || !oldProofs || !infProofs) return;
+    chosen.current = true;
+    if (oldProofs[address]) setTab("legacy");
+    else if (infProofs[address]) setTab("influencer");
+  }, [address, oldProofs, infProofs]);
   const now = Date.now() / 1000;
   const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
   const infLeft = config ? countdown(Number(config.influencerDeadline), now) : null;
@@ -232,19 +253,19 @@ export function Claims() {
     <section className="card">
       <h2>Legacy Buddy holders</h2>
       <p className="muted">
-        If you held the <strong>legacy</strong> Buddy token when its creator
-        walked away, this is your restitution. <SnapshotMoment />
+        If you held the <strong>legacy</strong> token just before this rebirth was launched,
+        then you have a share of the new token based on those holdings. <SnapshotMoment />
       </p>
       <p className="muted small">
         Paid in full the moment you claim. No lockup, no vesting, no strings.
       </p>
 
       {!publicKey ? (
-        <ConnectToClaim question="Held the legacy Buddy?" />
+        <ConnectToClaim question="Held the legacy $Buddy?" />
       ) : oldProofs === null ? (
         <p className="muted">Checking the snapshot…</p>
       ) : oldEntry ? (
-        <Verdict tone="hit" heading="This wallet is in the legacy buddy holder snapshot.">
+        <Verdict tone="hit" heading="This wallet is in the legacy $Buddy holder snapshot.">
           <p>
             It is owed <strong>{fmtAmount(oldEntry.amount)}</strong>.{" "}
             {oldLeft ? `The claim window closes in ${oldLeft}.` : "The window has closed."}
@@ -254,12 +275,12 @@ export function Claims() {
           </button>
         </Verdict>
       ) : (
-        <Verdict tone="miss" heading="This wallet is not in the legacy buddy holder snapshot.">
+        <Verdict tone="miss" heading="This wallet is not in the legacy $Buddy holder snapshot.">
           <p>
             Either it held no $Buddy at the snapshot moment, or it was excluded.{" "}
             <span className="mono">excluded.csv</span> below names every excluded
             address and the reason for it, and{" "}
-            <span className="mono">holders.csv</span> names everyone who is in —
+            <span className="mono">holders.csv</span> names everyone who is in:-
             so you can settle which of the two it was rather than ask us.
           </p>
         </Verdict>
@@ -280,7 +301,7 @@ export function Claims() {
         }
       />
 
-      <ForfeitNote label="If nobody claims">
+      <ForfeitNote label="If someone doesn't claim">
         Every allocation left unclaimed when the 30-day window closes becomes
         staking rewards for the community. There is no instruction that returns
         it to the team, and no upgrade authority to change it.
@@ -292,18 +313,18 @@ export function Claims() {
     <section className="card">
       <h2>Influencer allocation</h2>
       <p className="muted">
-        A named list of people asked to talk about the project publicly.
-        Claiming pays <strong>nothing up front</strong> — the tokens are
+        A named list of KOLs we've reached out to, to promote and talk about the project publicly.
+        Claiming pays <strong>nothing up front</strong>:- the tokens are
         released gradually across 30 days instead of arriving in one lump.
       </p>
       <p className="muted small">
         To be exact about what that does and does not do: it removes the
         incentive to claim and dump on day one, and it means anyone promoting
         this is still holding while they do it. It is <em>not</em> a
-        performance condition. The contract cannot tell whether you posted,
-        and there is no instruction that cancels a stream — so someone who
+        performance condition. The contract cannot tell whether they posted,
+        and there is no instruction that cancels a stream:- so someone who
         claims and never says a word still collects the full amount by day 30.
-        The commitment below is a matter of your word and your reputation, not
+        The commitment below is a matter of their word and reputation, not
         of code.
       </p>
       <p className="muted small">
@@ -366,8 +387,8 @@ export function Claims() {
       ) : (
         <Verdict tone="miss" heading="This wallet is not on the influencer list.">
           <p>
-            The list is published below in full, so you can read every name on
-            it rather than wonder whether yours was left off quietly.
+            The list is published below in full, so you can read every username and wallet address on
+            it to verify whether you should have a claim or not.
           </p>
         </Verdict>
       )}
@@ -386,58 +407,110 @@ export function Claims() {
         }
       />
 
-      <ForfeitNote label="If nobody claims">
+      <ForfeitNote label="If someone doesn't claim">
         Everything left unclaimed when the 72-hour window closes becomes staking
-        rewards — it goes to the stakers, not to us.
+        rewards for the community.
       </ForfeitNote>
     </section>
   );
 
-  // The lookup leads when there is no wallet: checking is what a stranger can
-  // do straight away, and connecting is the thing they are still deciding
-  // about. There is no standalone connect card — each bucket carries its own
-  // prompt, so a third one would just be the same button asked for twice.
-  if (!publicKey) {
-    return (
-      <div className="stack">
-        <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
-        {legacyCard}
-        {influencerCard}
+  const streamCard = stream ? (
+    <section className="card">
+      <h2>Your stream</h2>
+      <div className="stat-row">
+        <div className="stat">
+          <span className="stat-value">{fmtAmount(stream.total, true)}</span>
+          <span className="stat-label">Total</span>
+        </div>
+        <div className="stat">
+          <span className="stat-value">{fmtAmount(stream.withdrawn, true)}</span>
+          <span className="stat-label">Withdrawn</span>
+        </div>
+        <div className="stat">
+          <span className="stat-value">
+            {fmtAmount(BigInt(Math.floor(withdrawable)), true)}
+          </span>
+          <span className="stat-label">Available now</span>
+        </div>
       </div>
-    );
+      <button className="primary" disabled={busy || withdrawable < 1} onClick={withdrawStream}>
+        Withdraw available
+      </button>
+    </section>
+  ) : null;
+
+  /**
+   * One section at a time, rather than all of them stacked.
+   *
+   * Each bucket carries a lot of necessary explanation — what a stream is, what
+   * the fingerprint proves, what happens to what nobody claims — and stacking
+   * them made the page long enough that the thing a visitor actually came for
+   * was several screens down. These are alternatives, not a sequence: almost
+   * nobody is both a legacy holder and an influencer, so showing both at once
+   * mostly showed people a card that did not apply to them.
+   *
+   * The dot marks a section this wallet has something in, so the right tab is
+   * findable without opening each one.
+   */
+  const sections: Array<{
+    id: ClaimTab;
+    label: string;
+    marked: boolean;
+    body: ReactNode;
+  }> = [
+    {
+      id: "check",
+      label: "Check an address",
+      marked: false,
+      body: <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />,
+    },
+    {
+      id: "legacy",
+      label: "Legacy holder",
+      marked: !!oldEntry,
+      body: legacyCard,
+    },
+    {
+      id: "influencer",
+      label: "Influencer",
+      marked: !!infEntry,
+      body: influencerCard,
+    },
+  ];
+  if (streamCard) {
+    sections.push({
+      id: "stream",
+      label: "Your stream",
+      marked: withdrawable >= 1,
+      body: streamCard,
+    });
   }
 
-  if (!config) return <div className="card">Loading…</div>;
+  const active = sections.find((t) => t.id === tab) ?? sections[0];
 
   return (
     <div className="stack">
-      {legacyCard}
-      {influencerCard}
-
-      {stream && (
-        <section className="card">
-          <h2>Your stream</h2>
-          <div className="stat-row">
-            <div className="stat">
-              <span className="stat-value">{fmtAmount(stream.total, true)}</span>
-              <span className="stat-label">Total</span>
-            </div>
-            <div className="stat">
-              <span className="stat-value">{fmtAmount(stream.withdrawn, true)}</span>
-              <span className="stat-label">Withdrawn</span>
-            </div>
-            <div className="stat">
-              <span className="stat-value">{fmtAmount(BigInt(Math.floor(withdrawable)), true)}</span>
-              <span className="stat-label">Available now</span>
-            </div>
-          </div>
-          <button className="primary" disabled={busy || withdrawable < 1} onClick={withdrawStream}>
-            Withdraw available
+      <nav className="subtabs" aria-label="Claims sections">
+        {sections.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={t.id === active.id ? "subtab is-active" : "subtab"}
+            aria-current={t.id === active.id ? "page" : undefined}
+            onClick={() => {
+              chosen.current = true;
+              setTab(t.id);
+            }}
+          >
+            {t.label}
+            {t.marked && (
+              <span className="subtab-dot" aria-label="has something to claim" />
+            )}
           </button>
-        </section>
-      )}
+        ))}
+      </nav>
 
-      <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
+      {publicKey && !config ? <div className="card">Loading…</div> : active.body}
 
       {status && <div className="card status">{status}</div>}
     </div>
@@ -481,7 +554,7 @@ function SnapshotMoment() {
   return (
     <>
       A snapshot of every holder of the legacy token was taken just before the
-      launch of the rebirthed token i.e at{" "}
+      launch of this rebirthed token i.e at{" "}
       {when ? (
         <strong>{when}</strong>
       ) : (
@@ -493,7 +566,7 @@ function SnapshotMoment() {
       ) : (
         <span className="placeholder">snapshot block number</span>
       )}
-      . Nothing you do now can change what you are owed.
+      . Nothing you do now can change what you can claim.
     </>
   );
 }
@@ -604,7 +677,7 @@ function AddressLookup({
     <section className="card">
       <h2>Check any address</h2>
       <p className="muted">
-        The snapshot is public, so you do not need to connect anything to read
+        The claimants snapshots are public, so you do not need to connect anything to read
         it. Paste a wallet address and this tells you what it is owed. Claiming
         still requires that wallet's signature.
       </p>
