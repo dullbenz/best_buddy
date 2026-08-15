@@ -1,8 +1,8 @@
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
 import { useCallback, useEffect, useState } from "react";
-import { SEEDS, pda } from "../config";
-import { fmtSol } from "../format";
+import { COMMUNITY_STREAM_KINDS, SEEDS, pda } from "../config";
+import { fmtAmount, fmtDate, fmtSol } from "../format";
 import {
   NATIVE_MINT,
   PendingFees,
@@ -32,6 +32,17 @@ export function FundPool() {
   const { config, untrackedSol, loading, error, refresh } = useDistributor();
 
   const [pending, setPending] = useState<PendingFees | null>(null);
+  const [communityStreams, setCommunityStreams] = useState<
+    Array<{
+      kind: number;
+      label: string;
+      period: string;
+      total: bigint;
+      released: bigint;
+      start: number;
+      end: number;
+    }>
+  >([]);
   const [wsolBalance, setWsolBalance] = useState<bigint>(0n);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +66,30 @@ export function FundPool() {
     } catch {
       setWsolBalance(0n);
     }
-  }, [connection, config?.rewardMint?.toBase58()]);
+    try {
+      // Swept-but-still-streaming forfeits, if any bucket has expired.
+      const pdas = COMMUNITY_STREAM_KINDS.map((k) =>
+        pda([SEEDS.communityStream, Buffer.from([k.kind])])
+      );
+      const infos = await connection.getMultipleAccountsInfo(pdas);
+      const coder = (program?.account as any)?.communityStream?.coder.accounts;
+      const found: typeof communityStreams = [];
+      infos.forEach((info, i) => {
+        if (!info || !coder) return;
+        const d = coder.decode("communityStream", info.data);
+        found.push({
+          ...COMMUNITY_STREAM_KINDS[i],
+          total: BigInt(d.total.toString()),
+          released: BigInt(d.released.toString()),
+          start: Number(d.start),
+          end: Number(d.end),
+        });
+      });
+      setCommunityStreams(found);
+    } catch {
+      setCommunityStreams([]);
+    }
+  }, [connection, program, config?.rewardMint?.toBase58()]);
 
   useEffect(() => {
     load();
@@ -80,6 +114,40 @@ export function FundPool() {
     (pending?.amm ?? 0n) > 0n ||
     wsolBalance > 0n ||
     untrackedSol > 0n;
+
+  /** Mirror of CommunityStream::releasable, so the button can say the number. */
+  function releasableNow(cs: (typeof communityStreams)[number]): bigint {
+    const now = Math.floor(Date.now() / 1000);
+    if (cs.total === 0n || now <= cs.start) return 0n;
+    const vested =
+      now >= cs.end
+        ? cs.total
+        : (cs.total * BigInt(now - cs.start)) / BigInt(cs.end - cs.start);
+    return vested > cs.released ? vested - cs.released : 0n;
+  }
+
+  async function releaseStream(kind: number) {
+    if (!program || !publicKey) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const sig = await program.methods
+        .releaseCommunityStream()
+        .accountsPartial({
+          cranker: publicKey,
+          pool: pda([SEEDS.pool]),
+          communityStream: pda([SEEDS.communityStream, Buffer.from([kind])]),
+        })
+        .rpc();
+      setStatus(`Released — ${sig}`);
+      refresh();
+      load();
+    } catch (e: any) {
+      setStatus(`Failed: ${e?.message ?? String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function run() {
     if (!program || !publicKey) return;
@@ -208,6 +276,49 @@ export function FundPool() {
           </div>
         )}
       </section>
+
+      {communityStreams.length > 0 && (
+        <section className="card">
+          <h2>Forfeits streaming back to the community</h2>
+          <p className="muted">
+            When a streamed allocation expires unclaimed, it comes back to the
+            stakers on the same schedule the claimant would have had — a
+            forfeited 30-day stream returns over 30 days, the signer's year
+            over a year. What has vested sits here until somebody credits it,
+            and that somebody can be anyone.
+          </p>
+          {communityStreams.map((cs) => {
+            const ready = releasableNow(cs);
+            const done = cs.released >= cs.total && cs.total > 0n;
+            return (
+              <div className="file-row" key={cs.kind}>
+                <div className="file-meta">
+                  <span className="file-name">{cs.label}</span>
+                  <span className="file-desc">
+                    {fmtAmount(cs.released, true)} of {fmtAmount(cs.total, true)}{" "}
+                    credited · runs until {fmtDate(cs.end)} ({cs.period} total)
+                  </span>
+                </div>
+                <div className="file-actions">
+                  {done ? (
+                    <span className="pill pill-done">fully released</span>
+                  ) : (
+                    <button
+                      className="primary"
+                      disabled={busy || !publicKey || ready === 0n}
+                      onClick={() => releaseStream(cs.kind)}
+                    >
+                      {ready > 0n
+                        ? `Credit ${fmtAmount(ready, true)} to stakers`
+                        : "Nothing vested yet"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <section className="card">
         <h2>Exactly what you would be signing</h2>

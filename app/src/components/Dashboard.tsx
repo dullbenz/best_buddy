@@ -70,8 +70,9 @@ export function Dashboard() {
               {fmtAmount(config.originalSignerAllocation, true)}, waiting
               for whoever holds the Bitcoin key that signed the 2014 message
               this coin is named after. They prove it by signing — no
-              permission, no paperwork, nothing we can veto. Unclaimed by 2030,
-              it becomes staking rewards.
+              permission, no paperwork, nothing we can veto — and it streams to
+              them over 12 months. Unclaimed by 2030, it streams to the stakers
+              instead, over that same year.
             </p>
 
             <Provenance signerPubkey={config.originalSignerPubkey} />
@@ -172,7 +173,8 @@ export function Dashboard() {
         <h2>Bucket 3 — influencers</h2>
         <p className="muted">
           72 hours to claim; claiming opens a 30-day stream. Whatever is not
-          claimed goes to the stakers.
+          claimed streams to the stakers instead — over the same 30 days it
+          would have streamed to the influencer.
         </p>
         <div className="stat-row">
           <Stat label="Allocation" value={fmtAmount(config.influencerAllocation, true)} />
@@ -180,7 +182,7 @@ export function Dashboard() {
           <Stat label="Forfeited so far" value={config.influencerSwept ? fmtAmount(infRemaining, true) : "—"} />
           <Stat
             label={infLeft ? "Closes in" : "Window"}
-            value={infLeft ?? (config.influencerSwept ? "gone to stakers" : "closed")}
+            value={infLeft ?? (config.influencerSwept ? "streaming to stakers" : "closed")}
           />
         </div>
         <Progress

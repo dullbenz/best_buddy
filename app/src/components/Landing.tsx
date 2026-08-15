@@ -352,7 +352,7 @@ export function Landing({
           <AllocRow
             who="Whoever signed that 2014 message"
             window="reserved until end of 2030"
-            body="Held in reserve, in case the original person ever shows up. They would prove it by signing with the same Bitcoin key — the contract checks the signature itself, so they need no permission from us. If they never appear, it goes to the community."
+            body="Held in reserve, in case the original person ever shows up. They would prove it by signing with the same Bitcoin key — the contract checks the signature itself, so they need no permission from us — and it streams to them over 12 months. If they never appear, it streams to the community instead, on that same 12-month schedule."
             live={
               config
                 ? config.originalSignerClaimed

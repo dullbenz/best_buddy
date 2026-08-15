@@ -410,6 +410,12 @@ each one as a community win.
 - after 30 days: `sweep_old_holders`
 - after 2030-12-31: `sweep_original_signer`
 
+The old-holder sweep credits the pool instantly, because its claims paid
+instantly. The other two open a **community stream** on the schedule their
+claimants would have had — 30 days for influencers, 12 months for the signer —
+and the pool is credited by `release_community_stream`, a permissionless crank
+on the Fund Pool tab. A forfeited stream is never a lump sum for anyone.
+
 ### 4.2 Keep feeding bucket 1
 
 Route fees regularly. The staking pool is the engine — if it stops being fed,

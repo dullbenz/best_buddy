@@ -438,3 +438,65 @@ pub struct ClaimReceipt {
     pub claimed_at: i64,
     pub bump: u8,
 }
+
+/// A swept allocation on its way back to the community, on the claimant's own
+/// schedule.
+///
+/// The rule this enforces: forfeiting a stream does not turn it into a lump
+/// sum. An influencer who claimed would have received their tokens across 30
+/// days, and the 2014 signer across a year — so when they never claim and the
+/// allocation returns to the stakers, it returns at exactly that pace. Sweeping
+/// must never pay the community faster than claiming would have paid the
+/// claimant, or a sweep becomes a jackpot event worth lobbying for.
+///
+/// Pure accounting, like the sweeps themselves: the tokens never move. Anyone
+/// may crank `release_community_stream` to credit the vested portion to the
+/// staking accumulator; until someone does, the vested amount simply waits,
+/// exactly like un-synced creator fees.
+#[account]
+#[derive(InitSpace)]
+pub struct CommunityStream {
+    /// Which sweep created it — see `COMMUNITY_STREAM_INFLUENCERS` /
+    /// `COMMUNITY_STREAM_SIGNER`. Doubles as the PDA seed suffix.
+    pub kind: u8,
+    pub total: u64,
+    /// Portion already credited to the staking pool.
+    pub released: u64,
+    pub start: i64,
+    pub end: i64,
+    pub bump: u8,
+}
+
+impl CommunityStream {
+    /// Same linear schedule as `Stream::vested`, with no cliff.
+    pub fn vested(&self, now: i64) -> Result<u64> {
+        if now <= self.start {
+            return Ok(0);
+        }
+        if now >= self.end {
+            return Ok(self.total);
+        }
+        let elapsed = now
+            .checked_sub(self.start)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))? as u128;
+        let duration = self
+            .end
+            .checked_sub(self.start)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))? as u128;
+        if duration == 0 {
+            return Ok(self.total);
+        }
+        let vested = (self.total as u128)
+            .checked_mul(elapsed)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?
+            .checked_div(duration)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        u64::try_from(vested).map_err(|_| error!(DistributorError::MathOverflow))
+    }
+
+    pub fn releasable(&self, now: i64) -> Result<u64> {
+        self.vested(now)?
+            .checked_sub(self.released)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))
+    }
+}

@@ -183,7 +183,9 @@ export function HowItWorks() {
           <strong>If they claim, the tokens are theirs — including the right to
           sell every one.</strong> We are saying so now, years before it could
           happen, so nobody can pretend later that it was not the deal. If nobody
-          ever claims, it goes to the community as staking rewards.
+          ever claims, it streams to the community as staking rewards — over
+          the same period it would have streamed to its claimant, so an expiry
+          is never a jackpot event for the pool.
         </p>
       </section>
 

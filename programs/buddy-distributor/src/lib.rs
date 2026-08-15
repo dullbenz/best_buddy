@@ -160,11 +160,17 @@ pub mod buddy_distributor {
         instructions::sweep::sweep_old_holders(ctx)
     }
 
-    pub fn sweep_influencers(ctx: Context<Sweep>) -> Result<()> {
+    pub fn sweep_influencers(ctx: Context<SweepInfluencersToStream>) -> Result<()> {
         instructions::sweep::sweep_influencers(ctx)
     }
 
-    pub fn sweep_original_signer(ctx: Context<Sweep>) -> Result<()> {
+    pub fn sweep_original_signer(ctx: Context<SweepSignerToStream>) -> Result<()> {
         instructions::sweep::sweep_original_signer(ctx)
+    }
+
+    /// Credit whatever a swept bucket's community stream has vested so far to
+    /// the staking pool. Permissionless.
+    pub fn release_community_stream(ctx: Context<ReleaseCommunityStream>) -> Result<()> {
+        instructions::sweep::release_community_stream(ctx)
     }
 }

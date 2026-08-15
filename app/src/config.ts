@@ -409,7 +409,14 @@ export const SEEDS = {
   oldClaim: Buffer.from("old_claim"),
   influencerClaim: Buffer.from("inf_claim"),
   stream: Buffer.from("stream"),
+  communityStream: Buffer.from("community_stream"),
 };
+
+/** `CommunityStream.kind` values — must match the program's constants. */
+export const COMMUNITY_STREAM_KINDS = [
+  { kind: 0, label: "Forfeited influencer allocations", period: "30 days" },
+  { kind: 1, label: "The 2014 signer's unclaimed share", period: "12 months" },
+] as const;
 
 /**
  * The staking tiers, written as a pricing table rather than a spec.

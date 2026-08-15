@@ -91,7 +91,12 @@ no allocations that are not on that list.
 
 72 hours to claim. Claiming opens a 30-day linear stream rather than
 transferring at once — the programme is for people who show up and stay, not
-exit liquidity. Anything unclaimed at the deadline goes to the stakers.
+exit liquidity. Anything unclaimed at the deadline goes to the stakers, and it
+streams to them over the same 30 days it would have streamed to the
+influencer. The same rule applies to the 2014 signer's share if it is still
+unclaimed at the end of 2030: it returns to the stakers over 12 months, not as
+a lump sum. Forfeiting a stream never accelerates it — an expiry pays the
+community at exactly the pace a claim would have paid the claimant.
 
 Everyone on that list has been told in writing to disclose that they were
 compensated whenever they post about this token.

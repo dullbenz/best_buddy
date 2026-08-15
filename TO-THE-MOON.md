@@ -502,6 +502,15 @@ The sweeps are permissionless — anyone can run them — but run them yourself
 promptly and **announce each one as a community win.** The 72-hour sweep is your
 first proof that the dead-man rule is real, so make noise about it.
 
+Two of the three do not pay out instantly. The old-holder bucket paid its
+claimants instantly, so its sweep credits the pool instantly. The influencer
+and signer buckets streamed, so their sweeps open a *community stream* on the
+identical schedule — 30 days and 12 months respectively — and the pool is
+credited by `release_community_stream`, a permissionless crank surfaced on the
+Fund Pool tab. Crank it now and then (or let anyone else); vested amounts wait
+indefinitely, exactly like un-synced creator fees. Announce it accordingly:
+the influencer forfeit is a 30-day drip for stakers, not a one-day spike.
+
 ### 5.2 Chase the Legacy Buddy holders
 
 You can't DM them. Post everywhere the old community gathered and ask people to

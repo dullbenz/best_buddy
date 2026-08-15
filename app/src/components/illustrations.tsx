@@ -220,7 +220,7 @@ export function PayoutShapes() {
       />
       <PayoutShape
         title="Stream"
-        sub="Influencers. A little more becomes yours every day for 30 days."
+        sub="Influencers and the 2014 signer. A little more each day — 30 days for one, 12 months for the other."
         path="M18 66 L 142 12"
       />
       <PayoutShape

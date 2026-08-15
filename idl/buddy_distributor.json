@@ -1185,6 +1185,51 @@
       ]
     },
     {
+      "name": "release_community_stream",
+      "docs": [
+        "Credit whatever a swept bucket's community stream has vested so far to",
+        "the staking pool. Permissionless."
+      ],
+      "discriminator": [
+        126,
+        132,
+        82,
+        251,
+        75,
+        58,
+        20,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "community_stream",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "request_unstake",
       "discriminator": [
         44,
@@ -1469,6 +1514,7 @@
       "accounts": [
         {
           "name": "cranker",
+          "writable": true,
           "signer": true
         },
         {
@@ -1491,21 +1537,12 @@
           }
         },
         {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              }
-            ]
-          }
+          "name": "community_stream",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -1581,6 +1618,7 @@
       "accounts": [
         {
           "name": "cranker",
+          "writable": true,
           "signer": true
         },
         {
@@ -1603,21 +1641,12 @@
           }
         },
         {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              }
-            ]
-          }
+          "name": "community_stream",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -2157,6 +2186,19 @@
       ]
     },
     {
+      "name": "CommunityStream",
+      "discriminator": [
+        14,
+        104,
+        153,
+        237,
+        78,
+        186,
+        181,
+        161
+      ]
+    },
+    {
       "name": "Config",
       "discriminator": [
         155,
@@ -2369,6 +2411,61 @@
           },
           {
             "name": "claimed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CommunityStream",
+      "docs": [
+        "A swept allocation on its way back to the community, on the claimant's own",
+        "schedule.",
+        "",
+        "The rule this enforces: forfeiting a stream does not turn it into a lump",
+        "sum. An influencer who claimed would have received their tokens across 30",
+        "days, and the 2014 signer across a year — so when they never claim and the",
+        "allocation returns to the stakers, it returns at exactly that pace. Sweeping",
+        "must never pay the community faster than claiming would have paid the",
+        "claimant, or a sweep becomes a jackpot event worth lobbying for.",
+        "",
+        "Pure accounting, like the sweeps themselves: the tokens never move. Anyone",
+        "may crank `release_community_stream` to credit the vested portion to the",
+        "staking accumulator; until someone does, the vested amount simply waits,",
+        "exactly like un-synced creator fees."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "kind",
+            "docs": [
+              "Which sweep created it — see `COMMUNITY_STREAM_INFLUENCERS` /",
+              "`COMMUNITY_STREAM_SIGNER`. Doubles as the PDA seed suffix."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "total",
+            "type": "u64"
+          },
+          {
+            "name": "released",
+            "docs": [
+              "Portion already credited to the staking pool."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "start",
+            "type": "i64"
+          },
+          {
+            "name": "end",
             "type": "i64"
           },
           {

@@ -68,6 +68,13 @@ export function stakePda(owner: PublicKey, programId: PublicKey): PublicKey {
   return pda([STAKE_SEED, owner.toBuffer()], programId);
 }
 
+export function communityStreamPda(kind: number, programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("community_stream"), Buffer.from([kind])],
+    programId,
+  )[0];
+}
+
 export function streamPda(owner: PublicKey, programId: PublicKey): PublicKey {
   return pda([STREAM_SEED, owner.toBuffer()], programId);
 }

@@ -558,8 +558,10 @@ export function Claims() {
       />
 
       <ForfeitNote label="If someone doesn't claim">
-        Everything left unclaimed when the 72-hour window closes becomes staking
-        rewards for the community.
+        Everything left unclaimed when the 72-hour window closes goes to the
+        stakers, not to us — and it streams to them over the same 30 days it
+        would have streamed to the influencer. An expired window never turns
+        into a lump sum for anyone.
       </ForfeitNote>
     </section>
   );
@@ -1409,10 +1411,12 @@ function SignerClaim({
       )}
 
       <ForfeitNote label="If nobody claims">
-        This allocation is held until {fmtDate(ORIGINAL_SIGNER_DEADLINE)}. If
-        the key never signs, it becomes staking rewards for the community — it
-        does not come back to the team. It is also released as a stream rather
-        than in one payment, on the same terms as everyone else.
+        This allocation is held until {fmtDate(ORIGINAL_SIGNER_DEADLINE)},
+        and pays as a 12-month stream whoever ends up with it. If the key
+        signs, it streams to the signer. If it never does, it streams to the
+        community instead — same amount, same year-long schedule, and never
+        back to the team. Forfeiting a stream does not turn it into a lump
+        sum for anyone.
       </ForfeitNote>
     </section>
   );

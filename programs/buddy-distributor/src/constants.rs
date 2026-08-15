@@ -9,6 +9,11 @@ pub const STAKE_SEED: &[u8] = b"stake";
 pub const OLD_CLAIM_SEED: &[u8] = b"old_claim";
 pub const INFLUENCER_CLAIM_SEED: &[u8] = b"inf_claim";
 pub const STREAM_SEED: &[u8] = b"stream";
+pub const COMMUNITY_STREAM_SEED: &[u8] = b"community_stream";
+
+/// `CommunityStream.kind` values, doubling as the PDA seed suffix.
+pub const COMMUNITY_STREAM_INFLUENCERS: u8 = 0;
+pub const COMMUNITY_STREAM_SIGNER: u8 = 1;
 
 /// Fixed-point scalar for the reward accumulators. Rewards-per-weight is stored
 /// scaled by this factor so that integer division does not truncate small

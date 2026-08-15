@@ -25,6 +25,7 @@ import {
   NATIVE_MINT,
   stakePda,
   streamPda,
+  communityStreamPda,
   tokenBalance,
   warpBy,
   warpTo,
@@ -460,26 +461,81 @@ describe("buddy-distributor", () => {
       await expectFailure(withdraw(), "NothingToWithdraw");
     });
 
-    it("closes after 72 hours and sweeps the unclaimed remainder to bucket 1", async () => {
+    it("closes after 72 hours and streams the unclaimed remainder to bucket 1", async () => {
       const b = await bootstrap();
       await claimInfluencer(b, 0);
 
       await warpBy(b.env.context, 3 * DAY + 1);
       await expectFailure(claimInfluencer(b, 1), "ClaimWindowClosed");
 
+      const csPda = communityStreamPda(0, b.env.programId);
       const before = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       await b.env.program.methods
         .sweepInfluencers()
-        .accountsPartial({ cranker: b.env.payer.publicKey, config: b.env.configPda, pool: b.env.poolPda })
+        .accountsPartial({
+          cranker: b.env.payer.publicKey,
+          config: b.env.configPda,
+          communityStream: csPda,
+          systemProgram: SystemProgram.programId,
+        })
         .signers([b.env.payer])
         .rpc();
       const after = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
 
+      // The sweep itself pays the community nothing. Forfeiting a stream must
+      // not turn it into a lump sum — the pool is only credited by the
+      // release crank, on the schedule the influencer would have had.
       assert.equal(
-        (BigInt(after.lifetimeTokenRewards.toString()) - BigInt(before.lifetimeTokenRewards.toString())).toString(),
-        b.influencers[1].amount.toString(),
-        "the influencer who never showed up funds the community"
+        after.lifetimeTokenRewards.toString(),
+        before.lifetimeTokenRewards.toString(),
+        "sweeping alone must not credit the pool"
       );
+
+      const cs = await (b.env.program.account as any).communityStream.fetch(csPda);
+      assert.equal(cs.total.toString(), b.influencers[1].amount.toString());
+      assert.equal(cs.released.toString(), "0");
+      assert.equal(Number(cs.end) - Number(cs.start), 30 * DAY, "same 30-day schedule a claimant would have had");
+
+      const release = () =>
+        b.env.program.methods
+          .releaseCommunityStream()
+          .accountsPartial({
+            cranker: b.env.payer.publicKey,
+            pool: b.env.poolPda,
+            communityStream: csPda,
+          })
+          .signers([b.env.payer])
+          .rpc();
+
+      // Nothing has vested in the same second the sweep ran.
+      await advanceSlot(b.env.context);
+      await expectFailure(release(), "NothingToWithdraw");
+
+      // Half the schedule -> exactly half the tokens, credited to the pool.
+      await warpBy(b.env.context, 15 * DAY);
+      await release();
+      const mid = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      const total = BigInt(cs.total.toString());
+      assert.equal(
+        (BigInt(mid.lifetimeTokenRewards.toString()) - BigInt(before.lifetimeTokenRewards.toString())).toString(),
+        (total / 2n).toString(),
+        "halfway through the schedule, half the forfeit has reached the pool"
+      );
+
+      // Past the end -> the remainder, and then never anything again.
+      await warpBy(b.env.context, 16 * DAY);
+      await release();
+      const done = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      assert.equal(
+        (BigInt(done.lifetimeTokenRewards.toString()) - BigInt(before.lifetimeTokenRewards.toString())).toString(),
+        total.toString(),
+        "the full forfeit arrives, exactly once"
+      );
+      const csFinal = await (b.env.program.account as any).communityStream.fetch(csPda);
+      assert.equal(csFinal.released.toString(), csFinal.total.toString());
+
+      await advanceSlot(b.env.context);
+      await expectFailure(release(), "NothingToWithdraw");
     });
   });
 
@@ -649,16 +705,43 @@ describe("buddy-distributor", () => {
         "ClaimWindowClosed"
       );
 
+      const csPda = communityStreamPda(1, b.env.programId);
       const before = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
       await b.env.program.methods
         .sweepOriginalSigner()
-        .accountsPartial({ cranker: b.env.payer.publicKey, config: b.env.configPda, pool: b.env.poolPda })
+        .accountsPartial({
+          cranker: b.env.payer.publicKey,
+          config: b.env.configPda,
+          communityStream: csPda,
+          systemProgram: SystemProgram.programId,
+        })
         .signers([b.env.payer])
         .rpc();
       const after = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
-
       assert.equal(
-        (BigInt(after.lifetimeTokenRewards.toString()) - BigInt(before.lifetimeTokenRewards.toString())).toString(),
+        after.lifetimeTokenRewards.toString(),
+        before.lifetimeTokenRewards.toString(),
+        "the signer's forfeit streams; sweeping alone credits nothing"
+      );
+
+      // The signer would have received this over a year; the community does too.
+      const cs = await (b.env.program.account as any).communityStream.fetch(csPda);
+      assert.equal(cs.total.toString(), SIGNER_ALLOC.toString());
+      assert.equal(Number(cs.end) - Number(cs.start), 365 * DAY);
+
+      await warpBy(b.env.context, 365 * DAY + 1);
+      await b.env.program.methods
+        .releaseCommunityStream()
+        .accountsPartial({
+          cranker: b.env.payer.publicKey,
+          pool: b.env.poolPda,
+          communityStream: csPda,
+        })
+        .signers([b.env.payer])
+        .rpc();
+      const released = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      assert.equal(
+        (BigInt(released.lifetimeTokenRewards.toString()) - BigInt(before.lifetimeTokenRewards.toString())).toString(),
         SIGNER_ALLOC.toString()
       );
     });
