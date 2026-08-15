@@ -265,7 +265,7 @@ async function main() {
 
   await program.methods
     .lockConfig()
-    .accountsPartial({ authority: payer.publicKey, config: configPda, vault: vaultPda })
+    .accountsPartial({ authority: payer.publicKey, config: configPda, pool: poolPda, vault: vaultPda })
     .rpc();
   ok(`config locked`);
 

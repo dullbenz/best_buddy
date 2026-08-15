@@ -137,6 +137,7 @@ async function bootstrap(opts: { lock?: boolean; fundExtra?: bigint } = {}): Pro
       .accountsPartial({
         authority: env.authority.publicKey,
         config: env.configPda,
+        pool: env.poolPda,
         vault: env.vaultPda,
       })
       .signers([env.authority])
@@ -253,11 +254,129 @@ describe("buddy-distributor", () => {
       await expectFailure(
         env.program.methods
           .lockConfig()
-          .accountsPartial({ authority: env.authority.publicKey, config: env.configPda, vault: env.vaultPda })
+          .accountsPartial({ authority: env.authority.publicKey, config: env.configPda, pool: env.poolPda, vault: env.vaultPda })
           .signers([env.authority])
           .rpc(),
         "InsufficientBucketBalance"
       );
+    });
+
+    it("refuses to lock when tokens arrived outside fund_vault, even though the vault balance looks right", async () => {
+      // The realistic version of this is not fraud, it is a slip: someone
+      // sends the last tranche to the published vault address with an
+      // ordinary wallet transfer, or a supporter donates before launch. The
+      // balance then reads exactly right while `reserved_token` is short.
+      //
+      // Locking there would be unrecoverable. `fund_vault` asserts the config
+      // is unlocked, so no top-up is ever possible again, and the untracked
+      // remainder is destined for the staking pool via `sync_token_rewards`,
+      // which would hand the same tokens to stakers that the buckets are
+      // already promising to claimants.
+      const env = await setupEnv();
+      await warpTo(env.context, BASE_TS);
+      const btcKey = makeBitcoinKey();
+      const SHORTFALL = 5_000_000n;
+
+      await env.program.methods
+        .initialize({
+          oldHolderRoot: Array(32).fill(0),
+          oldHolderAllocation: new BN(OLD_ALLOC.toString()),
+          influencerRoot: Array(32).fill(0),
+          influencerAllocation: new BN(0),
+          originalSignerPubkey: Array.from(btcKey.publicKeyXY),
+          originalSignerAllocation: new BN(0),
+          devWallet: Keypair.generate().publicKey,
+          devAllocation: new BN(0),
+          devCliffSeconds: new BN(0),
+          claimsStart: new BN(BASE_TS),
+        })
+        .accountsPartial({
+          payer: env.payer.publicKey,
+          authority: env.authority.publicKey,
+          rewardMint: env.mint,
+          config: env.configPda,
+          pool: env.poolPda,
+          vault: env.vaultPda,
+          solVault: env.solVaultPda,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          rent: SYSVAR_RENT_PUBKEY,
+        })
+        .signers([env.payer])
+        .rpc();
+
+      // Short by SHORTFALL through the front door.
+      const treasury = await createTokenAccount(env, env.authority.publicKey);
+      await mintTo(env, treasury, OLD_ALLOC);
+      await env.program.methods
+        .fundVault(new BN((OLD_ALLOC - SHORTFALL).toString()))
+        .accountsPartial({
+          authority: env.authority.publicKey,
+          config: env.configPda,
+          vault: env.vaultPda,
+          pool: env.poolPda,
+          source: treasury,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([env.authority])
+        .rpc();
+
+      // ...and made up the difference by transferring straight to the vault.
+      await mintTo(env, env.vaultPda, SHORTFALL);
+
+      const vault = await tokenBalance(env, env.vaultPda);
+      const pool = await (env.program.account as any).stakePool.fetch(env.poolPda);
+      assert.equal(vault.toString(), OLD_ALLOC.toString(), "balance is exactly the committed total");
+      assert.equal(pool.reservedToken.toString(), (OLD_ALLOC - SHORTFALL).toString());
+
+      await expectFailure(
+        env.program.methods
+          .lockConfig()
+          .accountsPartial({
+            authority: env.authority.publicKey,
+            config: env.configPda,
+            pool: env.poolPda,
+            vault: env.vaultPda,
+          })
+          .signers([env.authority])
+          .rpc(),
+        "InsufficientBucketBalance"
+      );
+
+      // Routing the same shortfall through fund_vault clears it. The donated
+      // tokens stay untracked and remain the staking pool's, which is the
+      // whole point: they are counted once, not twice.
+      await env.program.methods
+        .fundVault(new BN(SHORTFALL.toString()))
+        .accountsPartial({
+          authority: env.authority.publicKey,
+          config: env.configPda,
+          vault: env.vaultPda,
+          pool: env.poolPda,
+          source: treasury,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([env.authority])
+        .rpc();
+
+      await env.program.methods
+        .lockConfig()
+        .accountsPartial({
+          authority: env.authority.publicKey,
+          config: env.configPda,
+          pool: env.poolPda,
+          vault: env.vaultPda,
+        })
+        .signers([env.authority])
+        .rpc();
+
+      const locked = await (env.program.account as any).config.fetch(env.configPda);
+      assert.equal(locked.locked, true);
+
+      // The stray SHORTFALL is still untracked and still belongs to stakers.
+      const after = await (env.program.account as any).stakePool.fetch(env.poolPda);
+      const bal = BigInt((await tokenBalance(env, env.vaultPda)).toString());
+      assert.equal((bal - BigInt(after.reservedToken.toString())).toString(), SHORTFALL.toString());
     });
 
     it("blocks claims until the config is locked", async () => {

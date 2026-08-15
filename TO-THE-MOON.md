@@ -392,6 +392,16 @@ Read every number against your published document. Then re-run with `EXECUTE=1`.
 > `lock_config` is irreversible. Allocations, roots, deadlines and the signer key
 > can never change afterwards, including by you.
 
+> **Fund only through `fund_vault`.** `lock_config` checks the pool's
+> `reserved_token` counter, which rises only inside `fund_vault`, and not the
+> vault's raw token balance. Tokens sent to the vault address with an ordinary
+> wallet transfer, or donated before launch, do not count towards the
+> committed total and the lock will refuse. That refusal is protecting you:
+> anything the vault holds above `reserved_token` is untracked and belongs to
+> the staking pool the moment anyone calls `sync_token_rewards`, so counting it
+> as bucket backing would promise the same tokens twice. `fund_vault` stops
+> working the instant the config locks, so there is no second chance to top up.
+
 ### 4.5 Create the dev stream
 
 ```bash
@@ -588,6 +598,7 @@ has the numbers; the post is a summary and a link.
 - [ ] Program deployed (no `--final` yet)
 - [ ] Coin created, dev-buy in the same transaction
 - [ ] `initialize` → `fund_vault` → `lock_config`
+- [ ] Every committed token went in through `fund_vault`, not a wallet transfer
 - [ ] Dev stream created
 - [ ] Every parameter verified against the published doc
 - [ ] Upgrade authority burned; `Authority: none` confirmed

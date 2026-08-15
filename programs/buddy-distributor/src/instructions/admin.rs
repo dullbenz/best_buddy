@@ -229,6 +229,9 @@ pub struct LockConfig<'info> {
     )]
     pub config: Account<'info, Config>,
 
+    #[account(seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
     #[account(
         seeds = [VAULT_SEED],
         bump = config.vault_bump,
@@ -247,13 +250,39 @@ pub fn lock_config(ctx: Context<LockConfig>) -> Result<()> {
         .and_then(|v| v.checked_add(config.dev_allocation))
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
+    // Deliberately checks what arrived through `fund_vault`, not what the
+    // vault happens to hold. `reserved_token` rises only inside that
+    // instruction, so tokens that got here any other way cannot satisfy this:
+    // a donation to the vault address we publish, or the last tranche sent by
+    // an ordinary wallet transfer instead of the instruction.
+    //
+    // The distinction decides whether this contract can end up insolvent.
+    // Anything the vault holds beyond `reserved_token` is untracked, and
+    // untracked tokens belong to the staking pool the moment anyone calls
+    // `sync_token_rewards`. Letting them count as bucket backing here would
+    // promise the same tokens to two different people, and this instruction
+    // is the point of no return: `fund_vault` asserts the config is unlocked,
+    // so the moment this succeeds there is no way to add tokens ever again.
     require!(
-        ctx.accounts.vault.amount >= committed,
+        ctx.accounts.pool.reserved_token >= committed,
+        DistributorError::InsufficientBucketBalance
+    );
+
+    // Implied by the line above, since the vault can never hold less than is
+    // reserved. Stated anyway, because this is the last instant the promise
+    // can still be refused, and it costs one comparison to say out loud that
+    // the tokens are really there.
+    require!(
+        ctx.accounts.vault.amount >= ctx.accounts.pool.reserved_token,
         DistributorError::InsufficientBucketBalance
     );
 
     config.locked = true;
-    msg!("config locked; {} tokens committed across buckets", committed);
+    msg!(
+        "config locked; {} tokens committed across buckets, {} reserved in the vault",
+        committed,
+        ctx.accounts.pool.reserved_token
+    );
     Ok(())
 }
 

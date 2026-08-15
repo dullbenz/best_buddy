@@ -176,7 +176,7 @@ async function main() {
   console.log("3/3 lock_config...");
   const sig3 = await program.methods
     .lockConfig()
-    .accountsPartial({ authority: authority.publicKey, config, vault })
+    .accountsPartial({ authority: authority.publicKey, config, pool, vault })
     .rpc();
   console.log(`    ${sig3}`);
 

@@ -281,7 +281,17 @@ published document, then re-run with `EXECUTE=1` to send the three
 transactions: `initialize`, `fund_vault`, `lock_config`.
 
 > `lock_config` is irreversible. After it, allocations, Merkle roots, deadlines
-> and the signer key can never change — including by you. That is the point.
+> and the signer key can never change, including by you. That is the point.
+
+> **Fund only through `fund_vault`.** `lock_config` checks the pool's
+> `reserved_token` counter, which rises only inside `fund_vault`, and not the
+> vault's raw token balance. Tokens sent to the vault address with an ordinary
+> wallet transfer, or donated before launch, do not count towards the
+> committed total and the lock will refuse. That refusal is protecting you:
+> anything the vault holds above `reserved_token` is untracked and belongs to
+> the staking pool the moment anyone calls `sync_token_rewards`, so counting it
+> as bucket backing would promise the same tokens twice. `fund_vault` stops
+> working the instant the config locks, so there is no second chance to top up.
 
 ### 2.5 Create the dev stream
 
