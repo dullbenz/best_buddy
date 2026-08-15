@@ -210,7 +210,7 @@ export function Landing({
           <IndexRow
             when="Then"
             title="Its creator sold his entire holding and walked away."
-            body="The price collapsed. Worse, every trade people made afterwards still paid him a fee."
+            body="The price collapsed. Worse, every trade people made afterwards still paid them a fee."
           />
           <IndexRow
             when="Now"
@@ -221,12 +221,12 @@ export function Landing({
         </ol>
 
         <Figure
-          caption="The trap: on the Legacy Buddy coin, the fee from every trade kept paying the person who had already sold and left. That is why the community could not simply take it over — doing so would have funded him."
+          caption="$BUDDY trading fee flow"
         >
           <FeeTrapDiagram />
         </Figure>
 
-        <div className="l-source">
+        {/* <div className="l-source">
           <span className="l-micro">Source · the Legacy Buddy coin</span>
           <code>{LEGACY_TOKEN.mint}</code>
           <span className="l-source-links">
@@ -242,7 +242,7 @@ export function Landing({
               </a>
             ))}
           </span>
-        </div>
+        </div> */}
       </Section>
 
       {/* ---- routes ---------------------------------------------- */}
@@ -270,12 +270,34 @@ export function Landing({
             href={newMint ? `https://pump.fun/coin/${newMint}` : undefined}
             disabled={!newMint}
           />
+          {/* Three separate ways to be owed something, and they pay out on
+              three different terms — so no single closing line is true of all
+              of them, and the old one ("arrives instantly") was only true of
+              the first. Listed rather than run together, because a reader is
+              looking for the one that describes them. */}
           <Route
             glyph="claim"
-            title="I held the Legacy Buddy coin"
-            body="You have tokens waiting, free. A list of everyone who held the Legacy Buddy coin was recorded from public blockchain history, and your share is reserved for your wallet. Connect it and the site tells you yes or no in a second."
-            note="Claimed tokens arrive instantly and are yours — sell them the same minute if you want."
-            clock={oldLeft ? `${oldLeft} left` : null}
+            title="I have a claim allocation"
+            body={
+              <>
+                Tokens are reserved for you if any of these is true:
+                <ul className="l-route-cases">
+                  <li>
+                    I held the legacy coin just before this new one dropped
+                  </li>
+                  <li>
+                    I have been invited as a KOL to promote and talk about the
+                    project publicly
+                  </li>
+                  <li>
+                    I am the signer of the original 2014 message on the Bitcoin
+                    blockchain
+                  </li>
+                </ul>
+                Each pays out on its own terms. Enter a wallet address to see
+                what it is owed.
+              </>
+            }
             cta="Check my wallet"
             onClick={() => go("claims", "overview")}
             primary
@@ -341,9 +363,9 @@ export function Landing({
             clock={signerLeft ?? null}
           />
           <AllocRow
-            who="The person who built this"
+            who="The team"
             window="12 months, drip-fed"
-            body="Their tokens are not in a wallet. They sit inside the contract and trickle out daily across a year, after an initial waiting period. There is no button — not even for them — that releases the rest early."
+            body="Their tokens are not in a wallet. They sit inside the contract and trickle out daily across a year, after an initial waiting period. There is no button, not even for them, that releases it early."
             live={
               config
                 ? config.devStreamCreated
@@ -630,8 +652,9 @@ function Route({
 }: {
   glyph: "buy" | "claim" | "stake" | "verify";
   title: string;
-  body: string;
-  note: string;
+  body: ReactNode;
+  /** Omitted where a single closing line would not be true of every case. */
+  note?: string;
   clock?: string | null;
   cta: string;
   onClick?: () => void;
@@ -649,7 +672,7 @@ function Route({
       </div>
       <p>{body}</p>
       {address && <code className="l-route-address">{address}</code>}
-      <p className="l-route-note">{note}</p>
+      {note && <p className="l-route-note">{note}</p>}
       {href ? (
         <a
           className="l-btn l-btn-solid"

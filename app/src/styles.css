@@ -535,6 +535,76 @@ main {
   margin-bottom: 20px;
 }
 
+/* The two-step signer claim. Numbered because the order matters and the first
+   step happens in a different application entirely. */
+.signer-step {
+  display: flex;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.signer-step > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.signer-step p {
+  margin: 4px 0 10px;
+}
+
+.signer-step-num {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* The text to sign, boxed so it is obvious where it starts and ends —
+   a stray space would produce a signature that verifies against nothing. */
+.signer-message {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.signer-message code {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+  color: var(--text);
+}
+
+.signer-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.signer-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* A button that navigates rather than acts, set as the link it behaves like. */
 .inline-link {
   padding: 0;
@@ -1895,6 +1965,31 @@ a.prov-value {
 
 .l-route-primary > p:first-of-type {
   color: var(--text);
+}
+
+/* The three ways to be owed something. A reader is scanning for the one that
+   describes them, which a paragraph makes them do word by word. */
+.l-route-cases {
+  margin: 10px 0 12px;
+  padding-left: 18px;
+  list-style: none;
+}
+
+.l-route-cases li {
+  position: relative;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.l-route-cases li::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .l-route-note {

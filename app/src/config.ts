@@ -297,6 +297,22 @@ export const SNAPSHOT = {
   ],
 };
 
+/**
+ * The exact text the 2014 keyholder must sign, followed by the Solana address
+ * the tokens should go to.
+ *
+ * Mirrors `SIGNER_CLAIM_MESSAGE_PREFIX` in the program, which reconstructs the
+ * message on chain and recovers the public key from the signature. A character
+ * out of place here produces a signature that verifies against nothing, so the
+ * two must be changed together — the program is the authority, this is a copy
+ * for display and for building the claim.
+ */
+export const SIGNER_CLAIM_MESSAGE_PREFIX =
+  "I am the original Signer. Claim to Solana address: ";
+
+export const signerClaimMessage = (destination: string) =>
+  `${SIGNER_CLAIM_MESSAGE_PREFIX}${destination}`;
+
 /** 2030-12-31T23:59:59Z — the original signer's deadline. */
 export const ORIGINAL_SIGNER_DEADLINE = 1_924_991_999;
 
@@ -342,7 +358,8 @@ export const ORIGINAL_MESSAGE = {
  * and a familiar name is worth having for a reader who does not know what an
  * OP_RETURN is.
  */
-export const btcTxUrl = (txid: string) => `https://mempool.space/tx/${txid}`;
+export const btcTxUrl = (txid: string) =>
+  `https://www.blockchain.com/explorer/transactions/btc/${txid}`;
 export const btcAddressUrl = (address: string) =>
   `https://mempool.space/address/${address}`;
 

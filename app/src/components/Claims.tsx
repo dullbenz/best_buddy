@@ -9,10 +9,14 @@ import {
   INFLUENCER_PROOFS_URL,
   OLD_HOLDER_PROOFS_URL,
   INFLUENCER_TERMS,
+  ORIGINAL_MESSAGE,
+  ORIGINAL_SIGNER_DEADLINE,
   SEEDS,
   SNAPSHOT,
   TERMS_API,
+  btcTxUrl,
   pda,
+  signerClaimMessage,
   solscanTx,
 } from "../config";
 import { countdown, fmtAmount, fmtDate, shortSignature } from "../format";
@@ -32,7 +36,7 @@ interface ProofEntry {
 
 type ProofFile = Record<string, ProofEntry>;
 
-type ClaimTab = "overview" | "legacy" | "influencer" | "stream";
+type ClaimTab = "overview" | "legacy" | "influencer" | "signer" | "stream";
 
 async function loadProofs(url: string): Promise<ProofFile> {
   const res = await fetch(url);
@@ -63,7 +67,13 @@ export function Claims() {
     publicKey ? localStorage.getItem(`buddy.terms.${publicKey.toBase58()}`) : null
   );
 
-  const CLAIM_TABS: ClaimTab[] = ["overview", "legacy", "influencer", "stream"];
+  const CLAIM_TABS: ClaimTab[] = [
+    "overview",
+    "legacy",
+    "influencer",
+    "signer",
+    "stream",
+  ];
   const sectionFromUrl = (): ClaimTab => {
     const { section } = parseLocation(["claims"]);
     return (CLAIM_TABS as string[]).includes(section ?? "")
@@ -254,6 +264,53 @@ export function Claims() {
       return amount ? BigInt(amount) : null;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Claim bucket 4a by proving control of the 2014 Bitcoin key.
+   *
+   * No wallet signature proves anything here — the authorisation is the
+   * Bitcoin signature itself, made offline in whatever wallet holds that key.
+   * The connected wallet only pays the fee and names where the tokens go, and
+   * the message binds the signature to that address so a copied signature
+   * cannot be redirected to someone else's wallet.
+   */
+  async function claimOriginalSigner(base64Signature: string) {
+    if (!program || !publicKey) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const raw = Buffer.from(base64Signature.trim(), "base64");
+      if (raw.length !== 65) {
+        throw new Error(
+          `That is not a Bitcoin message signature — expected 65 bytes once decoded, got ${raw.length}.`
+        );
+      }
+      const header = raw[0];
+      if (!((header >= 27 && header <= 30) || (header >= 31 && header <= 34))) {
+        throw new Error(`Unrecognised signature header byte (${header}).`);
+      }
+
+      const sig = await program.methods
+        .claimOriginalSigner(publicKey, header, Array.from(raw.subarray(1)))
+        .accountsPartial({
+          payer: publicKey,
+          config: pda([SEEDS.config]),
+          stream: pda([SEEDS.stream, publicKey.toBuffer()]),
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+      setStatus({
+        text: "Signature accepted. The founder stream is open to this wallet.",
+        signature: sig,
+      });
+      refresh();
+      refreshStream();
+    } catch (e: any) {
+      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -576,6 +633,20 @@ export function Claims() {
       body: influencerCard,
     },
   ];
+  sections.push({
+    id: "signer",
+    label: "2014 signer",
+    marked: false,
+    body: (
+      <SignerClaim
+        config={config}
+        wallet={publicKey ?? null}
+        busy={busy}
+        onClaim={claimOriginalSigner}
+      />
+    ),
+  });
+
   if (streamCard) {
     sections.push({
       id: "stream",
@@ -1201,4 +1272,148 @@ function useClock(intervalMs = 1000): number {
     return () => clearInterval(id);
   }, [intervalMs]);
   return now;
+}
+
+/**
+ * Bucket 4a: whoever holds the Bitcoin key that signed the 2014 message.
+ *
+ * The odd one out among the claims, and the page says so. There is no list to
+ * be on and no wallet signature that helps: the authorisation is a Bitcoin
+ * signature made offline, in whatever wallet holds a key from 2014, over a
+ * message naming the Solana address the tokens should go to. That binding is
+ * what stops a signature posted publicly from being replayed into someone
+ * else's wallet — and it is why the message has to be regenerated for each
+ * destination rather than signed once.
+ *
+ * Anyone can relay the transaction. The connected wallet is only paying the
+ * fee and naming the destination.
+ */
+function SignerClaim({
+  config,
+  wallet,
+  busy,
+  onClaim,
+}: {
+  config: any;
+  wallet: PublicKey | null;
+  busy: boolean;
+  onClaim: (signature: string) => void;
+}) {
+  const [signature, setSignature] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const message = wallet ? signerClaimMessage(wallet.toBase58()) : null;
+  const left = countdown(ORIGINAL_SIGNER_DEADLINE);
+  const claimed = config?.originalSignerClaimed === true;
+  const swept = config?.originalSignerSwept === true;
+
+  return (
+    <section className="card">
+      <h2>The 2014 signer</h2>
+      <p className="muted">
+        The message this coin is named after was written onto the Bitcoin
+        blockchain in 2014 by someone who has never been identified. A share is
+        held for them, and the only way to take it is to prove control of the
+        key that signed it.{" "}
+        <a
+          href={btcTxUrl(ORIGINAL_MESSAGE.txid)}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          The transaction <span aria-hidden="true">&#8599;</span>
+        </a>
+      </p>
+      <p className="muted small">
+        Nobody can approve or refuse this — not us, not anyone. The contract
+        recovers the public key from the signature and compares it to the one
+        frozen in its config. It either matches or it does not.
+      </p>
+
+      {swept ? (
+        <Verdict tone="done" heading="Unclaimed, and now gone to the stakers.">
+          <p>
+            The deadline passed without anyone proving control of the key, so
+            this allocation became staking rewards for the community.
+          </p>
+        </Verdict>
+      ) : claimed ? (
+        <Verdict tone="done" heading="Claimed. The original signer came back.">
+          <p>
+            Somebody proved control of the 2014 key, and their stream is open.
+            Nothing further can be claimed here.
+          </p>
+        </Verdict>
+      ) : !wallet ? (
+        <ConnectToClaim question="Do you hold the 2014 key?" />
+      ) : (
+        <>
+          <div className="signer-step">
+            <span className="signer-step-num">1</span>
+            <div>
+              <strong>Sign this exact text with the 2014 Bitcoin key.</strong>
+              <p className="muted small">
+                Use whatever wallet holds it — Electrum's <em>Sign/Verify</em>{" "}
+                dialog, or <span className="mono">signmessage</span> in Bitcoin
+                Core. The address below is this connected wallet, and the
+                signature is bound to it, so tokens can only ever arrive here.
+              </p>
+              <div className="signer-message">
+                <code>{message}</code>
+                <button
+                  type="button"
+                  className="copy"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(message!);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
+                >
+                  {copied ? "copied" : "copy"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="signer-step">
+            <span className="signer-step-num">2</span>
+            <div>
+              <strong>Paste the signature it gives you.</strong>
+              <p className="muted small">
+                A base64 string, usually ending in <span className="mono">=</span>.
+                Nothing is sent anywhere until you press claim.
+              </p>
+              <textarea
+                className="signer-input"
+                rows={3}
+                spellCheck={false}
+                placeholder="H1a2b3c…="
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="stream-actions">
+            <button
+              className="primary"
+              disabled={busy || !signature.trim() || !left}
+              onClick={() => onClaim(signature)}
+            >
+              {left ? "Prove it and claim" : "The deadline has passed"}
+            </button>
+            {left && (
+              <span className="muted small">{left} left to claim</span>
+            )}
+          </div>
+        </>
+      )}
+
+      <ForfeitNote label="If nobody claims">
+        This allocation is held until {fmtDate(ORIGINAL_SIGNER_DEADLINE)}. If
+        the key never signs, it becomes staking rewards for the community — it
+        does not come back to the team. It is also released as a stream rather
+        than in one payment, on the same terms as everyone else.
+      </ForfeitNote>
+    </section>
+  );
 }

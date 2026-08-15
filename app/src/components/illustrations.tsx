@@ -27,14 +27,9 @@ export function FeeTrapDiagram() {
       aria-labelledby="feetrap-title"
       style={{ maxWidth: 460 }}
     >
-      <title id="feetrap-title">
-        On the Legacy Buddy coin, the fee from every trade went to the creator who had
-        left. On the new one it goes to the community staking pool.
-      </title>
-
       {/* --- old --- */}
       <text x="0" y="14" fill="var(--muted)" fontSize="11" fontFamily={MONO} letterSpacing="1.6">
-        LEGACY BUDDY
+        LEGACY $BUDDY
       </text>
 
       <rect x="0" y="30" width="120" height="44" rx="2" fill="var(--panel-2)" stroke="var(--border)" />
@@ -54,10 +49,6 @@ export function FeeTrapDiagram() {
       </text>
       <text x="275" y="66" fill="var(--muted)" fontSize="11" textAnchor="middle">
         who had already left
-      </text>
-
-      <text x="0" y="98" fill="var(--muted)" fontSize="12">
-        So taking it over would have funded him.
       </text>
 
       {/* divider */}
@@ -88,7 +79,7 @@ export function FeeTrapDiagram() {
       </text>
 
       <text x="0" y="230" fill="var(--muted)" fontSize="12">
-        The remaining 10% is the builder's only ongoing income.
+        The remaining 10% goes to the team.
       </text>
     </svg>
   );
