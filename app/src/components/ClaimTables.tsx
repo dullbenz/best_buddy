@@ -39,12 +39,14 @@ export function ClaimTables({
   influencers,
   loading,
   error,
+  statusKnown,
   highlight,
 }: {
   legacy: LedgerRow[];
   influencers: LedgerRow[];
   loading: boolean;
   error: string | null;
+  statusKnown: boolean;
   /** The connected wallet, marked in the table so it can be found at a glance. */
   highlight: string | null;
 }) {
@@ -108,8 +110,9 @@ export function ClaimTables({
 
       {error ? (
         <p className="muted small">
-          Could not read claim status from the chain: {error}. The allocations
-          below still come from the published files.
+          Could not read claim status from the chain, so the status column says
+          <em> unknown</em> rather than guessing. The allocations still come
+          from the published files, and they are not affected. ({error})
         </p>
       ) : (
         <p className="muted small">
@@ -175,7 +178,9 @@ export function ClaimTables({
                   ) : null}
                   <td className="num">{fmtTokens(r.allocation, true)}</td>
                   <td>
-                    {r.claimedAt === null ? (
+                    {!statusKnown ? (
+                      <span className="pill pill-unknown">unknown</span>
+                    ) : r.claimedAt === null ? (
                       <span className="pill pill-open">unclaimed</span>
                     ) : (
                       <span className="pill pill-done" title={fmtDate(r.claimedAt)}>

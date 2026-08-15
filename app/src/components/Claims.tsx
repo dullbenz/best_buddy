@@ -527,6 +527,7 @@ export function Claims() {
             influencers={ledger.influencers}
             loading={ledger.loading}
             error={ledger.error}
+            statusKnown={ledger.statusKnown}
             highlight={address}
           />
         </>
@@ -1094,10 +1095,10 @@ function Progress({ done, total }: { done: number; total: number }) {
 /**
  * The stream, surfaced on Overview so it is not hidden behind a tab.
  *
- * Green because it is the one thing on this page that is specifically *yours*
- * and specifically actionable — everything else on Overview is a public list.
- * A summary and a way in, not a second copy of the stream page: the number
- * that matters is what can be taken right now.
+ * A single line, not a card. Overview is a page of lists and this is a pointer
+ * to somewhere else — giving it a heading and its own button made it look like
+ * a section with content of its own, which it is not. One fact and one exit,
+ * with the whole row as the target rather than a button inside it.
  */
 function StreamShortcut({
   available,
@@ -1108,28 +1109,20 @@ function StreamShortcut({
 }) {
   const ready = available >= 1;
   return (
-    <section className="card stream-shortcut">
-      <div className="shortcut-body">
-        <div>
-          <h2>You have a stream open</h2>
-          <p className="muted">
-            {ready ? (
-              <>
-                <strong>{fmtAmount(BigInt(Math.floor(available)))}</strong> is
-                available to withdraw right now, and more releases every day.
-              </>
-            ) : (
-              <>
-                Nothing has released yet. It accrues continuously, so there will
-                be something to take shortly.
-              </>
-            )}
-          </p>
-        </div>
-        <button className="primary" onClick={onOpen}>
-          Open your stream <span aria-hidden="true">&rarr;</span>
-        </button>
-      </div>
-    </section>
+    <button type="button" className="stream-shortcut" onClick={onOpen}>
+      <span className="shortcut-text">
+        {ready ? (
+          <>
+            <strong>{fmtAmount(BigInt(Math.floor(available)))}</strong> is
+            available to withdraw
+          </>
+        ) : (
+          <>Your stream is open — nothing has released yet</>
+        )}
+      </span>
+      <span className="shortcut-go">
+        Open stream <span aria-hidden="true">&rarr;</span>
+      </span>
+    </button>
   );
 }

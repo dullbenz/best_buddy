@@ -406,6 +406,14 @@ main {
   white-space: nowrap;
 }
 
+/* The chain read failed. Not "unclaimed" — we do not know, and saying we do
+   would be inventing a fact about someone else's money. */
+.pill-unknown {
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  opacity: 0.8;
+}
+
 .pill-open {
   border: 1px solid var(--border);
   color: var(--muted);
@@ -419,33 +427,52 @@ main {
 /* ---- the stream page ---- */
 
 /* The one item on Overview that belongs to *you* rather than to the public
-   lists below it, so it carries the same green the positive verdict does. The
-   stream page itself is plain — it is already a page of its own and has
-   nothing to stand out from. */
-/* `.card.stream-shortcut`, not `.stream-shortcut`: `.card` sets background and
-   border at equal specificity and is defined further down the file, so a bare
-   class here loses and the tint silently never renders. */
-.card.stream-shortcut {
-  border-color: var(--good);
-  background: color-mix(in srgb, var(--good) 12%, var(--panel));
-}
-
-.stream-shortcut h2 {
-  color: var(--good);
-}
-
-.shortcut-body {
+   lists below it, so it carries the same green the positive verdict does.
+   A row, not a card: it points somewhere else and has no content of its own. */
+.stream-shortcut {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+  padding: 13px 22px;
+  border: 1px solid var(--good);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--good) 12%, var(--panel));
+  color: var(--muted);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-.shortcut-body p {
-  margin: 0;
-  max-width: 52ch;
+.stream-shortcut:hover {
+  border-color: var(--good);
+  background: color-mix(in srgb, var(--good) 18%, var(--panel));
 }
+
+.shortcut-text strong {
+  color: var(--good);
+}
+
+.shortcut-go {
+  flex-shrink: 0;
+  color: var(--good);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .stream-shortcut {
+    border-radius: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
 
 /* The withdraw button was flush against the stats above it. */
 .stream-actions {

@@ -33,6 +33,12 @@ export interface Ledger {
   influencers: LedgerRow[];
   loading: boolean;
   error: string | null;
+  /**
+   * True once the chain read succeeded. While false, claim status is unknown
+   * rather than negative — the table must not print "unclaimed" for everyone
+   * because a request was throttled.
+   */
+  statusKnown: boolean;
 }
 
 type ProofFile = Record<string, { address: string; amount: string }>;
@@ -88,10 +94,33 @@ export function useClaimLedger(
 
     (async () => {
       try {
-        const [allReceipts, allStreams] = await Promise.all([
-          (program.account as any).claimReceipt.all(),
-          (program.account as any).stream.all(),
-        ]);
+        // getProgramAccounts is the expensive call in the RPC's eyes and the
+        // first thing a rate limiter drops — the public devnet endpoint 429s
+        // it routinely. Worth a couple of retries, because the alternative is
+        // a table that cannot say whether anyone has claimed.
+        const withRetry = async <T,>(fn: () => Promise<T>): Promise<T> => {
+          let last: unknown;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              return await fn();
+            } catch (e) {
+              last = e;
+              await new Promise((r) => setTimeout(r, 400 * 2 ** attempt));
+            }
+          }
+          throw last;
+        };
+
+        // Sequential, not Promise.all: these are the two heaviest calls the
+        // app makes, and firing them together doubles the instantaneous burst
+        // that gets them throttled in the first place. Neither is on a latency
+        // path — the table can arrive a few hundred milliseconds later.
+        const allReceipts = await withRetry<any[]>(() =>
+          (program.account as any).claimReceipt.all()
+        );
+        const allStreams = await withRetry<any[]>(() =>
+          (program.account as any).stream.all()
+        );
         if (cancelled) return;
 
         // Receipts are keyed by their PDA, and the two buckets share one
@@ -153,6 +182,7 @@ export function useClaimLedger(
       influencers: build(infProofs, SEEDS.influencerClaim, true),
       loading: receipts === null && error === null,
       error,
+      statusKnown: receipts !== null,
     };
   }, [oldProofs, infProofs, receipts, streams, handles, balances, error]);
 }
