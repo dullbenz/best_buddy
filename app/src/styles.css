@@ -1655,23 +1655,45 @@ a.prov-value {
 }
 
 /* --- spec strip --- */
+/* Rolls, like the ticker beneath it. Seven cells will not sit still on one
+   line without shrinking each to uselessness, and these carry numbers rather
+   than a slogan — so it scrolls slowly and stops when a reader hovers it. */
 .l-spec {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
 
-.l-spec-cell {
+.l-spec-run {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 16px 16px 16px 0;
+  width: max-content;
+  animation: l-scroll 90s linear infinite;
 }
 
-@media (min-width: 640px) {
-  .l-spec-cell + .l-spec-cell {
-    border-left: 1px solid var(--border);
-    padding-left: 16px;
+.l-spec-run:hover,
+.l-spec-run:focus-within {
+  animation-play-state: paused;
+}
+
+.l-spec-cell {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-width: 210px;
+  padding: 16px 22px;
+  border-left: 1px solid var(--border);
+}
+
+/* Motion is unwelcome: hold still and let the reader scroll it by hand,
+   rather than hiding four of the seven cells off the right edge. */
+@media (prefers-reduced-motion: reduce) {
+  .l-spec {
+    overflow-x: auto;
+  }
+
+  .l-spec-run {
+    animation: none;
   }
 }
 

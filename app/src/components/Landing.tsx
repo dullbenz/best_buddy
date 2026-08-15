@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import {
   LEGACY_TOKEN,
   ORIGINAL_MESSAGE,
@@ -34,6 +34,8 @@ import { TokenHandover } from "./TokenHandover";
  * Proof is never the opening move, and a claim is never rendered in a tense the
  * chain does not currently support.
  */
+type SpecTone = "good" | "warn" | "bad" | "unknown" | "plain";
+
 export function Landing({
   go,
 }: {
@@ -45,6 +47,7 @@ export function Landing({
   const now = Date.now() / 1000;
   const signerLeft = countdown(ORIGINAL_SIGNER_DEADLINE, now);
   const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
+  const infLeft = config ? countdown(Number(config.influencerDeadline), now) : null;
   const chainReadable = !error && !loading && !!config;
   // True only once the chain says so. Never assume the burn has happened.
   const burned = upgrade.immutable === true;
@@ -69,6 +72,103 @@ export function Landing({
     : upgrade.immutable
     ? { v: "none", t: "good" as const, note: "nobody can change the contract" }
     : { v: "creator", t: "bad" as const, note: "can still rewrite the rules" };
+
+  /**
+   * One cell per bucket, so the strip answers "what is still up for grabs, and
+   * how long have they got" for each of them rather than only for the legacy
+   * holders. Each carries the amount and the clock, because either alone
+   * invites the other question.
+   */
+  const bucketCell = (
+    label: string,
+    remaining: bigint,
+    left: string | null,
+    opts: { swept?: boolean; claimed?: boolean; sweptNote: string }
+  ) => {
+    if (!chainReadable) {
+      return { label, value: "unread", tone: "unknown" as const, note: "could not reach the chain" };
+    }
+    if (opts.claimed) {
+      return { label, value: "claimed", tone: "good" as const, note: "it found its owner" };
+    }
+    if (opts.swept) {
+      return { label, value: "0", tone: "good" as const, note: opts.sweptNote };
+    }
+    if (!left) {
+      return {
+        label,
+        value: fmtAmount(remaining, true),
+        tone: "warn" as const,
+        note: "window closed, awaiting sweep",
+      };
+    }
+    return {
+      label,
+      value: fmtAmount(remaining, true),
+      tone: "plain" as const,
+      note: `${left} left to claim`,
+    };
+  };
+
+  const remainingOf = (alloc: any, claimed: any): bigint =>
+    chainReadable ? BigInt(alloc.toString()) - BigInt(claimed.toString()) : 0n;
+
+  const specCells = [
+    {
+      label: "Who can change the contract",
+      value: authorityCell.v,
+      tone: authorityCell.t,
+      note: authorityCell.note,
+    },
+    {
+      label: "Creator's tokens",
+      value: !chainReadable ? "unread" : config.devStreamCreated ? "locked up" : "not locked",
+      tone: (!chainReadable
+        ? "unknown"
+        : config.devStreamCreated
+          ? "good"
+          : "bad") as SpecTone,
+      note: !chainReadable
+        ? "could not reach the chain"
+        : config.devStreamCreated
+          ? "released over 12 months, none early"
+          : "the lock has not been set up yet",
+    },
+    {
+      label: "Unclaimed tokens go to",
+      value: "stakers",
+      tone: "good" as const,
+      note: "never back to the team",
+    },
+    bucketCell(
+      "Unclaimed by legacy holders",
+      remainingOf(config?.oldHolderAllocation ?? 0, config?.oldHolderClaimed ?? 0),
+      oldLeft,
+      { swept: config?.oldHolderSwept, sweptNote: "all of it went to stakers" }
+    ),
+    bucketCell(
+      "Unclaimed by influencers",
+      remainingOf(config?.influencerAllocation ?? 0, config?.influencerClaimed ?? 0),
+      infLeft,
+      { swept: config?.influencerSwept, sweptNote: "now streaming to stakers" }
+    ),
+    bucketCell(
+      "Unclaimed by the 2014 signer",
+      chainReadable ? BigInt(config.originalSignerAllocation.toString()) : 0n,
+      signerLeft,
+      {
+        swept: config?.originalSignerSwept,
+        claimed: config?.originalSignerClaimed,
+        sweptNote: "now streaming to stakers",
+      }
+    ),
+    {
+      label: "Held in the contract",
+      value: chainReadable ? fmtAmount(vaultBalance, true) : "unread",
+      tone: (chainReadable ? "plain" : "unknown") as SpecTone,
+      note: chainReadable ? "every allocation above, in one vault" : "could not reach the chain",
+    },
+  ];
 
   return (
     <div className="landing">
@@ -106,55 +206,20 @@ export function Landing({
       </section>
 
       {/* ---- the spec strip ------------------------------------------ */}
+      {/* Rolling, like the ticker under it, because it now carries a cell per
+          claim bucket and seven cells will not sit still on one line without
+          shrinking each to uselessness. Pauses on hover — these are numbers,
+          not a slogan, and a reader must be able to stop and read one. */}
       <div className="l-spec">
-        <SpecCell
-          label="Upgrade authority"
-          value={authorityCell.v}
-          tone={authorityCell.t}
-          note={authorityCell.note}
-        />
-        {/* "pending" was the worst label on the page: it read as a harmless
-            in-progress state when it means the creator's tokens are *not* in
-            the lock yet, which is the one thing this cell exists to rule
-            out. */}
-        <SpecCell
-          label="Creator's tokens"
-          value={
-            !chainReadable
-              ? "unread"
-              : config.devStreamCreated
-                ? "locked up"
-                : "not locked"
-          }
-          tone={
-            !chainReadable ? "unknown" : config.devStreamCreated ? "good" : "bad"
-          }
-          note={
-            !chainReadable
-              ? "could not reach the chain"
-              : config.devStreamCreated
-                ? "released over 12 months, none early"
-                : "Tokens not locked yet"
-          }
-        />
-        <SpecCell
-          label="Unclaimed go to"
-          value="stakers"
-          tone="good"
-          note="never back to the team"
-        />
-        <SpecCell
-          label="Legacy holders have"
-          value={oldLeft ?? "—"}
-          tone={oldLeft ? "warn" : "unknown"}
-          note={oldLeft ? "left to claim" : "claim window not open yet"}
-        />
-        <SpecCell
-          label="Awaiting Claim"
-          value={chainReadable ? fmtAmount(vaultBalance, true) : "unread"}
-          tone={chainReadable ? "plain" : "unknown"}
-          note={chainReadable ? "sitting in the contract" : "could not reach the chain"}
-        />
+        <div className="l-spec-run">
+          {[0, 1].map((copy) => (
+            <Fragment key={copy}>
+              {specCells.map((cell, i) => (
+                <SpecCell key={`${copy}-${i}`} {...cell} ariaHidden={copy === 1} />
+              ))}
+            </Fragment>
+          ))}
+        </div>
       </div>
 
       {/* The first item tracks the chain rather than asserting a burn that has
@@ -325,7 +390,7 @@ export function Landing({
       <Section
         label="Allocation"
         title="Where the coins go"
-        intro="The supply is split four ways, and every split was fixed in the contract before anyone could claim anything."
+        intro="After the launch of this new coin, the original supply purchased by the team at launch was sent in its entirety to the smart contract. That supply was then split by the contract into the four allocation groups below, and each group has its own rules for how and when it can be claimed."
       >
         <Sub title="The four splits" />
         <div className="l-alloc">
@@ -352,7 +417,7 @@ export function Landing({
           <AllocRow
             who="Whoever signed that 2014 message"
             window="reserved until end of 2030"
-            body="Held in reserve, in case the original person ever shows up. They would prove it by signing with the same Bitcoin key — the contract checks the signature itself, so they need no permission from us — and it streams to them over 12 months. If they never appear, it streams to the community instead, on that same 12-month schedule."
+            body="Held in reserve, in case the original person ever shows up. They would prove it by signing with the same Bitcoin key — the contract checks the signature itself, so they need no permission from us — and it streams to them over 12 months. If they never appear, it streams to the staking community instead, on that same 12-month schedule."
             live={
               config
                 ? config.originalSignerClaimed
@@ -601,14 +666,17 @@ function SpecCell({
   value,
   tone,
   note,
+  ariaHidden,
 }: {
   label: string;
   value: string;
-  tone: "good" | "warn" | "bad" | "unknown" | "plain";
+  tone: SpecTone;
   note: string;
+  /** The marquee renders every cell twice; the copy must not be read aloud. */
+  ariaHidden?: boolean;
 }) {
   return (
-    <div className="l-spec-cell">
+    <div className="l-spec-cell" aria-hidden={ariaHidden || undefined}>
       <span className="l-micro">{label}</span>
       <span className={`l-spec-value l-tone-${tone}`}>{value}</span>
       <span className="l-spec-note">{note}</span>
