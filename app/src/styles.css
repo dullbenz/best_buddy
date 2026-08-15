@@ -940,13 +940,24 @@ footer {
   color: var(--text);
 }
 
-/* A stat worth looking at twice: uncredited funds, an unlocked config. */
+/* A stat worth looking at twice: uncredited funds waiting to be pushed in. */
 .stat-emphasis {
   border: 1px solid var(--accent);
 }
 
 .stat-emphasis .stat-value {
   color: var(--accent);
+}
+
+/* A stat that is not safe yet — rules still editable, tokens not locked.
+   Deliberately a different colour from the one above: "there is something to
+   do here" and "this is not safe yet" must not look the same. */
+.stat-danger {
+  border: 1px solid var(--bad);
+}
+
+.stat-danger .stat-value {
+  color: var(--bad);
 }
 
 /* The 2014 evidence, styled like a receipt so it reads as source material
@@ -1612,6 +1623,12 @@ a.prov-value {
 
 .l-tone-warn {
   color: var(--accent);
+}
+
+/* Not amber. Amber is "look at this"; this is "this is not safe yet", and the
+   two must not share a colour on a page whose job is telling them apart. */
+.l-tone-bad {
+  color: var(--bad);
 }
 
 .l-tone-check {

@@ -80,8 +80,8 @@ export function Dashboard() {
           <div className="split-half">
             <div className="split-head">
               <h3>The Token Creator</h3>
-              <span className="badge">
-                {config.devStreamCreated ? "streaming" : "not started"}
+              <span className={config.devStreamCreated ? "badge pass" : "badge fail"}>
+                {config.devStreamCreated ? "locked up" : "not locked yet"}
               </span>
             </div>
 
@@ -159,7 +159,7 @@ export function Dashboard() {
           <Stat label="Unclaimed" value={fmtAmount(oldRemaining, true)} />
           <Stat
             label={oldLeft ? "Closes in" : "Window"}
-            value={oldLeft ?? (config.oldHolderSwept ? "swept" : "closed")}
+            value={oldLeft ?? (config.oldHolderSwept ? "gone to stakers" : "closed")}
           />
         </div>
         <Progress
@@ -180,7 +180,7 @@ export function Dashboard() {
           <Stat label="Forfeited so far" value={config.influencerSwept ? fmtAmount(infRemaining, true) : "—"} />
           <Stat
             label={infLeft ? "Closes in" : "Window"}
-            value={infLeft ?? (config.influencerSwept ? "swept" : "closed")}
+            value={infLeft ?? (config.influencerSwept ? "gone to stakers" : "closed")}
           />
         </div>
         <Progress
@@ -200,9 +200,9 @@ export function Dashboard() {
           <Stat label="Tokens held" value={fmtAmount(vaultBalance, true)} />
           <Stat label="SOL held" value={`${fmtSol(solVaultBalance)} SOL`} />
           <Stat
-            label="Rules"
-            value={config.locked ? "LOCKED" : "still editable"}
-            emphasis={!config.locked}
+            label="Who can change the rules"
+            value={config.locked ? "nobody" : "the team, for now"}
+            danger={!config.locked}
           />
         </div>
         <p className="muted small">
@@ -236,13 +236,21 @@ function Stat({
   label,
   value,
   emphasis = false,
+  danger = false,
 }: {
   label: string;
   value: string;
+  /** Amber: worth a second look, e.g. funds waiting to be credited. */
   emphasis?: boolean;
+  /** Red: not safe yet. Never the same colour as merely noteworthy. */
+  danger?: boolean;
 }) {
   return (
-    <div className={emphasis ? "stat stat-emphasis" : "stat"}>
+    <div
+      className={
+        danger ? "stat stat-danger" : emphasis ? "stat stat-emphasis" : "stat"
+      }
+    >
       <span className="stat-value">{value}</span>
       <span className="stat-label">{label}</span>
     </div>

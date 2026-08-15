@@ -54,17 +54,19 @@ export function Landing({
     ? config.rewardMint?.toBase58?.() ?? null
     : null;
 
-  // Phrased as the answer to "can the code change", because that is the only
-  // thing a reader actually needs from it. "held" and "none" described the
-  // state of the upgrade authority — accurate, and meaningless to anyone who
-  // has not already been told what an upgrade authority is.
+  // Names who holds the power, and the note says what they can do with it.
+  // "changeable" described a property of the contract and left the reader to
+  // work out who could exercise it and whether that was bad; "creator", in
+  // red, answers both before anyone has to think about it. Red rather than
+  // amber on purpose: until the burn, one person can replace every rule on
+  // this page, and that is not a caution, it is the thing at stake.
   const authorityCell = upgrade.loading
-    ? { v: "reading", t: "unknown" as const }
+    ? { v: "reading…", t: "unknown" as const, note: "checking the chain" }
     : upgrade.error || upgrade.immutable === null
-    ? { v: "unread", t: "unknown" as const }
+    ? { v: "unread", t: "unknown" as const, note: "could not reach the chain" }
     : upgrade.immutable
-    ? { v: "permanent", t: "good" as const }
-    : { v: "changeable", t: "warn" as const };
+    ? { v: "none", t: "good" as const, note: "nobody can change the contract" }
+    : { v: "creator", t: "bad" as const, note: "can still rewrite the rules" };
 
   return (
     <div className="landing">
@@ -104,45 +106,60 @@ export function Landing({
       {/* ---- the spec strip ------------------------------------------ */}
       <div className="l-spec">
         <SpecCell
-          label="Upgrade authority"
+          label="Who can change the contract"
           value={authorityCell.v}
           tone={authorityCell.t}
-          note="the contract's code"
+          note={authorityCell.note}
         />
+        {/* "pending" was the worst label on the page: it read as a harmless
+            in-progress state when it means the creator's tokens are *not* in
+            the lock yet, which is the one thing this cell exists to rule
+            out. */}
         <SpecCell
           label="Creator's tokens"
           value={
-            !chainReadable ? "unread" : config.devStreamCreated ? "locked" : "pending"
+            !chainReadable
+              ? "unread"
+              : config.devStreamCreated
+                ? "locked up"
+                : "not locked"
           }
           tone={
-            !chainReadable ? "unknown" : config.devStreamCreated ? "good" : "warn"
+            !chainReadable ? "unknown" : config.devStreamCreated ? "good" : "bad"
           }
-          note="12-month drip"
+          note={
+            !chainReadable
+              ? "could not reach the chain"
+              : config.devStreamCreated
+                ? "released over 12 months, none early"
+                : "the lock has not been set up yet"
+          }
         />
         <SpecCell
-          label="Unclaimed goes to"
+          label="Unclaimed tokens go to"
           value="stakers"
           tone="good"
-          note="never to the team"
+          note="never back to the team"
         />
         <SpecCell
-          label="Claim window"
+          label="Legacy holders have"
           value={oldLeft ?? "—"}
           tone={oldLeft ? "warn" : "unknown"}
-          note="Legacy Buddy holders"
+          note={oldLeft ? "left to claim" : "claim window not open yet"}
         />
         <SpecCell
-          label="In the vault"
+          label="Waiting to be claimed"
           value={chainReadable ? fmtAmount(vaultBalance, true) : "unread"}
           tone={chainReadable ? "plain" : "unknown"}
-          note="held"
+          note={chainReadable ? "sitting in the contract, not a wallet" : "could not reach the chain"}
         />
       </div>
 
       {/* The first item tracks the chain rather than asserting a burn that has
-          not happened. The spec cell directly above reads "held" until launch
-          day, and a ticker claiming "immutable program" beside it would be the
-          page contradicting itself in the reader's eye-line. */}
+          not happened. The cell above says the creator can still rewrite the
+          rules until launch day, and a ticker claiming "immutable program"
+          beside it would be the page contradicting itself in the reader's
+          eye-line. */}
       <div className="l-ticker" aria-hidden="true">
         <div className="l-ticker-run">
           {Array.from({ length: 2 }, (_, i) => (
@@ -545,7 +562,7 @@ function SpecCell({
 }: {
   label: string;
   value: string;
-  tone: "good" | "warn" | "unknown" | "plain";
+  tone: "good" | "warn" | "bad" | "unknown" | "plain";
   note: string;
 }) {
   return (
