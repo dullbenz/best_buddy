@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   LEGACY_TOKEN,
+  ORIGINAL_MESSAGE,
   ORIGINAL_SIGNER_DEADLINE,
   PROGRAM_ID,
   SEEDS,
+  btcTxUrl,
   pda,
 } from "../config";
 import { countdown, fmtAmount, fmtTokens } from "../format";
@@ -106,7 +108,7 @@ export function Landing({
       {/* ---- the spec strip ------------------------------------------ */}
       <div className="l-spec">
         <SpecCell
-          label="Who can change the contract"
+          label="Upgrade authority"
           value={authorityCell.v}
           tone={authorityCell.t}
           note={authorityCell.note}
@@ -132,11 +134,11 @@ export function Landing({
               ? "could not reach the chain"
               : config.devStreamCreated
                 ? "released over 12 months, none early"
-                : "the lock has not been set up yet"
+                : "Tokens not locked yet"
           }
         />
         <SpecCell
-          label="Unclaimed tokens go to"
+          label="Unclaimed go to"
           value="stakers"
           tone="good"
           note="never back to the team"
@@ -148,10 +150,10 @@ export function Landing({
           note={oldLeft ? "left to claim" : "claim window not open yet"}
         />
         <SpecCell
-          label="Waiting to be claimed"
+          label="Awaiting Claim"
           value={chainReadable ? fmtAmount(vaultBalance, true) : "unread"}
           tone={chainReadable ? "plain" : "unknown"}
-          note={chainReadable ? "sitting in the contract, not a wallet" : "could not reach the chain"}
+          note={chainReadable ? "sitting in the contract" : "could not reach the chain"}
         />
       </div>
 
@@ -177,10 +179,28 @@ export function Landing({
       {/* ---- provenance ------------------------------------------ */}
       <Section label="Provenance" title="How it got here">
         <ol className="l-index">
+          {/* The message itself, not a description of it. This row is the
+              origin of the name and the one fact on the page that predates
+              everyone involved — paraphrasing it while the real thing sits
+              one link away was leaving the best evidence off the page. */}
           <IndexRow
             when="2014"
             title="Someone wrote a message onto the Bitcoin blockchain."
-            body="It is still there, permanently, and it is where the name comes from. Whoever did it has never been identified."
+            body={
+              <>
+                <q className="l-quote">{ORIGINAL_MESSAGE.message}</q> — still
+                there, permanently, in block{" "}
+                {ORIGINAL_MESSAGE.block.toLocaleString()}, and it is where the
+                name comes from.{" "}
+                <a
+                  href={btcTxUrl(ORIGINAL_MESSAGE.txid)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Read it on the blockchain <span aria-hidden="true">&#8599;</span>
+                </a>
+              </>
+            }
           />
           <IndexRow
             when="A decade later"
@@ -190,7 +210,7 @@ export function Landing({
           <IndexRow
             when="Then"
             title="Its creator sold his entire holding and walked away."
-            body="The price collapsed. Worse, every trade people made afterwards still paid him a fee, so there was no way for the community to take it over without funding the person who had just left."
+            body="The price collapsed. Worse, every trade people made afterwards still paid him a fee."
           />
           <IndexRow
             when="Now"
@@ -582,7 +602,7 @@ function IndexRow({
 }: {
   when: string;
   title: string;
-  body: string;
+  body: ReactNode;
   current?: boolean;
 }) {
   return (

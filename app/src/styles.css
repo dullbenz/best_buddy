@@ -1749,6 +1749,17 @@ a.prov-value {
   }
 }
 
+/* The 2014 message, set as the quotation it is. Italic and in the display
+   face so it reads as the artefact being quoted rather than as more of the
+   surrounding prose. */
+.l-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05em;
+  color: var(--text);
+  quotes: "\201C" "\201D";
+}
+
 .l-index-when {
   font-family: var(--mono);
   font-size: 10.5px;
