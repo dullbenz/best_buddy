@@ -32,7 +32,11 @@ import { TokenHandover } from "./TokenHandover";
  * Proof is never the opening move, and a claim is never rendered in a tense the
  * chain does not currently support.
  */
-export function Landing({ go }: { go: (tab: string) => void }) {
+export function Landing({
+  go,
+}: {
+  go: (tab: string, section?: string) => void;
+}) {
   const { config, pool, vaultBalance, loading, error } = useDistributor();
   const upgrade = useUpgradeAuthority();
 
@@ -83,7 +87,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
         </p>
 
         <div className="l-actions">
-          <button className="l-btn l-btn-solid" onClick={() => go("claims")}>
+          <button className="l-btn l-btn-solid" onClick={() => go("claims", "overview")}>
             See if you can claim <span aria-hidden="true">→</span>
           </button>
           <button className="l-btn" onClick={() => go("verify")}>
@@ -236,7 +240,7 @@ export function Landing({ go }: { go: (tab: string) => void }) {
             note="Claimed tokens arrive instantly and are yours — sell them the same minute if you want."
             clock={oldLeft ? `${oldLeft} left` : null}
             cta="Check my wallet"
-            onClick={() => go("claims")}
+            onClick={() => go("claims", "overview")}
             primary
           />
           <Route
