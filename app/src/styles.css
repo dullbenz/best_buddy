@@ -672,6 +672,14 @@ main {
   letter-spacing: -0.01em;
 }
 
+/* A number that changes every second. Tabular figures so the digits do not
+   jitter sideways as they tick, and a slightly smaller size because it carries
+   full precision rather than a rounded headline. */
+.stat-value.stat-live {
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+}
+
 .stat-label {
   color: var(--muted);
   font-size: 12px;
@@ -916,6 +924,13 @@ footer {
 
 .note strong {
   color: var(--text);
+}
+
+/* A lookup that found nothing, in the same frame as one that found something.
+   As muted body text it read as an error or a loading state, when it is a
+   complete answer and deserves the same standing as the positive one. */
+.note-miss {
+  border-left-color: var(--muted);
 }
 
 .note-cta {

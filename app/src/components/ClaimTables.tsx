@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { TOKEN_SYMBOL, solscanAccount } from "../config";
 import { fmtDate, fmtTokens, shortAddress } from "../format";
 import type { LedgerRow } from "../useClaimData";
@@ -35,7 +35,13 @@ function pct(part: bigint, whole: bigint): number {
   return Number((part * 10000n) / whole) / 100;
 }
 
-export function ClaimTables({
+/**
+ * Memoised because the page above it now ticks once a second to keep the
+ * stream figure live. None of this table's inputs change on that tick — the
+ * ledger object is itself memoised — so without this it would re-render
+ * twenty-five rows every second to produce identical output.
+ */
+export const ClaimTables = memo(function ClaimTables({
   legacy,
   influencers,
   loading,
@@ -234,4 +240,4 @@ export function ClaimTables({
       )}
     </section>
   );
-}
+});

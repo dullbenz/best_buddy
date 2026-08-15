@@ -64,9 +64,9 @@ export function App() {
    * by the time we hear about it — pushing again there would append a new
    * entry and make Back a no-op that needs pressing twice.
    */
-  const setTab = (next: Tab, fromPopstate = false) => {
+  const setTab = (next: Tab, section?: string) => {
     setTabState(next);
-    if (!fromPopstate) pushRoute(next);
+    pushRoute(next, section);
   };
 
   useEffect(() => {
@@ -201,7 +201,9 @@ export function App() {
       </nav>
 
       <main>
-        {tab === "home" && <Landing go={(t) => setTab(t as Tab)} />}
+        {tab === "home" && (
+          <Landing go={(t, section) => setTab(t as Tab, section)} />
+        )}
         {tab === "dashboard" && <Dashboard />}
         {tab === "claims" && <Claims />}
         {tab === "staking" && <Staking />}

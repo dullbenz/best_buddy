@@ -111,7 +111,11 @@ export function Claims() {
     // still take them to wherever they actually came from.
     replaceRoute("claims", pick);
   }, [address, oldProofs, infProofs]);
-  const now = Date.now() / 1000;
+  // A stream releases continuously, so a figure computed once at load is
+  // already stale by the time it is read. Everything time-derived on this page
+  // hangs off this clock, which advances on its own — the countdowns and the
+  // available balance both move without a refresh.
+  const now = useClock();
   const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
   const infLeft = config ? countdown(Number(config.influencerDeadline), now) : null;
 
@@ -820,11 +824,20 @@ function AddressLookup({
       )}
 
       {result?.kind === "none" && (
-        <p className="muted small">
-          <span className="mono">{result.address}</span> is not on either list.
-          It held no Buddy at the snapshot moment, it is not an influencer, or
-          it was excluded — and every exclusion is published with its reason.
-        </p>
+        <div className="note note-miss">
+          <span className="mono small">{result.address}</span>
+          <div className="lookup-hits">
+            <div>
+              <strong>Nothing to claim.</strong> This address is on neither
+              list.
+            </div>
+          </div>
+          <div className="note-cta">
+            It held no $Buddy at the snapshot moment, it is not an influencer,
+            or it was excluded — and every exclusion is published with its
+            reason, so you can settle which.
+          </div>
+        </div>
       )}
 
       {result?.kind === "found" && (
@@ -1051,10 +1064,10 @@ function StreamPage({
           <span className="stat-label">Withdrawn · {releasedPct.toFixed(1)}%</span>
         </div>
         <div className="stat stat-emphasis">
-          <span className="stat-value">
-            {fmtAmount(BigInt(Math.floor(withdrawable)), true)}
+          <span className="stat-value stat-live">
+            {fmtAmount(BigInt(Math.floor(withdrawable)))}
           </span>
-          <span className="stat-label">Available right now</span>
+          <span className="stat-label">Available right now · updating live</span>
         </div>
       </div>
 
@@ -1170,4 +1183,22 @@ function StreamShortcut({
       </span>
     </button>
   );
+}
+
+/**
+ * A clock that ticks, for values that change with time rather than with data.
+ *
+ * Streams vest per second. Reading `Date.now()` during render gives a number
+ * that is correct at first paint and wrong from then until something unrelated
+ * happens to re-render — which is why the available balance only moved on a
+ * manual refresh. Nothing here touches the network: the chain already told us
+ * the start, end and total, so the rest is arithmetic the browser can do.
+ */
+function useClock(intervalMs = 1000): number {
+  const [now, setNow] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now() / 1000), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
 }
