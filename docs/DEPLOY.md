@@ -296,11 +296,17 @@ transactions: `initialize`, `fund_vault`, `lock_config`.
 ### 2.5 Create the dev stream
 
 ```bash
-RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> CLIFF_DAYS=30 npx ts-node scripts/create-dev-stream.ts
+RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> npx ts-node scripts/create-dev-stream.ts
 ```
 
-Anyone can call this; it can only produce the terms fixed at init. Do it
-immediately so the dev wallet is visibly empty from the first block.
+Anyone can call this, and it can only produce the terms fixed at init: the
+wallet, the allocation, the 12-month duration and the cliff all come from the
+config, which `lock_config` already froze. There is no cliff argument, so the
+caller cannot choose the team's vesting schedule by getting here first. Set the
+cliff with `DEV_CLIFF_DAYS` on `deploy-init.ts` in §2.4, where it is still open
+to inspection against your published document.
+
+Run it immediately so the dev wallet is visibly empty from the first block.
 
 ### 2.5a Set the pump.fun fee split — irreversible, so do it before the burn
 

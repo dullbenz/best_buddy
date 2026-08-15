@@ -291,7 +291,7 @@ async function main() {
   heading("create_dev_stream: the dev wallet ends up holding nothing");
 
   await program.methods
-    .createDevStream(new BN(30 * 86400))
+    .createDevStream()
     .accountsPartial({
       payer: payer.publicKey,
       config: configPda,

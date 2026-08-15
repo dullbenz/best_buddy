@@ -44,6 +44,14 @@ pub struct Config {
     // ---- Bucket 4b: the new dev (streams automatically, no claim step) ----
     pub dev_wallet: Pubkey,
     pub dev_allocation: u64,
+    /// Seconds after `claims_start` before the dev stream releases anything.
+    ///
+    /// Fixed here, at init, rather than passed to `create_dev_stream`. That
+    /// instruction is permissionless by design, so that the team cannot
+    /// withhold their own lockup; if it also took the cliff as an argument,
+    /// the first caller would choose the team's vesting terms, and the whole
+    /// point of the lockup would rest on winning a race.
+    pub dev_cliff_seconds: i64,
     pub dev_stream_created: bool,
 
     pub bump: u8,

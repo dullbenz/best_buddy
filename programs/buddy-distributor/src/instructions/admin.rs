@@ -122,8 +122,20 @@ pub fn initialize(ctx: Context<Initialize>, params: InitializeParams) -> Result<
     config.original_signer_claimed = false;
     config.original_signer_swept = false;
 
+    // Bounded here because this is the only moment the value is still open to
+    // inspection: the published document can be checked against the config
+    // before `lock_config` freezes it. A cliff past the end of the stream
+    // would read as a lockup while actually withholding everything until it
+    // passed, since `vested` returns zero before the cliff regardless of how
+    // much time has elapsed.
+    require!(
+        params.dev_cliff_seconds >= 0 && params.dev_cliff_seconds <= FOUNDER_STREAM_DURATION,
+        DistributorError::InvalidCliff
+    );
+
     config.dev_wallet = params.dev_wallet;
     config.dev_allocation = params.dev_allocation;
+    config.dev_cliff_seconds = params.dev_cliff_seconds;
     config.dev_stream_created = false;
 
     config.bump = ctx.bumps.config;
@@ -314,7 +326,7 @@ pub struct CreateDevStream<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn create_dev_stream(ctx: Context<CreateDevStream>, cliff_seconds: i64) -> Result<()> {
+pub fn create_dev_stream(ctx: Context<CreateDevStream>) -> Result<()> {
     let config = &mut ctx.accounts.config;
     config.assert_locked()?;
     require!(
@@ -329,7 +341,7 @@ pub fn create_dev_stream(ctx: Context<CreateDevStream>, cliff_seconds: i64) -> R
     stream.withdrawn = 0;
     stream.start = start;
     stream.cliff = start
-        .checked_add(cliff_seconds.max(0))
+        .checked_add(config.dev_cliff_seconds)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
     stream.end = start
         .checked_add(FOUNDER_STREAM_DURATION)

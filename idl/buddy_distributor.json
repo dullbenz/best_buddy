@@ -1,5 +1,5 @@
 {
-  "address": "6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b",
+  "address": "7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP",
   "metadata": {
     "name": "buddy_distributor",
     "version": "0.1.0",
@@ -544,12 +544,7 @@
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": [
-        {
-          "name": "cliff_seconds",
-          "type": "i64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "emergency_exit",
@@ -2405,6 +2400,11 @@
       "code": 6024,
       "name": "InvalidWsolAccount",
       "msg": "Account is not a wrapped-SOL token account owned by the SOL vault"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidCliff",
+      "msg": "Dev cliff must be between zero and the stream duration"
     }
   ],
   "types": [
@@ -2609,6 +2609,19 @@
           {
             "name": "dev_allocation",
             "type": "u64"
+          },
+          {
+            "name": "dev_cliff_seconds",
+            "docs": [
+              "Seconds after `claims_start` before the dev stream releases anything.",
+              "",
+              "Fixed here, at init, rather than passed to `create_dev_stream`. That",
+              "instruction is permissionless by design, so that the team cannot",
+              "withhold their own lockup; if it also took the cliff as an argument,",
+              "the first caller would choose the team's vesting terms, and the whole",
+              "point of the lockup would rest on winning a race."
+            ],
+            "type": "i64"
           },
           {
             "name": "dev_stream_created",

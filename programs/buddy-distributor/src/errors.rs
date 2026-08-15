@@ -52,4 +52,7 @@ pub enum DistributorError {
     MessageTooLong,
     #[msg("Account is not a wrapped-SOL token account owned by the SOL vault")]
     InvalidWsolAccount,
+
+    #[msg("Dev cliff must be between zero and the stream duration")]
+    InvalidCliff,
 }

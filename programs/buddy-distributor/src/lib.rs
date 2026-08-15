@@ -31,7 +31,7 @@ pub mod utils;
 
 use instructions::*;
 
-declare_id!("6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b");
+declare_id!("7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP");
 
 // NOTE: builds emit one warning here, because anchor-lang 0.31.1 calls the
 // deprecated `AccountInfo::realloc` inside this macro's expansion. It is left
@@ -62,8 +62,8 @@ pub mod buddy_distributor {
         instructions::admin::lock_config(ctx)
     }
 
-    pub fn create_dev_stream(ctx: Context<CreateDevStream>, cliff_seconds: i64) -> Result<()> {
-        instructions::admin::create_dev_stream(ctx, cliff_seconds)
+    pub fn create_dev_stream(ctx: Context<CreateDevStream>) -> Result<()> {
+        instructions::admin::create_dev_stream(ctx)
     }
 
     // ---- bucket 1: staking ----

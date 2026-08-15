@@ -660,10 +660,91 @@ describe("buddy-distributor", () => {
 
   // -----------------------------------------------------------------------
   describe("bucket 4: founders", () => {
+    it("gives a stranger the cliff fixed at init, not one of their choosing", async () => {
+      // `create_dev_stream` is permissionless so the team cannot withhold
+      // their own lockup. That is only safe while the terms are not the
+      // caller's to pick. The cliff used to be an argument, which meant the
+      // first caller in the gap between lock_config and this instruction
+      // chose the team's vesting schedule, permanently and for everyone.
+      const b = await bootstrap();
+      const stranger = Keypair.generate();
+      await fundSol(b.env, stranger.publicKey, LAMPORTS_PER_SOL);
+
+      await b.env.program.methods
+        .createDevStream()
+        .accountsPartial({
+          payer: stranger.publicKey,
+          config: b.env.configPda,
+          stream: streamPda(b.devWallet.publicKey, b.env.programId),
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([stranger])
+        .rpc();
+
+      const config = await (b.env.program.account as any).config.fetch(b.env.configPda);
+      const stream = await (b.env.program.account as any).stream.fetch(
+        streamPda(b.devWallet.publicKey, b.env.programId)
+      );
+      assert.equal(
+        Number(stream.cliff) - Number(stream.start),
+        Number(config.devCliffSeconds),
+        "the cliff comes from the config, whoever paid for the account"
+      );
+      assert.equal(Number(config.devCliffSeconds), 30 * DAY);
+      assert.equal(Number(stream.end) - Number(stream.start), 365 * DAY);
+    });
+
+    it("refuses a cliff longer than the stream itself", async () => {
+      // A cliff past the end date would read as a lockup while withholding
+      // everything until it passed, since `vested` returns zero before the
+      // cliff no matter how much of the schedule has elapsed.
+      const env = await setupEnv();
+      await warpTo(env.context, BASE_TS);
+      const btcKey = makeBitcoinKey();
+      const init = (cliffSeconds: number) =>
+        env.program.methods
+          .initialize({
+            oldHolderRoot: Array(32).fill(0),
+            oldHolderAllocation: new BN(0),
+            influencerRoot: Array(32).fill(0),
+            influencerAllocation: new BN(0),
+            originalSignerPubkey: Array.from(btcKey.publicKeyXY),
+            originalSignerAllocation: new BN(0),
+            devWallet: Keypair.generate().publicKey,
+            devAllocation: new BN(DEV_ALLOC.toString()),
+            devCliffSeconds: new BN(cliffSeconds),
+            claimsStart: new BN(BASE_TS),
+          })
+          .accountsPartial({
+            payer: env.payer.publicKey,
+            authority: env.authority.publicKey,
+            rewardMint: env.mint,
+            config: env.configPda,
+            pool: env.poolPda,
+            vault: env.vaultPda,
+            solVault: env.solVaultPda,
+            systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .signers([env.payer])
+          .rpc();
+
+      await expectFailure(init(366 * DAY), "InvalidCliff");
+      await expectFailure(init(-1), "InvalidCliff");
+
+      // The boundary is allowed: a cliff exactly as long as the stream means
+      // the whole allocation lands in one go at the end, which is strictly
+      // harsher on the team than dripping and is theirs to choose.
+      await init(365 * DAY);
+      const config = await (env.program.account as any).config.fetch(env.configPda);
+      assert.equal(Number(config.devCliffSeconds), 365 * DAY);
+    });
+
     it("honours the dev cliff, then streams over 12 months", async () => {
       const b = await bootstrap();
       await b.env.program.methods
-        .createDevStream(new BN(30 * DAY))
+        .createDevStream()
         .accountsPartial({
           payer: b.env.payer.publicKey,
           config: b.env.configPda,

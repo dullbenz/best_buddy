@@ -40,7 +40,7 @@ This file is your contract's identity. It lives in `target/`, a build folder
 that `anchor clean` wipes without asking. Put a copy in a password manager or
 an encrypted drive. Never in Git, never in Google Drive, never in a chat.
 
-Current program ID: `6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b`
+Current program ID: `7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP`
 
 > **This is a devnet identity, not the launch one.** The roots a claim is
 > checked against can only be set at `initialize`, and only once, so putting
@@ -135,7 +135,7 @@ Set these in **Settings → Secrets and variables → Actions**:
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | the service-account JSON |
 | Variable | `FIREBASE_PROJECT_ID` | your Firebase project ID |
 | Variable | `VITE_RPC_URL` | your Helius RPC URL |
-| Variable | `VITE_PROGRAM_ID` | `6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b` |
+| Variable | `VITE_PROGRAM_ID` | `7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP` |
 | Secret | `STAGING_PASSWORD` | the staging basic-auth password |
 | Variable | `STAGING_RPC_URL` | a devnet RPC endpoint |
 
@@ -204,7 +204,7 @@ Full guide, including how to re-run it: [docs/DEVNET-REHEARSAL.md](docs/DEVNET-R
 Locally:
 
 ```bash
-cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b npm run dev
+cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP npm run dev
 ```
 
 Or push to `develop` and use `staging.mybestbuddy.fun`, which is the same build
@@ -405,10 +405,12 @@ Read every number against your published document. Then re-run with `EXECUTE=1`.
 ### 4.5 Create the dev stream
 
 ```bash
-RPC_URL=<rpc> KEYPAIR=<your-keypair.json> CLIFF_DAYS=30 npx ts-node scripts/create-dev-stream.ts
+RPC_URL=<rpc> KEYPAIR=<your-keypair.json> npx ts-node scripts/create-dev-stream.ts
 ```
 
-Your wallet is now visibly empty of allocation.
+No cliff argument here: it was fixed at init with `DEV_CLIFF_DAYS` and frozen by
+the lock, so anyone can run this and the terms come out the same. Your wallet is
+now visibly empty of allocation.
 
 ### 4.6 Set the fee split — the other irreversible step
 
@@ -439,7 +441,7 @@ becomes the eighth check on the Verify page.
 **Point of no return. Do the checks first.**
 
 ```bash
-solana program show 6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b
+solana program show 7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP
 ```
 
 Confirm, one by one:
@@ -456,11 +458,11 @@ Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
 
 ```bash
-solana program set-upgrade-authority 6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b --final
+solana program set-upgrade-authority 7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP --final
 ```
 
 ```bash
-solana program show 6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b
+solana program show 7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP
 ```
 
 `Authority` must read **`none`**. Save that transaction signature — it leads the
