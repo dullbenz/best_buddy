@@ -184,7 +184,7 @@ export function Landing({
         <p className="l-lede">
           <span className="accented italicized">$BUDDY</span> is the rebirth of an existing
           memecoin by the same ticker. The last one was dumped and abandoned by the dev
-          — they sold everything into the community.
+          They sold everything into the community.
           This is the rebirth, and the only real
           difference is this: the promises are written in code (smart contracts) that no one can
           edit later, instead of posts that can be deleted.
@@ -253,7 +253,7 @@ export function Landing({
             title="Someone wrote a message onto the Bitcoin blockchain."
             body={
               <>
-                <q className="l-quote">{ORIGINAL_MESSAGE.message}</q> — still
+                <q className="l-quote">{ORIGINAL_MESSAGE.message}</q>. Still
                 there, permanently, in block{" "}
                 {ORIGINAL_MESSAGE.block.toLocaleString()}, and it is where the
                 name comes from.{" "}
@@ -270,7 +270,7 @@ export function Landing({
           <IndexRow
             when="A decade later"
             title="That message became a memecoin."
-            body="A good story with a real date behind it — the kind you cannot invent. Thousands of people bought in."
+            body="A good story with a real date behind it, the kind you cannot invent. Thousands of people bought in."
           />
           <IndexRow
             when="Then"
@@ -280,7 +280,7 @@ export function Landing({
           <IndexRow
             when="Now"
             title="A new coin, same story, different plumbing."
-            body="People who held the old one get a share of this one for free. And the things a creator would need in order to do that again have been removed — not promised away, removed."
+            body="People who held the old one get a share of this one for free. And the things a creator would need in order to do that again have been removed. Not promised away, removed."
             current
           />
         </ol>
@@ -370,7 +370,7 @@ export function Landing({
           <Route
             glyph="stake"
             title="I want to earn from this coin"
-            body="Staking means locking your tokens into the contract. While they sit there you earn a share of everything the project takes in — trading fees from pump.fun, plus every allocation nobody else claimed. Longer locks earn a bigger share, up to five times."
+            body="Staking means locking your tokens into the contract. While they sit there you earn a share of everything the project takes in: trading fees from pump.fun, plus every allocation nobody else claimed. Longer locks earn a bigger share, up to five times."
             note="Breaking a lock early costs the whole bonus plus 15% of your stake, and it goes to the stakers who stayed. There is also a no-lock option with no penalty at all, where leaving takes three days from the day you ask."
             cta="See the staking terms"
             onClick={() => go("staking")}
@@ -379,7 +379,7 @@ export function Landing({
             glyph="verify"
             title="I've been burned before and I don't trust any of this"
             body="Correct instinct, and this site is built for it. Every claim made here is something you can confirm yourself against the blockchain, with commands you can copy and run. You do not have to take our word for a single thing."
-            note="If you can read code, please check ours and say publicly what you find — including if it's bad."
+            note="If you can read code, please check ours and say publicly what you find, including if it's bad."
             cta="Show me how to check"
             onClick={() => go("verify")}
           />
@@ -417,11 +417,11 @@ export function Landing({
           <AllocRow
             who="Whoever signed that 2014 message"
             window="reserved until end of 2030"
-            body="Held in reserve, in case the original person ever shows up. They would prove it by signing with the same Bitcoin key — the contract checks the signature itself, so they need no permission from us — and it streams to them over 12 months. If they never appear, it streams to the staking community instead, on that same 12-month schedule."
+            body="Held in reserve, in case the original person ever shows up. They would prove it by signing with the same Bitcoin key. The contract checks the signature itself, so they need no permission from us, and it streams to them over 12 months. If they never appear, it streams to the staking community instead, on that same 12-month schedule."
             live={
               config
                 ? config.originalSignerClaimed
-                  ? "claimed — the original signer came back"
+                  ? "claimed, the original signer came back"
                   : `${fmtAmount(config.originalSignerAllocation, true)} still waiting`
                 : null
             }
@@ -452,7 +452,7 @@ export function Landing({
           blurb="Every deadline above has the same consequence when it passes."
         />
         <Figure
-          caption="Unclaimed allocations, forfeited staking escrow, trading fees and donations all end in the same place. There is no path back to the team — the contract has no instruction that would allow one."
+          caption="Unclaimed allocations, forfeited staking escrow, trading fees and donations all end in the same place. There is no path back to the team, because the contract has no instruction that would allow one."
         >
           <BucketFlowDiagram />
         </Figure>
@@ -466,7 +466,7 @@ export function Landing({
             Influencers who never turn up. Legacy Buddy holders who never come back. The
             2014 reserve if nobody ever proves it. Tokens given up by people who
             break a staking lock early. All of it goes to the same place, and
-            none of it can come back to the team — there is no instruction in the
+            none of it can come back to the team. There is no instruction in the
             contract that would let it.
           </p>
           {pool && (
@@ -492,10 +492,10 @@ export function Landing({
             upgrade.loading
               ? "Checking…"
               : upgrade.error || upgrade.immutable === null
-              ? "Couldn't read it — check yourself"
+              ? "Couldn't read it, check yourself"
               : upgrade.immutable
-              ? "No — the code is permanent"
-              : "Not yet — happens at launch"
+              ? "No, the code is permanent"
+              : "Not yet, happens at launch"
           }
           tone={
             upgrade.loading || upgrade.error || upgrade.immutable === null
@@ -508,7 +508,7 @@ export function Landing({
             <>
               On Solana, whoever launches a contract can normally replace its
               code afterwards. That means every rule it contains can be quietly
-              rewritten — which is why "our contract is locked" is close to
+              rewritten, which is why "our contract is locked" is close to
               meaningless on its own. That power gets permanently destroyed here,
               before the coin is announced to anybody.{" "}
               {upgrade.immutable === true ? (
@@ -522,7 +522,7 @@ export function Landing({
             </>
           }
           command={`solana program show ${PROGRAM_ID.toBase58()}`}
-          hint="Look at the line that says Authority. If it reads none, the code can never change again — not by us, not by anyone."
+          hint="Look at the line that says Authority. If it reads none, the code can never change again, not by us and not by anyone."
           figure={<AuthorityDiagram />}
           figureCaption="This is the check almost nobody performs, and it is the one that decides whether any other promise on this page is enforceable."
         />
@@ -531,9 +531,9 @@ export function Landing({
           question="Could the team dump a huge bag on everyone?"
           answer={
             !chainReadable
-              ? "Couldn't read it — check yourself"
+              ? "Couldn't read it, check yourself"
               : config.devStreamCreated
-              ? "No — locked for 12 months"
+              ? "No, locked for 12 months"
               : "Not set up yet"
           }
           tone={
@@ -542,7 +542,7 @@ export function Landing({
           plain={
             <>
               This is exactly how the last coin died. Here the builder's tokens
-              never touch a wallet they control — they sit in the contract and
+              never touch a wallet they control. They sit in the contract and
               come out a little each day for twelve months, after a waiting
               period at the start. Nobody can speed that up, including them.
             </>
@@ -563,7 +563,7 @@ export function Landing({
               The list of Legacy Buddy holders had to be worked out away from the
               blockchain, because a Solana contract cannot read who holds what.
               That is only worth anything if anyone else can repeat the exercise
-              and get an identical answer — so the full holder list is published,
+              and get an identical answer, so the full holder list is published,
               along with every address deliberately left out and the reason for
               each.
             </>
@@ -590,7 +590,7 @@ export function Landing({
           <IndexRow
             when="Trade-off"
             title="Permanent code can never be fixed either."
-            body="Making the contract unchangeable also means that if there is a mistake in it, nobody can repair it — not us, not anyone, ever. A full rehearsal on a test network and an independent security review were the only two chances to catch one. We chose that anyway, because a contract someone can rewrite is a contract you have to trust someone about, and this community has already been asked to do that once."
+            body="Making the contract unchangeable also means that if there is a mistake in it, nobody can repair it. Not us, not anyone, ever. A full rehearsal on a test network and an independent security review were the only two chances to catch one. We chose that anyway, because a contract someone can rewrite is a contract you have to trust someone about, and this community has already been asked to do that once."
           />
           <IndexRow
             when="Deadlines"
@@ -600,7 +600,7 @@ export function Landing({
           <IndexRow
             when="Us"
             title="We can't steal it, but we can lose interest."
-            body="The mechanism makes a rug impossible. It does not make us show up forever. That risk is real and we're not going to pretend otherwise — though the contract keeps running either way, and anyone at all can trigger the payouts, not just us."
+            body="The mechanism makes a rug impossible. It does not make us show up forever. That risk is real and we're not going to pretend otherwise, though the contract keeps running either way, and anyone at all can trigger the payouts, not just us."
           />
         </ol>
       </Section>

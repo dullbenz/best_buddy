@@ -162,7 +162,7 @@ export const ClaimTables = memo(function ClaimTables({
               return (
                 <tr key={r.address} className={mine ? "is-mine" : undefined}>
                   {which === "influencers" ? (
-                    <td>{r.handle ?? <span className="muted">—</span>}</td>
+                    <td>{r.handle ?? <span className="muted">n/a</span>}</td>
                   ) : null}
                   <td>
                     <a
@@ -179,7 +179,7 @@ export const ClaimTables = memo(function ClaimTables({
                   {which === "legacy" ? (
                     <td className="num">
                       {r.legacyBalance === null ? (
-                        <span className="muted">—</span>
+                        <span className="muted">n/a</span>
                       ) : (
                         fmtTokens(r.legacyBalance, true)
                       )}
@@ -200,7 +200,7 @@ export const ClaimTables = memo(function ClaimTables({
                   {which === "influencers" ? (
                     <td className="num">
                       {r.streamTotal === null || r.withdrawn === null ? (
-                        <span className="muted">—</span>
+                        <span className="muted">n/a</span>
                       ) : (
                         <>
                           {fmtTokens(r.withdrawn, true)}
@@ -235,7 +235,7 @@ export const ClaimTables = memo(function ClaimTables({
       {!loading && rows.length > 0 && filtered.length === 0 && (
         <p className="muted small">
           Nothing on this list matches “{query.trim()}”. Not being here is a
-          real answer — it means the contract has nothing recorded for it.
+          real answer: it means the contract has nothing recorded for it.
         </p>
       )}
     </section>

@@ -1,8 +1,18 @@
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
+import {
+  PublicKey,
+  SYSVAR_RENT_PUBKEY,
+  SystemProgram,
+  Transaction,
+} from "@solana/web3.js";
 import { useCallback, useEffect, useState } from "react";
-import { COMMUNITY_STREAM_KINDS, SEEDS, pda } from "../config";
-import { fmtAmount, fmtDate, fmtSol } from "../format";
+import {
+  COMMUNITY_STREAM_KINDS,
+  ORIGINAL_SIGNER_DEADLINE,
+  SEEDS,
+  pda,
+} from "../config";
+import { countdown, fmtAmount, fmtDate, fmtSol } from "../format";
 import {
   NATIVE_MINT,
   PendingFees,
@@ -102,7 +112,7 @@ export function FundPool() {
         Could not read the distributor{error ? `: ${error}` : ""}
         <div className="muted small">
           The program may not be deployed yet, or the RPC endpoint is
-          unreachable. Fees keep accruing at pump.fun regardless — nothing is
+          unreachable. Fees keep accruing at pump.fun regardless, so nothing is
           lost, it just cannot be moved from this page until the connection
           works.
         </div>
@@ -126,6 +136,52 @@ export function FundPool() {
     return vested > cs.released ? vested - cs.released : 0n;
   }
 
+  /**
+   * The three expiry sweeps, as buttons.
+   *
+   * They were CLI-only, which quietly undercut the claim the page makes about
+   * them: a rule that only the team can practically trigger is not a rule
+   * anyone can enforce. The contract already gates on the clock and not the
+   * caller, so the honest surface is a button that is dead until the deadline
+   * and live for anybody afterwards.
+   */
+  async function runSweep(bucket: "old" | "influencer" | "signer") {
+    if (!program || !publicKey) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const cfg = pda([SEEDS.config]);
+      let sig: string;
+      if (bucket === "old") {
+        sig = await program.methods
+          .sweepOldHolders()
+          .accountsPartial({ cranker: publicKey, config: cfg, pool: pda([SEEDS.pool]) })
+          .rpc();
+      } else {
+        const kind = bucket === "influencer" ? 0 : 1;
+        const method =
+          bucket === "influencer"
+            ? program.methods.sweepInfluencers()
+            : program.methods.sweepOriginalSigner();
+        sig = await method
+          .accountsPartial({
+            cranker: publicKey,
+            config: cfg,
+            communityStream: pda([SEEDS.communityStream, Buffer.from([kind])]),
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+      }
+      setStatus(`Swept. ${sig}`);
+      refresh();
+      load();
+    } catch (e: any) {
+      setStatus(`Failed: ${e?.message ?? String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function releaseStream(kind: number) {
     if (!program || !publicKey) return;
     setBusy(true);
@@ -139,7 +195,7 @@ export function FundPool() {
           communityStream: pda([SEEDS.communityStream, Buffer.from([kind])]),
         })
         .rpc();
-      setStatus(`Released — ${sig}`);
+      setStatus(`Released. ${sig}`);
       refresh();
       load();
     } catch (e: any) {
@@ -148,6 +204,46 @@ export function FundPool() {
       setBusy(false);
     }
   }
+
+  const sweeps: Array<{
+    id: "old" | "influencer" | "signer";
+    label: string;
+    left: string | null;
+    remaining: bigint;
+    done: boolean;
+    doneNote: string;
+  }> = [
+    {
+      id: "old",
+      label: "Legacy holder window",
+      left: countdown(Number(config.oldHolderDeadline)),
+      remaining:
+        BigInt(config.oldHolderAllocation.toString()) -
+        BigInt(config.oldHolderClaimed.toString()),
+      done: !!config.oldHolderSwept,
+      doneNote: "swept; the remainder went straight to stakers",
+    },
+    {
+      id: "influencer",
+      label: "Influencer window",
+      left: countdown(Number(config.influencerDeadline)),
+      remaining:
+        BigInt(config.influencerAllocation.toString()) -
+        BigInt(config.influencerClaimed.toString()),
+      done: !!config.influencerSwept,
+      doneNote: "swept; the remainder is streaming to stakers over 30 days",
+    },
+    {
+      id: "signer",
+      label: "2014 signer deadline",
+      left: countdown(ORIGINAL_SIGNER_DEADLINE),
+      remaining: BigInt(config.originalSignerAllocation.toString()),
+      done: !!config.originalSignerSwept || !!config.originalSignerClaimed,
+      doneNote: config.originalSignerClaimed
+        ? "claimed by the signer; nothing to sweep"
+        : "swept; streaming to stakers over 12 months",
+    },
+  ];
 
   async function run() {
     if (!program || !publicKey) return;
@@ -198,7 +294,7 @@ export function FundPool() {
       );
 
       const sig = await program.provider.sendAndConfirm!(tx);
-      setStatus(`Done — ${sig}`);
+      setStatus(`Done. ${sig}`);
       refresh();
       load();
     } catch (e: any) {
@@ -214,7 +310,7 @@ export function FundPool() {
         <h2>Credit the community pool</h2>
         <p className="muted">
           Every trade on this token pays a fee, and those fees are already the
-          community's — they accrue automatically to addresses the contract
+          community's. They accrue automatically to addresses the contract
           controls, and no wallet, including ours, can withdraw them anywhere
           else. That part needs nobody's help.
         </p>
@@ -225,7 +321,7 @@ export function FundPool() {
           the transaction that credits them to the stakers.
         </p>
         <p className="muted small">
-          <strong>That someone can be anybody — and that is the point.</strong>{" "}
+          <strong>That someone can be anybody, and that is the point.</strong>{" "}
           The instruction takes no admin key and pays whoever is staked, never
           whoever clicked. So the community never has to wait on us, and we
           could not divert or delay a single lamport if we tried. Press the
@@ -238,13 +334,13 @@ export function FundPool() {
         <div className="stat-row">
           <div className="stat">
             <span className="stat-value">
-              {pending ? `${fmtSol(pending.bondingCurve)} SOL` : "—"}
+              {pending ? `${fmtSol(pending.bondingCurve)} SOL` : "n/a"}
             </span>
             <span className="stat-label">Accrued at pump.fun</span>
           </div>
           <div className="stat">
             <span className="stat-value">
-              {pending ? `${fmtSol(pending.amm)} SOL` : "—"}
+              {pending ? `${fmtSol(pending.amm)} SOL` : "n/a"}
             </span>
             <span className="stat-label">Accrued at pump.fun (AMM)</span>
           </div>
@@ -260,8 +356,8 @@ export function FundPool() {
 
         {!publicKey ? (
           <p className="muted small">
-            Connect a wallet to sign it. You pay only the network fee — a fraction
-            of a cent — and none of the amounts below pass through your wallet.
+            Connect a wallet to sign it. You pay only the network fee, a fraction
+            of a cent, and none of the amounts below pass through your wallet.
           </p>
         ) : (
           <div className="button-row">
@@ -277,12 +373,55 @@ export function FundPool() {
         )}
       </section>
 
+      <section className="card">
+        <h2>Close an expired claim window</h2>
+        <p className="muted">
+          Each bucket has a deadline. Once it passes, whatever nobody claimed
+          belongs to the stakers, but a Solana program cannot act on its own,
+          so somebody has to say so. The contract checks the clock, never the
+          caller: before the deadline these fail for everyone including us,
+          and after it they work for anyone at all.
+        </p>
+        {sweeps.map((s) => (
+          <div className="file-row" key={s.id}>
+            <div className="file-meta">
+              <span className="file-name">{s.label}</span>
+              <span className="file-desc">
+                {s.done
+                  ? s.doneNote
+                  : s.left
+                    ? `${s.left} until the window closes`
+                    : `${fmtAmount(s.remaining, true)} unclaimed, ready to move`}
+              </span>
+            </div>
+            <div className="file-actions">
+              {s.done ? (
+                <span className="pill pill-done">done</span>
+              ) : (
+                <button
+                  className={s.left ? "" : "primary"}
+                  disabled={busy || !publicKey || !!s.left}
+                  title={
+                    s.left
+                      ? "The claim window is still open"
+                      : "Anyone can run this"
+                  }
+                  onClick={() => runSweep(s.id)}
+                >
+                  {s.left ? "Window still open" : "Sweep to the community"}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </section>
+
       {communityStreams.length > 0 && (
         <section className="card">
           <h2>Forfeits streaming back to the community</h2>
           <p className="muted">
             When a streamed allocation expires unclaimed, it comes back to the
-            stakers on the same schedule the claimant would have had — a
+            stakers on the same schedule the claimant would have had: a
             forfeited 30-day stream returns over 30 days, the signer's year
             over a year. What has vested sits here until somebody credits it,
             and that somebody can be anyone.
@@ -328,7 +467,7 @@ export function FundPool() {
             has graduated (<code>transfer_creator_fees_to_pump_v2</code>).
           </li>
           <li>
-            Pays out to the frozen shareholder list — 90% the community vault,
+            Pays out to the frozen shareholder list: 90% the community vault,
             10% the Token Creator (<code>distribute_creator_fees_v2</code>).
           </li>
           <li>
@@ -342,7 +481,7 @@ export function FundPool() {
           Steps 1 and 2 are pump.fun's own instructions, and their documentation
           states each is permissionless. Steps 3 and 4 are ours, and are open to
           anyone by design. If this interface ever breaks because pump.fun
-          changed something, only this page needs replacing — the distributor
+          changed something, only this page needs replacing. The distributor
           contract does not reference them at all.
         </p>
       </section>

@@ -42,7 +42,7 @@ export function Dashboard() {
   return (
     <div className="stack">
       <section className="card highlight">
-        <h2>Bucket 4 — the two founders</h2>
+        <h2>Bucket 4: the two founders</h2>
 
         <div className="split">
           <div className="split-half">
@@ -61,7 +61,7 @@ export function Dashboard() {
               <span className="value">{signerLeft ?? "expired"}</span>
               <span className="label">
                 {config.originalSignerClaimed
-                  ? "CLAIMED — the original signer came back"
+                  ? "CLAIMED. The original signer came back"
                   : `remaining · deadline ${fmtDate(ORIGINAL_SIGNER_DEADLINE)}`}
               </span>
             </div>
@@ -69,8 +69,8 @@ export function Dashboard() {
             <p className="muted small">
               {fmtAmount(config.originalSignerAllocation, true)}, waiting
               for whoever holds the Bitcoin key that signed the 2014 message
-              this coin is named after. They prove it by signing — no
-              permission, no paperwork, nothing we can veto — and it streams to
+              this coin is named after. They prove it by signing, with no
+              permission, no paperwork and nothing we can veto, and it streams to
               them over 12 months. Unclaimed by 2030, it streams to the stakers
               instead, over that same year.
             </p>
@@ -94,7 +94,7 @@ export function Dashboard() {
             <p className="muted small">
               Nothing is held in a wallet. The tokens sit in this contract and
               are released a little at a time, with none at all before the
-              cliff. There is no instruction that pays them out faster — not for
+              cliff. There is no instruction that pays them out faster, not for
               the Token Creator, not for anyone.
             </p>
           </div>
@@ -102,10 +102,10 @@ export function Dashboard() {
       </section>
 
       <section className="card">
-        <h2>Bucket 1 — community staking pool</h2>
+        <h2>Bucket 1: community staking pool</h2>
         <p className="muted">
           Trading fees, donations and every forfeiture in the system end up
-          here. <strong>Stake your tokens to earn a share of it</strong> — the
+          here. <strong>Stake your tokens to earn a share of it</strong>. The
           pool is split between stakers in proportion to what they lock, so
           holding alone earns nothing.
         </p>
@@ -123,7 +123,7 @@ export function Dashboard() {
 
         <div className="note">
           <strong>Why money can sit here uncredited.</strong> Anything sent to
-          the vault is safe, but the contract cannot notice it by itself — a
+          the vault is safe, but the contract cannot notice it by itself, because a
           Solana program only runs when a transaction calls it. So funds arrive,
           and stay uncounted until somebody signs the transaction that credits
           them to stakers.
@@ -133,7 +133,7 @@ export function Dashboard() {
           it faster than you can, and we cannot stop you doing it.
           {untrackedSol > 0n ? (
             <div className="note-cta">
-              {fmtSol(untrackedSol)} SOL is uncredited right now — the{" "}
+              {fmtSol(untrackedSol)} SOL is uncredited right now. The{" "}
               <strong>Fund pool</strong> tab hands it to the stakers.
             </div>
           ) : null}
@@ -142,14 +142,14 @@ export function Dashboard() {
         {BigInt(pool.pendingTokenRewards) > 0n && (
           <p className="muted small">
             {fmtAmount(pool.pendingTokenRewards)} is buffered until
-            somebody stakes — they arrived while the pool was empty, and are
+            somebody stakes. They arrived while the pool was empty, and are
             held rather than lost.
           </p>
         )}
       </section>
 
       <section className="card">
-        <h2>Bucket 2 — Legacy Buddy holders</h2>
+        <h2>Bucket 2: Legacy Buddy holders</h2>
         <p className="muted">
           Restitution for everyone holding the original token at the snapshot.
           Paid instantly, yours to do anything with.
@@ -170,16 +170,16 @@ export function Dashboard() {
       </section>
 
       <section className="card">
-        <h2>Bucket 3 — influencers</h2>
+        <h2>Bucket 3: influencers</h2>
         <p className="muted">
           72 hours to claim; claiming opens a 30-day stream. Whatever is not
-          claimed streams to the stakers instead — over the same 30 days it
+          claimed streams to the stakers instead, over the same 30 days it
           would have streamed to the influencer.
         </p>
         <div className="stat-row">
           <Stat label="Allocation" value={fmtAmount(config.influencerAllocation, true)} />
           <Stat label="Claimed" value={fmtAmount(config.influencerClaimed, true)} />
-          <Stat label="Forfeited so far" value={config.influencerSwept ? fmtAmount(infRemaining, true) : "—"} />
+          <Stat label="Forfeited so far" value={config.influencerSwept ? fmtAmount(infRemaining, true) : "n/a"} />
           <Stat
             label={infLeft ? "Closes in" : "Window"}
             value={infLeft ?? (config.influencerSwept ? "streaming to stakers" : "closed")}
@@ -194,7 +194,7 @@ export function Dashboard() {
       <section className="card">
         <h2>What the contract is holding</h2>
         <p className="muted">
-          Every token above is already inside this contract — not in a treasury
+          Every token above is already inside this contract, not in a treasury
           wallet, not with the team. These are the two accounts it holds them
           in, and whether the rules governing them can still be edited.
         </p>
@@ -208,7 +208,7 @@ export function Dashboard() {
           />
         </div>
         <p className="muted small">
-          <strong>Tokens held</strong> is every unclaimed allocation — the claim
+          <strong>Tokens held</strong> is every unclaimed allocation: the claim
           windows, the streams and the staking pool all pay out of it, so it
           falls as people claim. <strong>SOL held</strong> is fee and donation
           revenue for the stakers.{" "}
@@ -216,7 +216,7 @@ export function Dashboard() {
             <>
               <strong>LOCKED</strong> means the allocations, the Merkle lists of
               who can claim, the deadlines and the 2014 key are now fixed. Nobody
-              can change them — not the team, not the wallet that deployed this.
+              can change them, not the team and not the wallet that deployed this.
               That is enforced by the program, and you can verify it on the{" "}
               <strong>Verify</strong> tab.
             </>
@@ -224,7 +224,7 @@ export function Dashboard() {
             <>
               <strong>Still editable</strong> means the deploying wallet can
               currently change allocations, claim lists, deadlines and the 2014
-              key. That power is destroyed at launch by locking the config —
+              key. That power is destroyed at launch by locking the config;
               until then, treat these numbers as provisional.
             </>
           )}
@@ -365,7 +365,7 @@ function Provenance({ signerPubkey }: { signerPubkey: number[] | Uint8Array }) {
       <p className="prov-foot">
         The key row is the only one the program enforces, and the config lock
         freezes it. Everything above it exists so you can confirm that key is
-        the one behind the 2014 transaction — checked against the Bitcoin
+        the one behind the 2014 transaction, checked against the Bitcoin
         blockchain, not against us. The message is exact: 34 bytes, and the
         signature will not verify against anything else.
       </p>

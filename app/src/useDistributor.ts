@@ -77,7 +77,7 @@ function useDistributorSource(): DistributorState {
           poolPda,
           solVaultPda,
         ]);
-        if (!cfgInfo) throw new Error("config account not found — is the program initialized?");
+        if (!cfgInfo) throw new Error("config account not found. Is the program initialized?");
         if (!poolInfo) throw new Error("stake pool account not found");
 
         const coder = (program.account as any).config.coder.accounts;

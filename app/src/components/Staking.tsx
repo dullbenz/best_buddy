@@ -30,7 +30,7 @@ export function Staking() {
         <h2>Staking</h2>
         <p className="muted">
           Connect a wallet to stake. Staking registers you for every reward the
-          ecosystem generates — pump.fun creator fees, donations, and everything
+          ecosystem generates: pump.fun creator fees, donations, and everything
           forfeited by people who did not show up. Fees do not arrive by
           themselves; anyone can push them in from the Fund pool tab.
         </p>
@@ -64,7 +64,7 @@ export function Staking() {
     setStatus(null);
     try {
       const sig = await fn();
-      setStatus(`${label} — ${sig}`);
+      setStatus(`${label}. ${sig}`);
       refresh();
     } catch (e: any) {
       setStatus(`Failed: ${e?.message ?? String(e)}`);
@@ -148,7 +148,7 @@ export function Staking() {
         <p className="muted">
           Staking is how you earn from the community pool. Trading fees,
           donations and everything anyone forfeits are shared out among stakers
-          — in proportion to how much each has staked, and how long they locked
+          in proportion to how much each has staked, and how long they locked
           it for. Holding tokens without staking earns nothing.
         </p>
 
@@ -159,13 +159,13 @@ export function Staking() {
           yours to claim whenever you want, in every tier including Flexible.
           <br />
           <strong>Bonus</strong> (the <em>boost</em>) is the extra that a
-          multiplier earns you — a 3.0× stake earns three times the share of the
+          multiplier earns you. A 3.0× stake earns three times the share of the
           same tokens left flexible. The bonus is <em>held by the contract</em>{" "}
           until your lock matures, then paid in full.
           <br />
           <span className="muted">
             Why hold it back: otherwise you could take a 5× share, collect for a
-            week, leave, and be paid for a commitment you never kept — at the
+            week, leave, and be paid for a commitment you never kept, at the
             expense of everyone who did keep theirs. Forfeited bonuses are not
             burned and do not come to us; they are shared among the stakers who
             stayed.
@@ -186,7 +186,7 @@ export function Staking() {
           get 100% of your tokens and all your base rewards, always. Your stake
           keeps earning throughout the three days, the clock starts the moment
           you ask rather than the moment you staked, and once it elapses you can
-          withdraw whenever suits you — there is no window to miss. Break a
+          withdraw whenever suits you; there is no window to miss. Break a
           locked tier early and you lose the whole bonus plus 15% of your stake;
           Flexible has no equivalent, because there is nothing to break.
           <br />

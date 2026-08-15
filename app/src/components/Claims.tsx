@@ -164,7 +164,7 @@ export function Claims() {
           systemProgram: SystemProgram.programId,
         })
         .rpc();
-      setStatus({ text: "Claimed — the tokens are in your wallet.", signature: sig });
+      setStatus({ text: "Claimed. The tokens are in your wallet.", signature: sig });
       refresh();
       receipts.refresh();
     } catch (e: any) {
@@ -205,11 +205,11 @@ export function Claims() {
         setStatus({
           text: res.ok
             ? "Terms signed and published to the public register. You can claim now."
-            : "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim.",
+            : "Terms signed. The public register could not be reached, so it was not recorded there, but you can still claim.",
         });
       } catch {
         setStatus({
-          text: "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim.",
+          text: "Terms signed. The public register could not be reached, so it was not recorded there, but you can still claim.",
         });
       }
     } catch (e: any) {
@@ -284,7 +284,7 @@ export function Claims() {
       const raw = Buffer.from(base64Signature.trim(), "base64");
       if (raw.length !== 65) {
         throw new Error(
-          `That is not a Bitcoin message signature — expected 65 bytes once decoded, got ${raw.length}.`
+          `That is not a Bitcoin message signature. Expected 65 bytes once decoded, got ${raw.length}.`
         );
       }
       const header = raw[0];
@@ -421,7 +421,7 @@ export function Claims() {
             The list is built only from public Solana history, so anyone can
             rebuild it and get the same answer. Rebuild the fingerprint from{" "}
             <span className="mono">holders.csv</span> and it must equal the one
-            stored on chain — the <strong>Verify</strong> tab has the
+            stored on chain. The <strong>Verify</strong> tab has the
             command. Publishing only the eligible addresses would let us drop
             anyone we liked without it showing, so the exclusions are published
             too, each with a reason you can disagree with.
@@ -472,7 +472,7 @@ export function Claims() {
             <strong>{fmtAmount(receipts.influencer.amount)}</strong> was
             committed to this wallet on {fmtDate(receipts.influencer.claimedAt)}
             , and is releasing across 30 days from then. Nothing further is
-            claimed here — withdraw from it on{" "}
+            claimed here. Withdraw from it on{" "}
             <button
               type="button"
               className="inline-link"
@@ -548,7 +548,7 @@ export function Claims() {
         foot={
           <>
             This list is chosen by hand rather than derived from chain, so
-            there is no way to re-derive it — which is exactly why it is
+            there is no way to re-derive it, which is exactly why it is
             published in full. Rebuild the fingerprint from{" "}
             <span className="mono">influencers.csv</span> and it must equal the
             one stored on chain, so the list you are reading is
@@ -559,7 +559,7 @@ export function Claims() {
 
       <ForfeitNote label="If someone doesn't claim">
         Everything left unclaimed when the 72-hour window closes goes to the
-        stakers, not to us — and it streams to them over the same 30 days it
+        stakers, not to us, and it streams to them over the same 30 days it
         would have streamed to the influencer. An expired window never turns
         into a lump sum for anyone.
       </ForfeitNote>
@@ -888,12 +888,12 @@ function AddressLookup({
       {result?.kind === "invalid" && (
         <p className="muted small">
           That is not a valid Solana address. Check for a missing or extra
-          character — this is not a result, it is a typo.
+          character. This is not a result, it is a typo.
         </p>
       )}
 
       {result?.kind === "loading" && (
-        <p className="muted small">Still loading the published lists — try again in a moment.</p>
+        <p className="muted small">Still loading the published lists. Try again in a moment.</p>
       )}
 
       {result?.kind === "none" && (
@@ -907,7 +907,7 @@ function AddressLookup({
           </div>
           <div className="note-cta">
             It held no $Buddy at the snapshot moment, it is not an influencer,
-            or it was excluded — and every exclusion is published with its
+            or it was excluded, and every exclusion is published with its
             reason, so you can settle which.
           </div>
         </div>
@@ -920,12 +920,12 @@ function AddressLookup({
             {result.old && (
               <div>
                 <strong>{fmtAmount(result.old)}</strong> as a Legacy Buddy
-                holder — paid in full on claim, no lockup.
+                holder, paid in full on claim, no lockup.
               </div>
             )}
             {result.inf && (
               <div>
-                <strong>{fmtAmount(result.inf)}</strong> as an influencer —
+                <strong>{fmtAmount(result.inf)}</strong> as an influencer,
                 released in a stream across 30 days, nothing up front.
               </div>
             )}
@@ -1002,7 +1002,7 @@ function SnapshotFiles({
         <span className="files-note">
           served from this domain, committed in the public repository, and both
           matching the fingerprint stored in the contract. Editing a single
-          digit in these files breaks that fingerprint — and the contract pays
+          digit in these files breaks that fingerprint, and the contract pays
           against the fingerprint, not against whatever is written here.
           <button type="button" className="files-verify" onClick={verifyHere}>
             Verify this yourself <span aria-hidden="true">→</span>
@@ -1038,7 +1038,7 @@ function SnapshotFiles({
       <p className="file-foot">
         {allPublished ? null : (
           <>
-            These appear the moment the snapshot is taken, just before launch —
+            These appear the moment the snapshot is taken, just before launch;
             publishing them earlier would mean publishing a list that is still
             going to change.{" "}
           </>
@@ -1069,13 +1069,13 @@ function StreamExplainer() {
       subtracts what you already took, and sends the difference. After ten days
       you can take about a third; after thirty, all of it.
       <br />
-      Withdrawing is a normal transaction you send whenever you like — daily,
+      Withdrawing is a normal transaction you send whenever you like: daily,
       once at the end, or never. Nothing is automatic and nothing expires: a
       matured stream stays yours indefinitely.
       <br />
       <span className="muted">
         The tokens stay in the contract's vault until each withdrawal, and no
-        instruction exists to release them faster — not for you, not for us. The
+        instruction exists to release them faster, not for you and not for us. The
         stream is keyed to your wallet, so nobody else can withdraw it. Equally,
         there is no instruction to cancel or claw one back: once opened, it runs
         to completion whatever anyone thinks of you afterwards.
@@ -1123,7 +1123,7 @@ function StreamPage({
         {fmtAmount(total)} committed to this wallet, releasing steadily until{" "}
         {fmtDate(end)}.{" "}
         {left
-          ? `${left} left to run — anything already released stays yours whether you take it now or later.`
+          ? `${left} left to run. Anything already released stays yours whether you take it now or later.`
           : "Fully matured: all of it is available, and it stays available indefinitely."}
       </p>
 
@@ -1160,7 +1160,7 @@ function StreamPage({
           Transaction history
           <span className="files-note">
             read from the transactions that touched this stream, not from a log
-            we keep — every row is checkable on an explorer.
+            we keep, so every row is checkable on an explorer.
           </span>
         </div>
         {loading ? (
@@ -1248,7 +1248,7 @@ function StreamShortcut({
             available to withdraw
           </>
         ) : (
-          <>Your stream is open — nothing has released yet</>
+          <>Your stream is open, nothing has released yet</>
         )}
       </span>
       <span className="shortcut-go">
@@ -1326,7 +1326,7 @@ function SignerClaim({
         </a>
       </p>
       <p className="muted small">
-        Nobody can approve or refuse this — not us, not anyone. The contract
+        Nobody can approve or refuse this, not us and not anyone. The contract
         recovers the public key from the signature and compares it to the one
         frozen in its config. It either matches or it does not.
       </p>
@@ -1354,7 +1354,7 @@ function SignerClaim({
             <div>
               <strong>Sign this exact text with the 2014 Bitcoin key.</strong>
               <p className="muted small">
-                Use whatever wallet holds it — Electrum's <em>Sign/Verify</em>{" "}
+                Use whatever wallet holds it: Electrum's <em>Sign/Verify</em>{" "}
                 dialog, or <span className="mono">signmessage</span> in Bitcoin
                 Core. The address below is this connected wallet, and the
                 signature is bound to it, so tokens can only ever arrive here.
@@ -1414,7 +1414,7 @@ function SignerClaim({
         This allocation is held until {fmtDate(ORIGINAL_SIGNER_DEADLINE)},
         and pays as a 12-month stream whoever ends up with it. If the key
         signs, it streams to the signer. If it never does, it streams to the
-        community instead — same amount, same year-long schedule, and never
+        community instead: same amount, same year-long schedule, and never
         back to the team. Forfeiting a stream does not turn it into a lump
         sum for anyone.
       </ForfeitNote>

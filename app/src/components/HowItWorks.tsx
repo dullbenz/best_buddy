@@ -29,7 +29,7 @@ export function HowItWorks() {
             The idea was never the problem. The stewardship was.
           </strong>{" "}
           A message signed onto the Bitcoin blockchain in 2014, turned into a
-          memecoin a decade later — that is a genuinely good story, the kind
+          memecoin a decade later. That is a genuinely good story, the kind
           that does not need inventing and cannot be copied. It had a real
           origin, a real date, and a real key behind it. What it never had was
           anyone willing to keep showing up for it. It did not fail because the
@@ -39,13 +39,13 @@ export function HowItWorks() {
         <p>
           That is the entire premise of this project: take the story that
           deserved better and give it the structure it never had. Not a quick
-          relaunch — something that can still be standing in five years, on
+          relaunch: something that can still be standing in five years, on
           pump.fun, where almost nothing is.
         </p>
         <p>
           A community takeover of the Legacy Buddy token would still have paid him. So
           this is a new token, and the difference is not that we are promising
-          to behave better — it is that the rules are enforced by a program
+          to behave better. It is that the rules are enforced by a program
           nobody can alter, including us. The story stays the same. What changes
           is that it no longer depends on anyone's good intentions.
         </p>
@@ -100,7 +100,7 @@ export function HowItWorks() {
           <strong>One rule ties them together: anything unclaimed becomes
           staking rewards for the community.</strong> Influencers who never turn
           up, Legacy Buddy holders who never come back, the 2014 allocation if nobody
-          claims it, tokens forfeited by people who break staking locks — all of
+          claims it, tokens forfeited by people who break staking locks: all of
           it flows to the same place, and none of it comes back to us.
         </p>
       </section>
@@ -114,7 +114,7 @@ export function HowItWorks() {
         </p>
         <p className="muted">
           That ordering matters. Announcing a snapshot in advance tells the whole
-          market to go buy the Legacy Buddy token and farm the airdrop — which would have
+          market to go buy the Legacy Buddy token and farm the airdrop, which would have
           handed your restitution to speculators and paid the original creator's fees
           on the way through.
         </p>
@@ -133,7 +133,7 @@ export function HowItWorks() {
           allocation in the system that nobody claimed.
         </p>
         <p className="muted">
-          Fees do not flow in automatically — they build up at pump.fun until
+          Fees do not flow in automatically. They build up at pump.fun until
           someone moves them. That someone can be any person reading this: the
           instructions involved are permissionless, and the Fund pool tab runs
           them from your own wallet. The team has no special ability to do it,
@@ -150,7 +150,7 @@ export function HowItWorks() {
         <h2>Staking, and why the multiplier is held back</h2>
         <p>
           Staking registers you for everything the ecosystem earns. Longer locks
-          earn more — up to 5× for twelve months.
+          earn more, up to 5× for twelve months.
         </p>
         <p>
           <strong>Your base rewards are claimable at any time, in every tier.</strong>{" "}
@@ -160,7 +160,7 @@ export function HowItWorks() {
         <p className="muted">
           Without that, someone could take the 5× rate, collect five times the rewards
           for a few weeks, walk away, and have been paid the full multiplier for
-          a commitment they never kept — diluting everyone who actually locked.
+          a commitment they never kept, diluting everyone who actually locked.
           Break a lock and you keep roughly what a flexible staker would have
           earned, which is what you actually committed to.
         </p>
@@ -180,10 +180,10 @@ export function HowItWorks() {
           and redirected.
         </p>
         <p>
-          <strong>If they claim, the tokens are theirs — including the right to
+          <strong>If they claim, the tokens are theirs, including the right to
           sell every one.</strong> We are saying so now, years before it could
           happen, so nobody can pretend later that it was not the deal. If nobody
-          ever claims, it streams to the community as staking rewards — over
+          ever claims, it streams to the community as staking rewards, over
           the same period it would have streamed to its claimant, so an expiry
           is never a jackpot event for the pool.
         </p>
@@ -200,14 +200,14 @@ export function HowItWorks() {
           <p>
             <strong>The contract cannot be modified.</strong> The upgrade
             authority was destroyed on launch day, before the token was
-            announced. Not transferred, not time-locked — destroyed. The code
+            announced. Not transferred, not time-locked, but destroyed. The code
             that is running is the code that will always run.
           </p>
         ) : (
           <p>
             <strong>The contract will not be modifiable.</strong> The upgrade
             authority is due to be destroyed on launch day, before the token is
-            announced — not transferred, not time-locked. It has not happened
+            announced, not transferred and not time-locked. It has not happened
             yet. Until the Verify tab reads <code>Authority: none</code>, this
             is a promise rather than a fact, and you should treat it as one.
           </p>
@@ -228,7 +228,7 @@ export function HowItWorks() {
         <ul className="muted">
           <li>
             <strong>An immutable contract cannot be fixed.</strong> If there is a
-            bug, nobody can patch it — not us, not anyone. A devnet rehearsal and
+            bug, nobody can patch it, not us and not anyone. A devnet rehearsal and
             an independent security review were the only two chances to catch
             one.
           </li>
@@ -264,7 +264,7 @@ function LegacyToken() {
           <span className="mono file-name">{LEGACY_TOKEN.mint}</span>
           <span className="file-desc">
             The abandoned Buddy mint. This is the token the snapshot was taken
-            from — not the one this site distributes.
+            from, not the one this site distributes.
           </span>
         </div>
       </div>

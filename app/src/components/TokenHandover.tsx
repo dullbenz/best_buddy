@@ -125,7 +125,7 @@ function TokenCard({
               key={l.label}
               className="ho-link"
               href={l.url}
-              title={`${token.name} on ${l.label} — ${l.note}`}
+              title={`${token.name} on ${l.label}: ${l.note}`}
               target="_blank"
               rel="noreferrer noopener"
             >
@@ -136,7 +136,7 @@ function TokenCard({
             <span
               key={l.label}
               className="ho-link is-pending"
-              title={`${l.label} — live at launch`}
+              title={`${l.label}, live at launch`}
               aria-disabled="true"
             >
               <BrandMark id={id} size={12} />

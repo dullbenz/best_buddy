@@ -38,7 +38,7 @@ export function SocialLinks() {
             className="social-link is-pending"
             title={l.title}
             role="img"
-            aria-label={`${name} — live at launch`}
+            aria-label={`${name}, live at launch`}
           >
             <BrandMark id={l.id} />
           </span>
