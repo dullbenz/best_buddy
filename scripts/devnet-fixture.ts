@@ -182,10 +182,24 @@ function main() {
       minBalanceBaseUnits: "1",
     }),
   );
+  // Handle goes last on purpose: build-tree.ts reads columns 0 and 1, so the
+  // Merkle input is unchanged and adding names cannot move the root.
+  const handles = [
+    "@buddymaxi",
+    "@solanadegen",
+    "@chainwatch",
+    "@dogcoinreport",
+    "@thefloorisup",
+    "@onchainanna",
+  ];
   write(
     path.join(snapDir, "influencers.csv"),
-    ["address,allocation"]
-      .concat(influencerAllocs.map((a) => `${a.address},${a.amount}`))
+    ["address,allocation,handle"]
+      .concat(
+        influencerAllocs.map(
+          (a, i) => `${a.address},${a.amount},${handles[i] ?? "@unknown"}`,
+        ),
+      )
       .join("\n"),
   );
   write(

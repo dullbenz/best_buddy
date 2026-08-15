@@ -281,6 +281,186 @@ main {
   color: var(--bg);
 }
 
+/* ---- the published lists, as tables ---- */
+
+.table-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 10px;
+}
+
+/* Two lists, one at a time. Squarer than the section pills above it so the
+   nesting is legible: outer control is round, inner control is not. */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.seg-btn {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seg-btn:hover:not(.is-active) {
+  color: var(--text);
+  background: none;
+  border: 0;
+}
+
+.seg-btn.is-active {
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.table-search {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.table-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ledger th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ledger td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.ledger tr:last-child td {
+  border-bottom: 0;
+}
+
+.ledger .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Your own row, so it can be found in a list of thousands without searching. */
+.ledger tr.is-mine {
+  background: color-mix(in srgb, var(--good) 8%, transparent);
+}
+
+.mine-tag {
+  margin-left: 7px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--good);
+  color: var(--bg);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pill-open {
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.pill-done {
+  background: color-mix(in srgb, var(--good) 18%, transparent);
+  color: var(--good);
+}
+
+/* ---- the stream page ---- */
+
+/* Green-accented, because this page only exists for a wallet that has
+   something — the same signal the positive verdict uses. */
+.card-stream {
+  border-color: color-mix(in srgb, var(--good) 45%, var(--border));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--good) 5%, var(--panel)) 0%,
+    var(--panel) 55%
+  );
+}
+
+.card-stream h2 {
+  color: var(--good);
+}
+
+/* The withdraw button was flush against the stats above it. */
+.stream-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  margin-bottom: 20px;
+}
+
+/* A button that navigates rather than acts, set as the link it behaves like. */
+.inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.inline-link:hover {
+  background: none;
+  border: 0;
+  opacity: 0.8;
+}
+
 /* Marks a section this wallet is actually owed something in, so the right tab
    is findable without opening each one in turn. */
 .subtab-dot {

@@ -13,11 +13,14 @@ import {
   SNAPSHOT,
   TERMS_API,
   pda,
+  solscanTx,
 } from "../config";
 import { countdown, fmtAmount, fmtDate } from "../format";
 import { VERIFY_ANCHORS, goTo } from "../nav";
 import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "../router";
 import { useClaimReceipts, useDistributor, useStream } from "../useDistributor";
+import { useClaimLedger, useStreamHistory } from "../useClaimData";
+import { ClaimTables } from "./ClaimTables";
 import { useProgram } from "../useProgram";
 
 interface ProofEntry {
@@ -28,7 +31,7 @@ interface ProofEntry {
 
 type ProofFile = Record<string, ProofEntry>;
 
-type ClaimTab = "check" | "legacy" | "influencer" | "stream";
+type ClaimTab = "overview" | "legacy" | "influencer" | "stream";
 
 async function loadProofs(url: string): Promise<ProofFile> {
   const res = await fetch(url);
@@ -57,12 +60,12 @@ export function Claims() {
     publicKey ? localStorage.getItem(`buddy.terms.${publicKey.toBase58()}`) : null
   );
 
-  const CLAIM_TABS: ClaimTab[] = ["check", "legacy", "influencer", "stream"];
+  const CLAIM_TABS: ClaimTab[] = ["overview", "legacy", "influencer", "stream"];
   const sectionFromUrl = (): ClaimTab => {
     const { section } = parseLocation(["claims"]);
     return (CLAIM_TABS as string[]).includes(section ?? "")
       ? (section as ClaimTab)
-      : "check";
+      : "overview";
   };
 
   const [tab, setTab] = useState<ClaimTab>(sectionFromUrl);
@@ -76,6 +79,8 @@ export function Claims() {
     loadProofs(OLD_HOLDER_PROOFS_URL).then(setOldProofs).catch(() => setOldProofs({}));
     loadProofs(INFLUENCER_PROOFS_URL).then(setInfProofs).catch(() => setInfProofs({}));
   }, []);
+
+  const ledger = useClaimLedger(oldProofs, infProofs);
 
   const address = publicKey?.toBase58() ?? null;
   const oldEntry = address ? oldProofs?.[address] : undefined;
@@ -378,8 +383,18 @@ export function Claims() {
             <strong>{fmtAmount(receipts.influencer.amount)}</strong> was
             committed to this wallet on {fmtDate(receipts.influencer.claimedAt)}
             , and is releasing across 30 days from then. Nothing further is
-            claimed here — withdraw from it on the{" "}
-            <strong>Your stream</strong> tab whenever you like.
+            claimed here — withdraw from it on{" "}
+            <button
+              type="button"
+              className="inline-link"
+              onClick={() => {
+                setTab("stream");
+                pushRoute("claims", "stream");
+              }}
+            >
+              your stream page
+            </button>{" "}
+            whenever you like.
           </p>
         </Verdict>
       ) : infEntry ? (
@@ -461,28 +476,13 @@ export function Claims() {
   );
 
   const streamCard = stream ? (
-    <section className="card">
-      <h2>Your stream</h2>
-      <div className="stat-row">
-        <div className="stat">
-          <span className="stat-value">{fmtAmount(stream.total, true)}</span>
-          <span className="stat-label">Total</span>
-        </div>
-        <div className="stat">
-          <span className="stat-value">{fmtAmount(stream.withdrawn, true)}</span>
-          <span className="stat-label">Withdrawn</span>
-        </div>
-        <div className="stat">
-          <span className="stat-value">
-            {fmtAmount(BigInt(Math.floor(withdrawable)), true)}
-          </span>
-          <span className="stat-label">Available now</span>
-        </div>
-      </div>
-      <button className="primary" disabled={busy || withdrawable < 1} onClick={withdrawStream}>
-        Withdraw available
-      </button>
-    </section>
+    <StreamPage
+      stream={stream}
+      withdrawable={withdrawable}
+      busy={busy}
+      onWithdraw={withdrawStream}
+      beneficiary={publicKey ?? null}
+    />
   ) : null;
 
   /**
@@ -505,10 +505,21 @@ export function Claims() {
     body: ReactNode;
   }> = [
     {
-      id: "check",
-      label: "Check an address",
+      id: "overview",
+      label: "Overview",
       marked: false,
-      body: <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />,
+      body: (
+        <>
+          <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
+          <ClaimTables
+            legacy={ledger.legacy}
+            influencers={ledger.influencers}
+            loading={ledger.loading}
+            error={ledger.error}
+            highlight={address}
+          />
+        </>
+      ),
     },
     {
       id: "legacy",
@@ -930,6 +941,127 @@ function StreamExplainer() {
         there is no instruction to cancel or claw one back: once opened, it runs
         to completion whatever anyone thinks of you afterwards.
       </span>
+    </div>
+  );
+}
+
+/**
+ * Everything about this wallet's own stream, on its own page.
+ *
+ * The three totals answer "how much and when", and the history answers "what
+ * have I already done" — which the stream account itself cannot, because it
+ * keeps a running total and no record of the individual releases. Those are
+ * recovered from the transactions that touched the account.
+ *
+ * Green-accented like a positive verdict, because that is what it is: this
+ * page only exists for a wallet that has something.
+ */
+function StreamPage({
+  stream,
+  withdrawable,
+  busy,
+  onWithdraw,
+  beneficiary,
+}: {
+  stream: any;
+  withdrawable: number;
+  busy: boolean;
+  onWithdraw: () => void;
+  beneficiary: PublicKey | null;
+}) {
+  const { events, loading } = useStreamHistory(beneficiary);
+  const total = BigInt(stream.total.toString());
+  const withdrawn = BigInt(stream.withdrawn.toString());
+  const end = Number(stream.end);
+  const left = countdown(end);
+  const releasedPct = total === 0n ? 0 : Number((withdrawn * 10000n) / total) / 100;
+
+  return (
+    <section className="card card-stream">
+      <h2>Your stream</h2>
+      <p className="muted">
+        {fmtAmount(total)} committed to this wallet, releasing steadily until{" "}
+        {fmtDate(end)}.{" "}
+        {left
+          ? `${left} left to run — anything already released stays yours whether you take it now or later.`
+          : "Fully matured: all of it is available, and it stays available indefinitely."}
+      </p>
+
+      <div className="stat-row">
+        <div className="stat">
+          <span className="stat-value">{fmtAmount(total, true)}</span>
+          <span className="stat-label">Total committed</span>
+        </div>
+        <div className="stat">
+          <span className="stat-value">{fmtAmount(withdrawn, true)}</span>
+          <span className="stat-label">Withdrawn · {releasedPct.toFixed(1)}%</span>
+        </div>
+        <div className="stat stat-emphasis">
+          <span className="stat-value">
+            {fmtAmount(BigInt(Math.floor(withdrawable)), true)}
+          </span>
+          <span className="stat-label">Available right now</span>
+        </div>
+      </div>
+
+      <Progress done={Number(withdrawn)} total={Number(total)} />
+
+      <div className="stream-actions">
+        <button className="primary" disabled={busy || withdrawable < 1} onClick={onWithdraw}>
+          {withdrawable < 1 ? "Nothing available yet" : "Withdraw available"}
+        </button>
+        <span className="muted small">
+          Withdraw as often or as rarely as you like. Nothing expires.
+        </span>
+      </div>
+
+      <div className="files">
+        <div className="files-head">
+          Your withdrawal history
+          <span className="files-note">
+            read from the transactions that touched this stream, not from a log
+            we keep — every row is checkable on an explorer.
+          </span>
+        </div>
+        {loading ? (
+          <p className="file-foot">Reading the chain…</p>
+        ) : events.length === 0 ? (
+          <p className="file-foot">
+            Nothing withdrawn yet. When you do, it will appear here.
+          </p>
+        ) : (
+          events.map((e) => (
+            <div className="file-row" key={e.signature}>
+              <div className="file-meta">
+                <span className="file-name">
+                  {e.kind === "withdraw"
+                    ? e.amount === null
+                      ? "Withdrawal"
+                      : `Withdrew ${fmtAmount(e.amount)}`
+                    : "Stream opened"}
+                </span>
+                <span className="file-desc">
+                  {e.at ? fmtDate(e.at) : "time unknown"}
+                </span>
+              </div>
+              <div className="file-actions">
+                <a href={solscanTx(e.signature)} target="_blank" rel="noreferrer noopener">
+                  transaction
+                </a>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Progress({ done, total }: { done: number; total: number }) {
+  const p = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+  return (
+    <div className="progress" role="progressbar" aria-valuenow={Math.round(p)}>
+      <div className="progress-fill" style={{ width: `${p}%` }} />
     </div>
   );
 }

@@ -59,8 +59,24 @@ solana-keygen new --no-bip39-passphrase -o target/deploy/buddy_distributor-keypa
 
 Put the printed address into `Anchor.toml` (both `[programs.*]` entries) and
 into `declare_id!` in `programs/buddy-distributor/src/lib.rs`, then rebuild.
-**Back this keypair up offline.** Losing it means you can never upgrade the
-program; leaking it means someone else can.
+
+**Back this keypair up offline — but understand what it does and does not
+do.** The program's address *is* this key's public key, and the CLI is precise
+about when it is needed: `--program-id` "must be a signer for initial deploys,
+can be an address for upgrades". So it signs exactly one transaction ever, the
+one that creates the program account.
+
+| | before the first deploy | after it |
+|---|---|---|
+| lose it | you lose that address; generate another and start over | nothing — upgrades and closes need the upgrade authority, not this |
+| leak it | someone can deploy *their* program at your address first | nothing — the account exists and cannot be created twice |
+
+The window where it matters is between generating it and deploying it, so back
+it up **before** the deploy, not after. Once deployed it is largely spent.
+
+The key that actually carries risk is the **upgrade authority** in §0.4, which
+can replace the whole program regardless of what the config says — right up
+until you burn it at launch.
 
 ### 0.4 The two authorities
 
