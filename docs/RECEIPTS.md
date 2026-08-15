@@ -54,8 +54,13 @@ today. A deleted tweet you did not capture is worth nothing later.
 ## 5. Pool and infrastructure addresses
 
 Not wrongdoing — these are excluded from restitution because they are contracts,
-not people. Left unexcluded, the AMM would claim a large share of a bucket meant
-for the community.
+not people. Left in, an AMM vault would take a pro-rata slice of a bucket meant
+for the holders it was trading against, and nothing could ever claim it: a PDA
+has no private key, so that share would sit unclaimed until the sweep moved it
+to the stakers. Excluding them keeps the restitution with the people it is for.
+
+Every address here is reproduced in `excluded.csv` with the same reason, so the
+list can be argued with rather than taken on faith.
 
 | Address | What it is | Excluded |
 |---|---|---|

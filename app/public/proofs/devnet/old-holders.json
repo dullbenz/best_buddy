@@ -1,0 +1,98 @@
+{
+  "BjMcZy5CXFhGsr9i9fib7QTHwwqitaFN9jRZfye5CRbe": {
+    "address": "BjMcZy5CXFhGsr9i9fib7QTHwwqitaFN9jRZfye5CRbe",
+    "amount": "51492100643657",
+    "proof": [
+      "0b4b4d0fa569c5186b51ff913c6d479c1cad802fd1c960f307a07b6be0de7bba",
+      "98a162430612549202645fddf843d5d1b7ff54348638bf246df8e7931fd01952",
+      "9ac38137b3b56f1018d1b0205aed1bfcd6fdc6936215cad341feb11b83cde993",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  },
+  "AGtVqLrjwb8JjjMyTRjoGLyzxT31SQytzvJgaswWSNuS": {
+    "address": "AGtVqLrjwb8JjjMyTRjoGLyzxT31SQytzvJgaswWSNuS",
+    "amount": "18022235225277",
+    "proof": [
+      "5b2ef3ff83d9785372b5b50890f66de332c967acfedd5278090e744557fef8a8",
+      "196ee4572bf34505ff5b209cce5d307c8dea90852a7bacce827d3d81004b84e7",
+      "53bfc90d4b2ec62f292c1a2aed3e0f01ce255a101b3b544afe00aeedc034a1ad",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  },
+  "DwCXjaSyJL1z3RYFdioE4pbaJDpQKivrSQ3gVv5tr1u7": {
+    "address": "DwCXjaSyJL1z3RYFdioE4pbaJDpQKivrSQ3gVv5tr1u7",
+    "amount": "13087575580261",
+    "proof": [
+      "42d9affb60d8ec843ad8e38ecb52b67b9296a0d8cd2aa2070228413149784352",
+      "0ba0a594fb82f604c817ca76905349b9654a79afd58a1f7e210ca18080c09014",
+      "9ac38137b3b56f1018d1b0205aed1bfcd6fdc6936215cad341feb11b83cde993",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  },
+  "3SgtsZNDWRSxKc92YVq7mTVDmv9mXSYqhNMsYt4oa7t6": {
+    "address": "3SgtsZNDWRSxKc92YVq7mTVDmv9mXSYqhNMsYt4oa7t6",
+    "amount": "10191144919055",
+    "proof": [
+      "fad37c8a8d2e12dee0627e7d91508ec49e5258d21b6d7de299962b1691c291c3",
+      "4f23c9517a855b601d8357dc98731d7e2b80c1103e5ac1497d450805c0719d4a"
+    ]
+  },
+  "9rbZMKDdCf4kK2KtbkQtvPrhqSWnZ7sdNy9y8FeJ2ts6": {
+    "address": "9rbZMKDdCf4kK2KtbkQtvPrhqSWnZ7sdNy9y8FeJ2ts6",
+    "amount": "6865613419153",
+    "proof": [
+      "170ce9b806539073eab8e3752db2b6e1637bb1c85853c93a26159902780bf8dd",
+      "0ba0a594fb82f604c817ca76905349b9654a79afd58a1f7e210ca18080c09014",
+      "9ac38137b3b56f1018d1b0205aed1bfcd6fdc6936215cad341feb11b83cde993",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  },
+  "G7Dg7VdpTPXTZM9kQgA6tWc1zHduce21ge6UQeyefgX2": {
+    "address": "G7Dg7VdpTPXTZM9kQgA6tWc1zHduce21ge6UQeyefgX2",
+    "amount": "4398283596645",
+    "proof": [
+      "82e4332d043267d42118fc7877b6c277140d42e2b458223525dcfe61e85912a5",
+      "4f23c9517a855b601d8357dc98731d7e2b80c1103e5ac1497d450805c0719d4a"
+    ]
+  },
+  "3Kxfy6hi3So4cbSK1fe4zRHJKqzSrSb6jbBABk7onZ53": {
+    "address": "3Kxfy6hi3So4cbSK1fe4zRHJKqzSrSb6jbBABk7onZ53",
+    "amount": "3003705870879",
+    "proof": [
+      "4671d125e8f7ddf8daa61cee2f69d1764c0275c2965c93a1699c7818205822ac",
+      "4ed3c8d33f24b792fb045bc563fcf7f905ba41aca2adf85555876170eb5251f9",
+      "53bfc90d4b2ec62f292c1a2aed3e0f01ce255a101b3b544afe00aeedc034a1ad",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  },
+  "3qMPMjrwBnDaYpBd8Cte45JE1zi8fwZSCpVq7kzDDC5g": {
+    "address": "3qMPMjrwBnDaYpBd8Cte45JE1zi8fwZSCpVq7kzDDC5g",
+    "amount": "1930953774136",
+    "proof": [
+      "00db1f6452162250659cc993b567509f1b10a8b01298dc65df471efb5292e20a",
+      "98a162430612549202645fddf843d5d1b7ff54348638bf246df8e7931fd01952",
+      "9ac38137b3b56f1018d1b0205aed1bfcd6fdc6936215cad341feb11b83cde993",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  },
+  "9k7zBRvs7svKBQm3Tw1iNdKdiMFR6zr8dqDzRAidM4zN": {
+    "address": "9k7zBRvs7svKBQm3Tw1iNdKdiMFR6zr8dqDzRAidM4zN",
+    "amount": "750926467719",
+    "proof": [
+      "4abf210e4a4cc508b8d0699949a8cc1f3e6be89ab49b2e87d3433aabe4dc98e2",
+      "4ed3c8d33f24b792fb045bc563fcf7f905ba41aca2adf85555876170eb5251f9",
+      "53bfc90d4b2ec62f292c1a2aed3e0f01ce255a101b3b544afe00aeedc034a1ad",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  },
+  "BVxjvaDTXWysqqQKfWJZsLosUHwZkd7wZSk9MPh7aNB8": {
+    "address": "BVxjvaDTXWysqqQKfWJZsLosUHwZkd7wZSk9MPh7aNB8",
+    "amount": "257460503218",
+    "proof": [
+      "7af079a0dfcc0bcebcee97ff8971d4a6896ef6d9635a19b8cb372895088267c4",
+      "196ee4572bf34505ff5b209cce5d307c8dea90852a7bacce827d3d81004b84e7",
+      "53bfc90d4b2ec62f292c1a2aed3e0f01ce255a101b3b544afe00aeedc034a1ad",
+      "2dc264e038e12ed889583a34e0711548d76374e4f37b9df7041d7d797b4a165b"
+    ]
+  }
+}

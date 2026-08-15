@@ -20,8 +20,10 @@ a bug is permanent.
 **Proves:** the program deploys, accounts initialize, the Merkle proofs our
 tooling generates are accepted by the on-chain verifier, claims pay out
 instantly, influencer claims open streams instead of transferring, staking
-splits base from boost correctly, the config lock actually bites, and the boost
-escrow refuses early withdrawal.
+splits base from boost correctly, the config lock actually bites, the boost
+escrow refuses early withdrawal, and — the mechanism that makes trustless fee
+routing possible — funds sent straight to a vault stay invisible to the reward
+ledger until somebody syncs them, then become claimable.
 
 **Does not prove:** anything time-dependent. The 30-day and 72-hour windows, the
 three sweeps, emergency exit, and the 2030 deadline can't be exercised on a live
@@ -66,18 +68,30 @@ Confirm it landed, and note the `Authority` line — this is exactly what you'll
 be checking and changing on mainnet:
 
 ```bash
-solana program show GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11
+solana program show 4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V
 ```
 
 ---
 
 ## 3. Run the rehearsal
 
+**Use a paid devnet RPC, not the public one.** The rehearsal fires a long burst
+of transactions and reads, and `api.devnet.solana.com` rate-limits hard partway
+through — it retries a while, then dies with `429 Too Many Requests` mid-run.
+Because the config PDA is global and gets locked, a half-finished run cannot
+simply be restarted; you need a fresh program id to go again. Spending the
+free-tier credits here is much cheaper than that.
+
 ```bash
-RPC_URL=https://api.devnet.solana.com KEYPAIR=~/.config/solana/id.json npx ts-node scripts/devnet-rehearsal.ts
+RPC_URL="https://devnet.helius-rpc.com/?api-key=YOUR_KEY" KEYPAIR=~/.config/solana/id.json npx ts-node scripts/devnet-rehearsal.ts
 ```
 
-It creates a mock token, invents three old holders and two influencers, builds
+The domain lock on the key does not interfere: it matches on the browser
+`Origin` header, which a Node script never sends. Airdrops are the one thing
+the free tier will refuse — fund the wallet first, via `solana airdrop` or
+[faucet.solana.com](https://faucet.solana.com), then point the script at Helius.
+
+It creates a mock token, invents three Legacy Buddy holders and two influencers, builds
 real Merkle trees from them, then walks the whole sequence printing what
 happened at each step.
 
@@ -111,7 +125,7 @@ it's worth seeing what they'll see.
 Then run the real app against it:
 
 ```bash
-cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11 npm run dev
+cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V npm run dev
 ```
 
 Open http://localhost:5173. The dashboard should show live bucket balances and
@@ -171,6 +185,27 @@ Then put the new address into `declare_id!` in
 > keypair destroys it. Back that file up somewhere this command cannot reach.
 
 ---
+
+## The one part that cannot be rehearsed here: fees
+
+pump.fun publishes **no devnet deployment** — every example in their docs is a
+mainnet Solscan link. So the fee path has to be proved on mainnet, with a
+throwaway coin, before you touch the real one.
+
+This is not optional. Setting the real coin's fee split is a one-shot that
+pump.fun's program makes permanent the moment it runs, and a share pointing
+somewhere unpayable can block every future distribution forever.
+
+1. Create a junk coin with a minimal buy.
+2. `create_fee_sharing_config`, then set 90/10 with a **test PDA of the same
+   shape** as the real SOL vault.
+3. Trade it a little so fees actually accrue.
+4. Run the chain from the Fund pool tab: collect → distribute → unwrap → sync.
+5. Confirm lamports land in the test PDA and get credited to a staker.
+6. **Write down which form the payout took** — native lamports or wrapped SOL.
+   That decides whether `unwrap_wsol` is load-bearing.
+
+Budget a few tens of dollars. Full mechanism in [FEES.md](./FEES.md).
 
 ## When to move on
 

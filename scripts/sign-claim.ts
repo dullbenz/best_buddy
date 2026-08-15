@@ -16,7 +16,7 @@ import { secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { PublicKey } from "@solana/web3.js";
 
-const PREFIX = "I am the original Buddy. Claim to Solana address: ";
+const PREFIX = "I am the original Signer. Claim to Solana address: ";
 
 function bitcoinMessageHash(message: string): Uint8Array {
   const msg = Buffer.from(message, "utf8");
@@ -59,12 +59,13 @@ function cmdVerify(address: string, base64Sig: string, pubkeyHex: string) {
     header >= 27 && header <= 30
       ? header - 27
       : header >= 31 && header <= 34
-      ? header - 31
-      : null;
+        ? header - 31
+        : null;
   if (recovery === null) throw new Error(`invalid header byte ${header}`);
 
   const digest = bitcoinMessageHash(message);
-  const sig = secp256k1.Signature.fromCompact(signature).addRecoveryBit(recovery);
+  const sig =
+    secp256k1.Signature.fromCompact(signature).addRecoveryBit(recovery);
   const recovered = sig.recoverPublicKey(digest).toRawBytes(false); // uncompressed, 0x04 prefixed
 
   const expected = pubkeyHex.startsWith("0x") ? pubkeyHex.slice(2) : pubkeyHex;
@@ -90,12 +91,13 @@ function cmdVerify(address: string, base64Sig: string, pubkeyHex: string) {
 function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (cmd === "message" && rest.length === 1) return cmdMessage(rest[0]);
-  if (cmd === "verify" && rest.length === 3) return cmdVerify(rest[0], rest[1], rest[2]);
+  if (cmd === "verify" && rest.length === 3)
+    return cmdVerify(rest[0], rest[1], rest[2]);
 
   console.error("usage:");
   console.error("  ts-node scripts/sign-claim.ts message <SOLANA_ADDRESS>");
   console.error(
-    "  ts-node scripts/sign-claim.ts verify <SOLANA_ADDRESS> <BASE64_SIG> <UNCOMPRESSED_PUBKEY_HEX>"
+    "  ts-node scripts/sign-claim.ts verify <SOLANA_ADDRESS> <BASE64_SIG> <UNCOMPRESSED_PUBKEY_HEX>",
   );
   process.exit(1);
 }

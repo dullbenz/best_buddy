@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 
@@ -33,11 +33,11 @@ jobs:
           fi
           echo "No keypair files tracked."
 
-      - name: Refuse to build if a placeholder reached main
-        if: github.ref == 'refs/heads/main'
+      - name: Refuse to build if a placeholder reached a deploying branch
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
-          if grep -q "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID" .firebaserc ; then
-            echo "::error::.firebaserc still holds the placeholder project id."
+          if grep -q "REPLACE_WITH_YOUR" .firebaserc ; then
+            echo "::error::.firebaserc still holds placeholders — set the project id and both hosting site ids."
             exit 1
           fi
 
@@ -150,7 +150,7 @@ jobs:
         working-directory: app
         env:
           VITE_RPC_URL: ${{ vars.VITE_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
-          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID || 'GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11' }}
+          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID || '4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V' }}
         run: npm run build
 
       - name: Check the published proofs are valid JSON

@@ -479,6 +479,42 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  heading("Sync — value that arrives from outside the program");
+
+  // This is how pump.fun creator fees reach stakers, and how a donation sent
+  // straight to the published vault address is rescued rather than frozen.
+  const gift = 0.05 * LAMPORTS_PER_SOL;
+  await provider.sendAndConfirm(
+    new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: payer.publicKey,
+        toPubkey: solVaultPda,
+        lamports: gift,
+      })
+    )
+  );
+
+  let poolNow = await account.stakePool.fetch(poolPda);
+  const beforeSync = BigInt(poolNow.lifetimeSolRewards);
+  ok(`sent ${gift / LAMPORTS_PER_SOL} SOL straight to the vault`);
+  info(`ledger still shows ${beforeSync} lamports of rewards — it cannot see it`);
+
+  await program.methods
+    .syncSolRewards()
+    .accountsPartial({
+      config: configPda,
+      pool: poolPda,
+      solVault: solVaultPda,
+      rent: SYSVAR_RENT_PUBKEY,
+    })
+    .rpc();
+
+  poolNow = await account.stakePool.fetch(poolPda);
+  const afterSync = BigInt(poolNow.lifetimeSolRewards);
+  ok(`after sync the ledger shows ${afterSync} — credited ${afterSync - beforeSync}`);
+  info(`anyone can call this; it needs no signer beyond whoever pays the fee`);
+
+  // -------------------------------------------------------------------------
   heading("Rehearsal complete");
 
   const finalConfig = await account.config.fetch(configPda);
@@ -503,8 +539,11 @@ async function main() {
   Not covered here (needs a fake clock — see the bankrun tests via 'npm test'):
     - the 30-day and 72-hour windows expiring
     - the three sweeps moving remainders into bucket 1
-    - emergency exit forfeiting boost + 10%
+    - emergency exit forfeiting boost + 15%
     - the 2030 original-signer deadline
+
+  Not covered here at all (pump.fun has no devnet): the creator-fee chain.
+  See docs/DEVNET-REHEARSAL.md, "The one part that cannot be rehearsed here".
 `);
 }
 

@@ -75,7 +75,7 @@ Timings are for a spoken take. Keep it plain; the story does the work.
 > In 2014 someone signed a message on Bitcoin. It became a memecoin. Then the
 > dev dumped it and walked away — and every trade after still paid him.
 >
-> So the community rebuilt it. Old holders can claim, paid instantly, no lockup.
+> So the community rebuilt it. Legacy holders can claim, paid instantly, no lockup.
 > Anything unclaimed goes to the community, not to us. And the dev's own tokens
 > are locked in the contract for a year.
 >
@@ -107,7 +107,7 @@ So: new token, same story, rules enforced by a contract instead of promises.
 **3/**
 Four buckets.
 
-• Old holders — 30 days to claim, paid instantly, no lockup
+• Legacy holders — 30 days to claim, paid instantly, no lockup
 • Influencers — 72 hours, then a 30-day stream
 • The 2014 signer — reserved until 2030
 • The dev — 12-month stream behind a cliff
@@ -116,7 +116,7 @@ Four buckets.
 One rule ties them together: anything unclaimed becomes community staking
 rewards.
 
-Influencers who don't show. Old holders who never return. The 2014 allocation
+Influencers who don't show. Legacy holders who never return. The 2014 allocation
 if nobody claims it. Tokens forfeited by broken staking locks.
 
 None of it comes back to us.
@@ -166,6 +166,21 @@ Trade made on purpose. A contract someone can rewrite is a contract you have to
 trust someone about.
 
 **10/**
+One more thing worth knowing, because most projects hide it.
+
+Trading fees don't flow to the pool automatically — they sit at pump.fun until
+someone moves them. Every instruction in that chain is permissionless.
+
+So there's a button on the site. Anyone can press it. Including you.
+
+**11/**
+90% of those fees go to the community pool, 10% to me. Set once, on chain,
+through a config that revokes its own admin the moment it's written.
+
+Permanent and checkable, same as the burned upgrade authority. I couldn't
+redirect it later even if I wanted to.
+
+**12/**
 Everything checkable in one place: mybestbuddy.fun/verify
 
 Snapshot list, Merkle proofs, source, addresses, commands.
@@ -173,7 +188,7 @@ Snapshot list, Merkle proofs, source, addresses, commands.
 If you run the checks and they hold — say so publicly. That's worth more than
 anything I can post about myself.
 
-**11/**
+**13/**
 It's a memecoin. It can go to zero, same as any other. Nothing here is a
 prediction about price and nothing here is advice.
 
@@ -192,13 +207,15 @@ bought — only earned by the checks holding up.
 > publicly what they find — including if it's bad.
 >
 > Program: `<PROGRAM_ID>`
-> Source: `<repo>`
+> Source: https://github.com/dullbenz/best_buddy
 > Guide: mybestbuddy.fun/verify
 >
 > Specifically worth a look:
 > • the upgrade authority is burned (`solana program show` → `Authority: none`)
 > • the snapshot reproduces from public data (`scripts/verify-snapshot.ts`)
 > • the deployed bytecode matches the repo (`solana-verify`)
+> • the fee split is frozen (sharing config admin revoked)
+> • the sync instructions correctly separate accounted from stray funds
 > • the base/boost escrow logic in `state.rs::settle`
 > • the secp256k1 path in `utils.rs::verify_bitcoin_signature`
 >

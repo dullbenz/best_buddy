@@ -1,0 +1,20 @@
+{
+  "FIXTURE": "fabricated devnet test data — not a real snapshot",
+  "oldTokenMint": "7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump",
+  "slot": 483637296,
+  "takenAt": "2026-08-15T00:22:45.771Z",
+  "bucketTwoAllocation": "110000000000000",
+  "eligibleWallets": 10,
+  "merkleRoot": "20ed3af9f379e8f270dc59088aabb7ea86d72c219ef9e93ff6bba212bfccda13",
+  "exclusions": [
+    {
+      "address": "BdUdM9wiEPa4QeZTSu38xSdRVcevFAqkmkVU5nNpn2Kj",
+      "reason": "AMM pool vault, not a community holder"
+    },
+    {
+      "address": "FU53N3uwwsdYQCKV4pHdeN8wFF6ZFHUhs3HYkAQeuiaK",
+      "reason": "creator wallet — dumped on holders, see receipts #1"
+    }
+  ],
+  "minBalanceBaseUnits": "1"
+}

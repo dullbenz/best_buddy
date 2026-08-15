@@ -1,5 +1,11 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program, BN } from "@coral-xyz/anchor";
+// Destructured from the namespace rather than imported by name.
+// @coral-xyz/anchor is CommonJS, and since Node 22.18 enabled require(esm) by
+// default, `import { BN } from "@coral-xyz/anchor"` fails at runtime with
+// "Named export 'BN' not found" on newer Node while still working on older
+// ones. The namespace form behaves the same under both.
+const { BN } = anchor;
+type Program<T extends anchor.Idl> = anchor.Program<T>;
 import {
   Keypair,
   PublicKey,
@@ -74,7 +80,10 @@ export function streamPda(owner: PublicKey, programId: PublicKey): PublicKey {
  * fails, warp, assert it now succeeds" shape) is rejected as a duplicate
  * rather than actually re-executing.
  */
-export async function warpTo(context: ProgramTestContext, unixTimestamp: number) {
+export async function warpTo(
+  context: ProgramTestContext,
+  unixTimestamp: number,
+) {
   const current = await context.banksClient.getClock();
   const nextSlot = current.slot + 1n;
   context.warpToSlot(nextSlot);
@@ -84,8 +93,8 @@ export async function warpTo(context: ProgramTestContext, unixTimestamp: number)
       current.epochStartTimestamp,
       current.epoch,
       current.leaderScheduleEpoch,
-      BigInt(unixTimestamp)
-    )
+      BigInt(unixTimestamp),
+    ),
   );
 }
 
@@ -106,8 +115,8 @@ export async function advanceSlot(context: ProgramTestContext) {
       current.epochStartTimestamp,
       current.epoch,
       current.leaderScheduleEpoch,
-      current.unixTimestamp
-    )
+      current.unixTimestamp,
+    ),
   );
 }
 
@@ -123,14 +132,14 @@ export async function warpBy(context: ProgramTestContext, seconds: number) {
 export async function fundSol(
   env: Env,
   to: PublicKey,
-  lamports: number
+  lamports: number,
 ): Promise<void> {
   const tx = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: env.payer.publicKey,
       toPubkey: to,
       lamports,
-    })
+    }),
   );
   await env.provider.sendAndConfirm(tx, [env.payer]);
 }
@@ -152,8 +161,8 @@ export async function createMint(env: Env, decimals = 6): Promise<PublicKey> {
       mint.publicKey,
       decimals,
       env.payer.publicKey,
-      null
-    )
+      null,
+    ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer, mint]);
   return mint.publicKey;
@@ -165,7 +174,7 @@ export async function createMint(env: Env, decimals = 6): Promise<PublicKey> {
  */
 export async function createTokenAccount(
   env: Env,
-  owner: PublicKey
+  owner: PublicKey,
 ): Promise<PublicKey> {
   const account = Keypair.generate();
   const rent = await env.context.banksClient.getRent();
@@ -179,7 +188,7 @@ export async function createTokenAccount(
       lamports,
       programId: TOKEN_PROGRAM_ID,
     }),
-    createInitializeAccount3Instruction(account.publicKey, env.mint, owner)
+    createInitializeAccount3Instruction(account.publicKey, env.mint, owner),
   );
   await env.provider.sendAndConfirm(tx, [env.payer, account]);
   return account.publicKey;
@@ -188,29 +197,88 @@ export async function createTokenAccount(
 export async function mintTo(
   env: Env,
   destination: PublicKey,
-  amount: bigint | number
+  amount: bigint | number,
 ): Promise<void> {
   const tx = new Transaction().add(
     createMintToInstruction(
       env.mint,
       destination,
       env.payer.publicKey,
-      BigInt(amount)
-    )
+      BigInt(amount),
+    ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer]);
 }
 
+export const NATIVE_MINT = new PublicKey(
+  "So11111111111111111111111111111111111111112",
+);
+
+/**
+ * Inject a wrapped-SOL token account owned by `owner`.
+ *
+ * Built by hand rather than by wrapping SOL through the token program, because
+ * bankrun's genesis has no native-mint account to wrap against. The layout is
+ * the standard 165-byte SPL token account; what makes it *wrapped* SOL is the
+ * `is_native` option being set, which is the flag `close_account` looks at when
+ * deciding to release the balance as lamports.
+ */
+export async function createWrappedSolAccount(
+  env: Env,
+  owner: PublicKey,
+  wrappedAmount: bigint,
+): Promise<PublicKey> {
+  const account = Keypair.generate();
+  const rent = await env.context.banksClient.getRent();
+  const rentExempt = rent.minimumBalance(BigInt(ACCOUNT_SIZE));
+
+  const data = Buffer.alloc(ACCOUNT_SIZE);
+  NATIVE_MINT.toBuffer().copy(data, 0);
+  owner.toBuffer().copy(data, 32);
+  data.writeBigUInt64LE(wrappedAmount, 64);
+  data.writeUInt8(1, 108); // AccountState::Initialized
+  data.writeUInt32LE(1, 109); // is_native = Some(...)
+  data.writeBigUInt64LE(rentExempt, 113); // the reserve it must keep back
+
+  env.context.setAccount(account.publicKey, {
+    lamports: Number(rentExempt + wrappedAmount),
+    data,
+    owner: TOKEN_PROGRAM_ID,
+    executable: false,
+  });
+
+  return account.publicKey;
+}
+
+/** Drop lamports straight onto an account, bypassing every program instruction. */
+export async function airdropTo(
+  env: Env,
+  target: PublicKey,
+  lamports: number,
+): Promise<void> {
+  const existing = await env.context.banksClient.getAccount(target);
+  if (!existing) throw new Error(`${target.toBase58()} does not exist`);
+  env.context.setAccount(target, {
+    lamports: existing.lamports + lamports,
+    data: Buffer.from(existing.data),
+    owner: existing.owner,
+    executable: existing.executable,
+  });
+}
+
 export async function tokenBalance(
   env: Env,
-  account: PublicKey
+  account: PublicKey,
 ): Promise<bigint> {
   const info = await env.context.banksClient.getAccount(account);
   if (!info) throw new Error(`token account ${account.toBase58()} not found`);
   return Buffer.from(info.data).readBigUInt64LE(64);
 }
 
-export async function solBalance(env: Env, account: PublicKey): Promise<bigint> {
+export async function solBalance(
+  env: Env,
+  account: PublicKey,
+): Promise<bigint> {
   const info = await env.context.banksClient.getAccount(account);
   return info ? BigInt(info.lamports) : 0n;
 }
@@ -222,7 +290,7 @@ export async function setupEnv(): Promise<Env> {
   anchor.setProvider(provider);
 
   const idl = require("../target/idl/buddy_distributor.json");
-  const program = new Program(idl, provider) as Program<any>;
+  const program = new anchor.Program(idl, provider) as Program<any>;
   const programId = program.programId;
 
   const payer = context.payer;
@@ -254,7 +322,8 @@ export async function setupEnv(): Promise<Env> {
 
 export function bitcoinMessageHash(message: string): Uint8Array {
   const msg = Buffer.from(message, "utf8");
-  if (msg.length >= 253) throw new Error("message too long for a 1-byte varint");
+  if (msg.length >= 253)
+    throw new Error("message too long for a 1-byte varint");
   const payload = Buffer.concat([
     Buffer.from([0x18]),
     Buffer.from("Bitcoin Signed Message:\n", "utf8"),
@@ -265,7 +334,7 @@ export function bitcoinMessageHash(message: string): Uint8Array {
 }
 
 export const SIGNER_CLAIM_MESSAGE_PREFIX =
-  "I am the original Buddy. Claim to Solana address: ";
+  "I am the original Signer. Claim to Solana address: ";
 
 export function signerClaimMessage(destination: PublicKey): string {
   return `${SIGNER_CLAIM_MESSAGE_PREFIX}${destination.toBase58()}`;
@@ -287,7 +356,7 @@ export function makeBitcoinKey(seed?: Uint8Array): BitcoinKey {
 export function signBitcoinMessage(
   key: BitcoinKey,
   message: string,
-  compressed = false
+  compressed = false,
 ): { header: number; signature: Buffer } {
   const digest = bitcoinMessageHash(message);
   const sig = secp256k1.sign(digest, key.privateKey);
@@ -295,14 +364,14 @@ export function signBitcoinMessage(
   return { header, signature: Buffer.from(sig.toCompactRawBytes()) };
 }
 
-export function toBn(value: bigint | number): BN {
+export function toBn(value: bigint | number): anchor.BN {
   return new BN(value.toString());
 }
 
 /** Assert a transaction fails, and that the message mentions `needle`. */
 export async function expectFailure(
   promise: Promise<any>,
-  needle: string
+  needle: string,
 ): Promise<void> {
   try {
     await promise;
@@ -310,7 +379,7 @@ export async function expectFailure(
     const text = JSON.stringify(e?.logs ?? []) + (e?.message ?? "") + String(e);
     if (!text.includes(needle)) {
       throw new Error(
-        `expected failure containing "${needle}" but got: ${text.slice(0, 800)}`
+        `expected failure containing "${needle}" but got: ${text.slice(0, 800)}`,
       );
     }
     return;

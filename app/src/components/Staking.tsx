@@ -8,7 +8,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
 import { useState } from "react";
 import { SEEDS, TIERS, TOKEN_DECIMALS, pda } from "../config";
-import { countdown, fmtSol, fmtTokens } from "../format";
+import { countdown, fmtAmount, fmtSol } from "../format";
 import { useDistributor, useStakePosition } from "../useDistributor";
 import { useProgram } from "../useProgram";
 
@@ -30,10 +30,12 @@ export function Staking() {
         <h2>Staking</h2>
         <p className="muted">
           Connect a wallet to stake. Staking registers you for every reward the
-          ecosystem generates — routed creator fees, donations, and everything
-          forfeited by people who did not show up.
+          ecosystem generates — pump.fun creator fees, donations, and everything
+          forfeited by people who did not show up. Fees do not arrive by
+          themselves; anyone can push them in from the Fund pool tab.
         </p>
-        <TierTable />
+        <h3 className="tiers-title">The locks you can choose from</h3>
+        <TierCards selected={-1} onSelect={() => {}} />
       </div>
     );
   }
@@ -142,37 +144,75 @@ export function Staking() {
   return (
     <div className="stack">
       <section className="card">
-        <h2>Stake</h2>
+        <h2>Stake your tokens</h2>
         <p className="muted">
-          Base rewards are claimable at any time, in every tier. The boost — the
-          extra your multiplier earns — is held until your lock matures, and is
-          forfeited if you leave early.
+          Staking is how you earn from the community pool. Trading fees,
+          donations and everything anyone forfeits are shared out among stakers
+          — in proportion to how much each has staked, and how long they locked
+          it for. Holding tokens without staking earns nothing.
         </p>
+
+        <div className="note">
+          <strong>Two kinds of reward, and the difference matters.</strong>
+          <br />
+          <strong>Base</strong> is what your tokens earn at face value. It is
+          yours to claim whenever you want, in every tier including Flexible.
+          <br />
+          <strong>Bonus</strong> (the <em>boost</em>) is the extra that a
+          multiplier earns you — a 3.0× stake earns three times the share of the
+          same tokens left flexible. The bonus is <em>held by the contract</em>{" "}
+          until your lock matures, then paid in full.
+          <br />
+          <span className="muted">
+            Why hold it back: otherwise you could take a 5× share, collect for a
+            week, leave, and be paid for a commitment you never kept — at the
+            expense of everyone who did keep theirs. Forfeited bonuses are not
+            burned and do not come to us; they are shared among the stakers who
+            stayed.
+          </span>
+        </div>
+
+        <h3 className="tiers-title">Choose a lock</h3>
+        <TierCards selected={tier} onSelect={setTier} />
+
+        <p className="muted small">
+          <strong>Is Flexible really a lockup?</strong> Partly, and it is fairer
+          to say so than to hide behind the word "flexible". Leaving takes three
+          days: you request to unstake, wait, then withdraw. So you cannot exit
+          within the same day.
+          <br />
+          What makes it different from the locked tiers is that{" "}
+          <strong>nothing is ever at risk and nothing is forfeited.</strong> You
+          get 100% of your tokens and all your base rewards, always. Your stake
+          keeps earning throughout the three days, the clock starts the moment
+          you ask rather than the moment you staked, and once it elapses you can
+          withdraw whenever suits you — there is no window to miss. Break a
+          locked tier early and you lose the whole bonus plus 15% of your stake;
+          Flexible has no equivalent, because there is nothing to break.
+          <br />
+          The delay exists so nobody can watch a large reward land, stake for a
+          moment to capture a slice of it, and leave in the same block. Without
+          it, everyone who actually stays would be diluted by people who were
+          never really there.
+        </p>
+
         <div className="form-row">
           <input
             type="number"
             min="0"
             step="any"
-            placeholder="Amount"
+            placeholder="Amount to stake"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
-          <select value={tier} onChange={(e) => setTier(Number(e.target.value))}>
-            {TIERS.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} — {t.multiplier}
-              </option>
-            ))}
-          </select>
           <button
             className="primary"
             disabled={busy || !amount || parseFloat(amount) <= 0}
             onClick={stake}
           >
-            Stake
+            Stake {TIERS[tier]?.name}
           </button>
         </div>
-        <TierTable />
       </section>
 
       {position && (
@@ -180,15 +220,15 @@ export function Staking() {
           <h2>Your position</h2>
           <div className="stat-row">
             <div className="stat">
-              <span className="stat-value">{fmtTokens(position.amount)}</span>
+              <span className="stat-value">{fmtAmount(position.amount, true)}</span>
               <span className="stat-label">Staked</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtTokens(position.claimableToken)}</span>
+              <span className="stat-value">{fmtAmount(position.claimableToken, true)}</span>
               <span className="stat-label">Base, claimable now</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtTokens(position.escrowToken)}</span>
+              <span className="stat-value">{fmtAmount(position.escrowToken, true)}</span>
               <span className="stat-label">Boost, held to maturity</span>
             </div>
             <div className="stat">
@@ -199,7 +239,7 @@ export function Staking() {
           {lockLeft && (
             <p className="muted small">
               Lock matures in {lockLeft}. Leaving before then forfeits the entire
-              boost escrow plus 10% of principal, both of which go to the stakers
+              boost escrow plus 15% of principal, both of which go to the stakers
               who stay.
             </p>
           )}
@@ -218,7 +258,7 @@ export function Staking() {
             </button>
             {lockLeft && (
               <button className="danger" disabled={busy} onClick={emergencyExit}>
-                Emergency exit (forfeit boost + 10%)
+                Emergency exit (forfeit boost + 15%)
               </button>
             )}
           </div>
@@ -230,29 +270,55 @@ export function Staking() {
   );
 }
 
-function TierTable() {
+/**
+ * The tiers as plans you pick between, not a spec table.
+ *
+ * Each card carries both halves of the trade — what you gain and what it costs
+ * — because the cost is a real lockup with a real penalty, and burying that in
+ * a footnote is how people end up surprised.
+ */
+function TierCards({
+  selected,
+  onSelect,
+}: {
+  selected: number;
+  onSelect: (id: number) => void;
+}) {
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Tier</th>
-            <th>Multiplier</th>
-            <th>Lock</th>
-            <th>Boost escrow</th>
-          </tr>
-        </thead>
-        <tbody>
-          {TIERS.map((t) => (
-            <tr key={t.id}>
-              <td>{t.name}</td>
-              <td>{t.multiplier}</td>
-              <td>{t.lock}</td>
-              <td>{t.id === 0 ? "none" : "released at maturity"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="tiers">
+      {TIERS.map((t) => {
+        const active = t.id === selected;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            className={active ? "tier tier-active" : "tier"}
+            aria-pressed={active}
+            onClick={() => onSelect(t.id)}
+          >
+            {t.popular && <span className="tier-flag">most rewarding</span>}
+
+            <span className="tier-name">{t.name}</span>
+            <span className="tier-mult">{t.multiplier}</span>
+            <span className="tier-lock">{t.lock}</span>
+            <span className="tier-tagline">{t.tagline}</span>
+
+            <ul className="tier-perks">
+              {t.perks.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+
+            <ul className="tier-costs">
+              {t.costs.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+
+            <span className="tier-pick">{active ? "Selected" : "Select"}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

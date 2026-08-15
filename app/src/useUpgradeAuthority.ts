@@ -1,6 +1,13 @@
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { PROGRAM_ID } from "./config";
 
 const BPF_UPGRADEABLE_LOADER = new PublicKey(
@@ -29,7 +36,7 @@ export interface UpgradeAuthorityState {
  * Option tag — 0 means None, which is what immutable looks like — followed by
  * the 32-byte authority when the tag is 1.
  */
-export function useUpgradeAuthority(): UpgradeAuthorityState {
+function useUpgradeAuthoritySource(): UpgradeAuthorityState {
   const { connection } = useConnection();
   const [state, setState] = useState<UpgradeAuthorityState>({
     immutable: null,
@@ -84,4 +91,26 @@ export function useUpgradeAuthority(): UpgradeAuthorityState {
   }, [connection]);
 
   return state;
+}
+
+const UpgradeAuthorityContext = createContext<UpgradeAuthorityState | null>(null);
+
+/**
+ * Shared, for the same reason the distributor read is: the Landing and Verify
+ * tabs both want this, it is one account, and it cannot change while a page is
+ * open — a program upgrade would not reach an already-loaded tab anyway.
+ */
+export function UpgradeAuthorityProvider({ children }: { children: ReactNode }) {
+  const value = useUpgradeAuthoritySource();
+  return createElement(UpgradeAuthorityContext.Provider, { value }, children);
+}
+
+export function useUpgradeAuthority(): UpgradeAuthorityState {
+  const ctx = useContext(UpgradeAuthorityContext);
+  if (!ctx) {
+    throw new Error(
+      "useUpgradeAuthority must be used inside <UpgradeAuthorityProvider>"
+    );
+  }
+  return ctx;
 }

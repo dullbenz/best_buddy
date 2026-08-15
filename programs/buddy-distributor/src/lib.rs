@@ -31,8 +31,17 @@ pub mod utils;
 
 use instructions::*;
 
-declare_id!("GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11");
+declare_id!("4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V");
 
+// NOTE: builds emit one warning here — anchor-lang 0.31.1 calls the deprecated
+// `AccountInfo::realloc` inside this macro's expansion. It is left visible on
+// purpose. A module-scoped `#[allow(deprecated)]` does not reach it, because
+// the macro also emits sibling items at crate level; the only thing that
+// silences it is a crate-wide allow, which would also hide genuine deprecations
+// in the actual logic. One known warning beats that trade.
+//
+// It is cosmetic: `realloc` still works, and once deployed the bytecode is
+// frozen regardless of what the SDK renames later.
 #[program]
 pub mod buddy_distributor {
     use super::*;
@@ -95,6 +104,23 @@ pub mod buddy_distributor {
 
     pub fn flush_pending(ctx: Context<FlushPending>) -> Result<()> {
         instructions::rewards::flush_pending(ctx)
+    }
+
+    /// Credit lamports that reached the SOL vault without going through
+    /// `notify_sol_rewards` — pump.fun fee distributions, donations, mistakes.
+    pub fn sync_sol_rewards(ctx: Context<SyncSolRewards>) -> Result<()> {
+        instructions::rewards::sync_sol_rewards(ctx)
+    }
+
+    /// The same, for reward-mint tokens sent straight to the token vault.
+    pub fn sync_token_rewards(ctx: Context<SyncTokenRewards>) -> Result<()> {
+        instructions::rewards::sync_token_rewards(ctx)
+    }
+
+    /// Turn vault-held wrapped SOL into lamports and credit it. Needed because
+    /// pump.fun pays post-graduation creator fees in wSOL.
+    pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
+        instructions::rewards::unwrap_wsol(ctx)
     }
 
     // ---- buckets 2, 3, 4 ----

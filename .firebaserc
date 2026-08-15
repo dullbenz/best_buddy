@@ -1,5 +1,18 @@
 {
   "projects": {
-    "default": "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID"
-  }
+    "default": "influential-bit-411408"
+  },
+  "targets": {
+    "influential-bit-411408": {
+      "hosting": {
+        "staging": [
+          "mybestbuddy-staging"
+        ],
+        "production": [
+          "mybestbuddy"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

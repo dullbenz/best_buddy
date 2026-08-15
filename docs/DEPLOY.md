@@ -46,7 +46,7 @@ cd best_buddy && npm install --legacy-peer-deps && ~/.avm/bin/anchor-0.31.1 buil
 cargo test -p buddy-distributor --lib && npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
 ```
 
-You should see 7 Rust unit tests and 28 integration tests pass. **Do not
+You should see 7 Rust unit tests and 37 integration tests pass. **Do not
 continue if anything fails.** These cover the claim-then-exit attack, every
 expiry sweep, and the secp256k1 verification — they are the reason to trust the
 contract.
@@ -59,8 +59,24 @@ solana-keygen new --no-bip39-passphrase -o target/deploy/buddy_distributor-keypa
 
 Put the printed address into `Anchor.toml` (both `[programs.*]` entries) and
 into `declare_id!` in `programs/buddy-distributor/src/lib.rs`, then rebuild.
-**Back this keypair up offline.** Losing it means you can never upgrade the
-program; leaking it means someone else can.
+
+**Back this keypair up offline — but understand what it does and does not
+do.** The program's address *is* this key's public key, and the CLI is precise
+about when it is needed: `--program-id` "must be a signer for initial deploys,
+can be an address for upgrades". So it signs exactly one transaction ever, the
+one that creates the program account.
+
+| | before the first deploy | after it |
+|---|---|---|
+| lose it | you lose that address; generate another and start over | nothing — upgrades and closes need the upgrade authority, not this |
+| leak it | someone can deploy *their* program at your address first | nothing — the account exists and cannot be created twice |
+
+The window where it matters is between generating it and deploying it, so back
+it up **before** the deploy, not after. Once deployed it is largely spent.
+
+The key that actually carries risk is the **upgrade authority** in §0.4, which
+can replace the whole program regardless of what the config says — right up
+until you burn it at launch.
 
 ### 0.4 The two authorities
 
@@ -72,7 +88,7 @@ dev-bought tokens into a contract. No community money exists in the vault yet,
 so a multisig here protects nobody from anything — **your own wallet is fine.**
 
 **The upgrade authority** can replace the program's code and bypass the config
-lock entirely. By the time it matters the vault holds tokens that old holders
+lock entirely. By the time it matters the vault holds tokens that Legacy Buddy holders
 and influencers have a claim on, so this one is real.
 
 **This project burns it on launch day, before announcing.** No multisig, no
@@ -126,9 +142,13 @@ Three things ship with the launch, not after it:
   on the site under the **Verify** tab, which runs the checks it can in the
   visitor's browser and says "could not read" rather than guessing when it
   cannot.
-- **The How it works tab** — the plain-English explainer in
-  `app/src/components/HowItWorks.tsx`. Read it end to end and make sure it
-  matches what you actually built.
+- **The landing page and the How it works tab** —
+  `app/src/components/Landing.tsx` and `app/src/components/HowItWorks.tsx`.
+  Read both end to end and make sure they match what you actually built. These
+  are the only two places the site asserts something in prose instead of
+  reading it from chain, so they are the only two that can be wrong silently.
+  Both already switch tense on the live upgrade-authority read, so before the
+  burn they say so rather than claiming it.
 - **[CONTENT.md](./CONTENT.md)** — TikTok scripts, the X thread, and the ask for
   independent verification. Check every placeholder is filled and no post
   promises a price outcome.
@@ -143,7 +163,7 @@ can say about yourself. Post it where technical people actually are.
 
 ### 1.1 Pick a slot that is already in the past
 
-Do **not** announce a future snapshot time. Telling the internet "old Buddy
+Do **not** announce a future snapshot time. Telling the internet "Legacy Buddy
 holders get an airdrop, snapshot in 24 hours" is an instruction to go buy the
 old token: you would pump it, hand restitution to farmers instead of the people
 who were actually wronged, and route the extra trading fees straight to the dev
@@ -188,7 +208,9 @@ npx ts-node scripts/verify-snapshot.ts
 
 Publish the entire `snapshot/` directory — `manifest.json`, `allocations.json`,
 `proofs.json`, `holders.csv`, `excluded.csv`. Invite people to re-run
-`verify-snapshot.ts` themselves. Note the `merkleRoot`; it goes on chain next.
+`verify-snapshot.ts` themselves. Publishing only the eligible addresses would
+let you drop anyone without it showing, so every exclusion ships with its
+reason. Note the `merkleRoot`; it goes on chain next.
 
 ### 1.5 Build the influencer tree
 
@@ -270,6 +292,28 @@ RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> CLIFF_DAYS=30 npx ts-node script
 Anyone can call this; it can only produce the terms fixed at init. Do it
 immediately so the dev wallet is visibly empty from the first block.
 
+### 2.5a Set the pump.fun fee split — irreversible, so do it before the burn
+
+Full mechanism: [FEES.md](./FEES.md). Two self-service transactions signed by
+you as coin creator; pump.fun approval is not involved.
+
+```
+create_fee_sharing_config        # shareholders default to [(you, 100%)]
+update_fee_shares_v2             # 90% -> SOL vault PDA, 10% -> dev wallet
+```
+
+> **`update_fee_shares_v2` runs exactly once.** pump.fun's program revokes its
+> own admin straight afterwards and freezes the shareholder list forever. A
+> share pointing somewhere unpayable can block every future distribution
+> permanently, with no way to edit it.
+>
+> Never run this on the real coin before the throwaway-coin rehearsal has proved
+> the identical configuration works. It cannot be rehearsed on devnet —
+> pump.fun has no devnet deployment.
+
+Doing this *before* the burn is deliberate: if the split misbehaves, the program
+is still upgradeable and you can redeploy. Afterwards you cannot.
+
 ### 2.6 Verify everything, then burn the upgrade authority
 
 **This is the point of no return. Read the checks before running the command.**
@@ -288,6 +332,7 @@ Then walk the dashboard locally against mainnet and check, line by line:
 - both deadlines are the dates you published
 - the dev stream exists, with the right total and cliff
 - the original-signer key matches the 2014 transaction
+- the fee split reads 90/10 and the sharing-config admin is revoked
 
 Anything wrong? Fix it now. You can still redeploy at a new address for ~4 SOL.
 After the next command you cannot.
@@ -306,21 +351,7 @@ solana program show <PROGRAM_ID>
 not by anyone, not to fix a bug. Save that transaction signature; it goes in the
 announcement.
 
-### 2.7 Route creator fees into bucket 1
-
-In the pump.fun creator dashboard, split creator fees so a meaningful share
-(recommended: 50% or more) goes to the community. Two options:
-
-- **Simplest:** point the split at a wallet you control, and have it
-  periodically call `notify_token_rewards` / `notify_sol_rewards`.
-- **Better if supported:** point it directly at the SOL vault PDA. Lamports sent
-  there still need a `notify_sol_rewards` call to be counted, so a small
-  cron that reconciles the vault balance is worth writing either way.
-
-Check pump.fun's current fee-split UI at the time — it changed in January 2026
-and may have changed again.
-
-### 2.8 Announce
+### 2.7 Announce
 
 Post all at once: program ID, config PDA, snapshot files, pre-commitment doc,
 receipts dossier, and the burn transaction signature.
@@ -347,7 +378,7 @@ you write yourself substitutes for that.
 ### 3.1 Deploy the app
 
 ```bash
-cd app && cp -r ../snapshot/proofs.json public/proofs/old-holders.json && npm run build
+cd app && cp ../snapshot/proofs.json public/proofs/old-holders.json && cp ../snapshot/holders.csv ../snapshot/excluded.csv ../snapshot/manifest.json ../snapshot/influencers.csv ../snapshot/influencers-manifest.json public/snapshot/ && npm run build
 ```
 
 Copy the influencer proofs to `public/proofs/influencers.json`, set
@@ -361,7 +392,7 @@ The 72-hour window began at `claims_start`, i.e. when you initialized. Notify
 every influencer immediately and publicly, so the countdown is visible to
 everyone and nobody can claim they were never told.
 
-### 3.3 Contact the old holders
+### 3.3 Contact the Legacy Buddy holders
 
 You cannot DM them. Post everywhere the old community gathered, and ask people
 to spread it. This is why the window is 30 days rather than 72 hours.
@@ -426,7 +457,7 @@ re-litigate it if it happens.
 
 ## Pre-launch checklist
 
-- [ ] All 35 tests pass
+- [ ] All 44 tests pass
 - [ ] Devnet rehearsal completed end to end
 - [ ] Security review done and published
 - [ ] Program keypair backed up offline
@@ -442,6 +473,8 @@ re-litigate it if it happens.
 - [ ] Influencer list published with amounts
 - [ ] Dev-buy sized as losable money
 - [ ] No public material promises returns, profit, or price
+- [ ] Fee chain proved end to end on a throwaway mainnet coin
+- [ ] Fee split set 90/10 via `update_fee_shares_v2` and confirmed frozen
 - [ ] VERIFY.md filled in with real addresses and published
 - [ ] Verify and How it works tabs live on the site and read end to end
 - [ ] Independent-verification ask posted where technical people will see it

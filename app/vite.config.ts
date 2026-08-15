@@ -14,6 +14,17 @@ export default defineConfig({
     // to resolve the shim specifiers this plugin rewrites them to.
     nodePolyfills({ globals: { Buffer: true, global: true, process: true } }),
   ],
+  server: {
+    // The Helius production key is domain-locked, and Helius rejects
+    // "localhost" as an allowed-domain value — so local dev cannot reach
+    // mainnet through it directly. Serving the dev server over our permanent
+    // ngrok dev domain gives requests a real Origin that Helius will accept,
+    // and doubles as a link testers can open.
+    //
+    // Vite blocks unknown Host headers by default (DNS-rebinding protection),
+    // so the tunnel host has to be named here or it answers 403.
+    allowedHosts: [".ngrok-free.dev", ".ngrok-free.app"],
+  },
   build: {
     target: "es2020",
     chunkSizeWarningLimit: 1500,

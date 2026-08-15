@@ -6,6 +6,7 @@
   "scripts": {
     "copy-idl": "node scripts/copy-idl.mjs",
     "dev": "npm run copy-idl && vite",
+    "tunnel": "ngrok http 5173 --url https://ryleigh-companyless-outbully.ngrok-free.dev",
     "build": "npm run copy-idl && tsc --noEmit && vite build",
     "preview": "vite preview"
   },
@@ -16,6 +17,7 @@
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",
     "@solana/web3.js": "^1.95.4",
+    "bs58": "^4.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

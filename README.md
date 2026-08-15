@@ -9,15 +9,16 @@ claim opens.
 
 ```
                       ┌─────────────────────────────┐
-   creator fees ─────►│                             │
-   donations    ─────►│   Bucket 1: staking pool    │◄──── every forfeiture
-                      │   (starts empty, perpetual) │      in the system
-                      └──────────────▲──────────────┘
+   creator fees ──┐   │                             │
+   donations    ──┼──►│   Bucket 1: staking pool    │◄──── every forfeiture
+                  │   │   (starts empty, perpetual) │      in the system
+   anyone can     │   └──────────────▲──────────────┘
+   push these ────┘                  │
                                      │
         ┌────────────────┬───────────┴────────┬──────────────────┐
         │                │                    │                  │
   Bucket 2         Bucket 3             Bucket 4a          Bucket 4b
-  old holders      influencers          2014 signer        new dev
+  Legacy Buddy holders      influencers          2014 signer        new dev
   30 days          72 hours             until 2030         automatic
   instant          30-day stream        12-mo stream       12-mo + cliff
 ```
@@ -29,22 +30,26 @@ claim opens.
 | Path | What |
 |---|---|
 | `programs/buddy-distributor/` | the Anchor program |
-| `tests/` | 28 integration tests (bankrun, with time travel) |
+| `tests/` | 37 integration tests (bankrun, with time travel) |
 | `scripts/snapshot.ts` | snapshot old-token holders → Merkle tree |
 | `scripts/verify-snapshot.ts` | independent verification anyone can run |
 | `scripts/build-tree.ts` | build the influencer tree from CSV |
 | `scripts/deploy-init.ts` | initialize → fund → lock, with a dry-run default |
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
 | `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
-| `app/` | claim dApp, dashboard, live Verify page and explainer |
+| `app/` | landing page, claim dApp, dashboard, fee crank, live Verify page and explainer |
+| `app/src/pumpfun.ts` | the only pump.fun-coupled code — deliberately in the frontend |
+| `functions/` | basic-auth gate fronting the staging site |
 | `TO-THE-MOON.md` | **the complete checklist — start here** |
 | `docs/DEVNET-REHEARSAL.md` | scripted dress run on devnet |
 | `docs/DEPLOY.md` | **the step-by-step runbook** |
 | `docs/PRE-COMMITMENT.md` | public tokenomics, to publish before launch |
+| `docs/FEES.md` | how creator fees reach the pool, and the one-shot split |
 | `docs/VERIFY.md` | how anyone can independently verify every claim |
 | `docs/CONTENT.md` | TikTok scripts, X thread, the ask for independent review |
 | `docs/RECEIPTS.md` | evidence dossier template |
 | `docs/CICD.md` | GitHub Actions + Firebase Hosting setup |
+| `docs/ENVIRONMENTS.md` | staging vs production, branching, the auth gate |
 
 ## Start here
 
@@ -91,11 +96,11 @@ step 2.6.
 
 ### Base/boost split
 
-Staking tiers multiply your rewards (up to 3.0x for a 12-month lock), but only
+Staking tiers multiply your rewards (up to 5.0x for a 12-month lock), but only
 the base `amount × 1.0` portion is claimable while the lock runs. The rest is
 escrowed until maturity and forfeited on early exit.
 
-Without this, a staker could take the 3.0x rate, claim continuously, exit after
+Without this, a staker could take the 5.0x rate, claim continuously, exit after
 a few weeks, and have captured the full multiplier while honouring almost none
 of the commitment it paid for. `settle()` in `state.rs` splits every accrual at
 source; `emergency_exit` in `staking.rs` redistributes what a quitter forfeits —

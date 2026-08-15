@@ -10,9 +10,14 @@ Total time: about 30 minutes. Nothing here touches mainnet or costs money.
 
 | Workflow | Runs when | What it does |
 |---|---|---|
-| `ci.yml` | every push and PR | keypair guard, Rust tests, program build, IDL drift check, 28 integration tests, app build |
-| `preview.yml` | every PR touching `app/` | deploys a temporary preview URL, expires after 7 days |
-| `deploy.yml` | push to `main` touching `app/` | builds and deploys to `mybestbuddy.fun` |
+| `ci.yml` | push to `main`/`develop`, and every PR | keypair guard, typecheck, Rust tests, program build, IDL drift check, 28 integration tests, app build |
+| `deploy-staging.yml` | push to `develop` | devnet build → `staging.mybestbuddy.fun`, behind basic auth |
+| `deploy.yml` | push to `main` touching `app/` | mainnet build → `mybestbuddy.fun` |
+| `preview.yml` | every PR touching `app/` | temporary preview URL, expires after 7 days |
+
+Branching, the staging auth gate and the Blaze requirement are covered in
+[ENVIRONMENTS.md](./ENVIRONMENTS.md). This file covers the Firebase and GitHub
+setup common to both.
 
 Two guards are worth knowing about, because they exist for this project
 specifically:
@@ -29,65 +34,107 @@ shortcut from ever shipping a UI that disagrees with the deployed contract.
 
 ---
 
-## 1. Create the GitHub repository
+## 1. The GitHub repository — already done
+
+`github.com/dullbenz/best_buddy`, currently **private**.
+
+It has to be public before launch: the Verify page asks people to clone the repo
+to reproduce the snapshot and to confirm the deployed bytecode matches the
+source, and neither works against a private repo.
 
 ```bash
-cd /Users/dullbenz/Projects/Personal/best_buddy && gh repo create buddy-distributor --public --source=. --remote=origin
+gh repo edit dullbenz/best_buddy --visibility public --accept-visibility-change-consequences
 ```
 
-Public is the right call: the whole pitch is that anyone can verify the
-contract. If you want to keep it private until launch, use `--private` and flip
-it public before you announce.
-
-Then push:
-
-```bash
-git push -u origin main
-```
+While it stays private, note that Actions minutes are metered — 2,000/month on
+the free tier, versus unlimited for public repos. The `program` job compiles
+Rust, so expect roughly 10–25 minutes per push.
 
 ---
 
-## 2. Create the Firebase project
+## 2. Add Firebase to your Google Cloud project
 
-1. Go to [console.firebase.google.com](https://console.firebase.google.com) and
-   sign in with the Google account holding your $300 credits.
-2. **Add project** → name it (e.g. `mybestbuddy`) → you can disable Analytics.
-3. In the left sidebar: **Build → Hosting → Get started**. Click through the CLI
-   steps; you do not need to run them, the workflow handles deployment.
-4. Note your **project ID** (shown in Project settings — it may have a numeric
-   suffix, like `mybestbuddy-4f2a1`).
+**A Firebase project *is* a Google Cloud project.** They are the same object
+seen through two consoles — Firebase is a layer of services switched on over a
+GCP project. The CLI says so plainly: `firebase projects:create` is documented
+as *"creates a new Google Cloud Platform project, then adds Firebase resources
+to the project."*
 
-Put that ID into `.firebaserc`, replacing the placeholder. CI refuses to build
-`main` while the placeholder is still there.
+So you do not need a second project. You already have one, holding your $300
+credits, and you should use it — one project, one billing account, and no doubt
+about whether the credits apply.
+
+```bash
+npm install -g firebase-tools && firebase login
+```
+
+```bash
+firebase projects:addfirebase <your-gcp-project-id>
+```
+
+Find the project id with `gcloud projects list`, or in the Google Cloud console
+next to the project name. It is the id, not the display name — often something
+like `buddy-472013`.
+
+Then enable Hosting: [console.firebase.google.com](https://console.firebase.google.com)
+→ your project → **Build → Hosting → Get started**. Click through the CLI steps
+shown; you do not need to run them, the workflow handles deployment.
+
+<details>
+<summary>If you would rather start a fresh project instead</summary>
+
+```bash
+firebase projects:create mybestbuddy
+```
+
+This creates a *new* GCP project underneath. Your credits live on the billing
+account rather than the project, so they still apply — but you must link the
+same billing account to the new project, or it will bill separately. Reusing
+the project you already have avoids that whole question.
+
+</details>
+
+Put the project id into `.firebaserc`, replacing the placeholder. CI refuses to
+build `main` or `develop` while any placeholder survives.
 
 ---
 
 ## 3. Create the deploy service account
 
-This is the credential GitHub uses to publish. Easiest route:
+This is the credential GitHub uses to publish. Do it in **Cloud Shell** (the
+`>_` icon in the Cloud Console) — it is already authenticated as you, and the
+console's own IAM form is easy to get wrong:
 
 ```bash
-npm install -g firebase-tools && firebase login && firebase init hosting:github
+P=influential-bit-411408; SA=github-deploy@$P.iam.gserviceaccount.com; gcloud iam service-accounts create github-deploy --display-name="GitHub Actions deploy" --project=$P; for R in firebase.admin cloudfunctions.admin iam.serviceAccountUser artifactregistry.admin run.admin cloudbuild.builds.editor; do gcloud projects add-iam-policy-binding $P --member="serviceAccount:$SA" --role="roles/$R" --condition=None -q >/dev/null; done; gcloud iam service-accounts keys create ~/sa-key.json --iam-account=$SA && cloudshell download ~/sa-key.json
 ```
 
-When prompted, point it at your GitHub repo. It creates the service account and
-sets the `FIREBASE_SERVICE_ACCOUNT` secret for you.
+Then, locally:
 
-It may also offer to write its own workflow files — **decline**, or let it and
-then delete what it adds. The workflows in `.github/workflows/` already handle
-this and include the safety checks.
+```bash
+gh secret set FIREBASE_SERVICE_ACCOUNT < ~/Downloads/sa-key.json && rm ~/Downloads/sa-key.json
+```
 
-<details>
-<summary>Manual route, if you prefer not to use the CLI</summary>
+And back in Cloud Shell, remove its copy too — a private key should not outlive
+the minute it was needed:
 
-In Google Cloud Console → IAM → Service Accounts → Create:
+```bash
+shred -u ~/sa-key.json
+```
 
-- Role: **Firebase Hosting Admin**
-- Create a JSON key, download it
-- Paste the entire file contents as the GitHub secret `FIREBASE_SERVICE_ACCOUNT`
-- Delete the downloaded file afterwards
+**Why six roles and not just Firebase Hosting Admin.** Hosting Admin deploys
+production, and nothing else. Staging's basic-auth gate is a 2nd-gen Cloud
+Function, and those are Cloud Run services built by Cloud Build from a container
+in Artifact Registry — so a deploy touches four more products, plus
+`iam.serviceAccountUser` to act as the function's own runtime identity.
 
-</details>
+Note what is *not* in the list: permission to enable APIs. CI should not be able
+to turn on billable Google Cloud services by itself. That is a one-time owner
+action instead — see [ENVIRONMENTS.md](./ENVIRONMENTS.md) §2.
+
+> The `firebase init hosting:github` shortcut also exists, but it provisions
+> only Hosting permissions and offers to write its own workflow files, which
+> would overwrite the ones here and their safety checks.
 
 ---
 
@@ -106,14 +153,64 @@ Under **Variables** (visible in logs — never put a secret here):
 | Name | Value |
 |---|---|
 | `FIREBASE_PROJECT_ID` | your Firebase project ID |
-| `VITE_RPC_URL` | your Helius/Triton RPC URL |
-| `VITE_PROGRAM_ID` | `GBJbhGqP5HR3XfYEqnu7hboEk6PsXcT1y2WNAobQZY11` |
+| `VITE_RPC_URL` | your Helius/Triton RPC URL, used whenever the page is served from a real domain |
+| `STAGING_RPC_URL` | the same key against `devnet.helius-rpc.com`, so staging exercises the real endpoint rather than the public one |
+| `VITE_PROGRAM_ID` | `4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V` |
 
 > **On `VITE_RPC_URL`:** anything in a frontend build is public by definition —
 > anyone can read the key out of the JavaScript bundle. That is normal and
-> unavoidable for a browser dApp. Protect it at the provider instead: in Helius,
-> restrict the key to your domain and set a rate limit. Do not reuse the key
-> your deploy scripts use.
+> unavoidable for a browser dApp. Protect it at the provider instead.
+>
+> Done, for this project: Helius → RPCs → **RPC Access Control Rules** →
+> Allowed Domains is `mybestbuddy.fun`, `www.mybestbuddy.fun`,
+> `staging.mybestbuddy.fun` and the ngrok dev domain. Any other Origin, and any
+> request with no Origin at all, gets `Forbidden`. Verify in one line:
+>
+> ```bash
+> curl -sS -X POST -H 'Content-Type: application/json' -H 'Origin: https://attacker.example.com' -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' "$VITE_RPC_URL"
+> ```
+>
+> That must print `Forbidden`. If it prints `ok`, the lock is off and the key is
+> free for anyone to spend.
+
+### What the access controls can and cannot do
+
+Helius offers three rules — **Allowed Domains**, **Allowed IPs**, **Allowed
+CIDRs**. All three are allowlists. **There is no per-IP rate limiting**, and
+asking for one is asking for something the product does not have; rate limits
+are per plan and apply to the key as a whole.
+
+Do **not** set Allowed IPs or Allowed CIDRs on this key. They are for
+server-side callers with fixed addresses. A public website's visitors arrive
+from arbitrary IPs, so any value there locks out everyone who is not on the
+list — which is every real user.
+
+Two limits worth knowing, both established by testing rather than from the
+docs:
+
+- **Allowed Domains is not enforced on the devnet endpoint.** The rules are
+  shared across networks in the dashboard, but `devnet.helius-rpc.com` answers
+  any Origin, and answers requests with no Origin header at all. Only
+  `mainnet.helius-rpc.com` enforces. Treat the key as public on devnet and
+  assume anyone can spend credits against it there; the mainnet lock is the one
+  that matters, and it does work.
+- **`localhost` is rejected as an allowlist entry** — the dashboard says so
+  explicitly. That is why the app picks its RPC by hostname at runtime
+  (`VITE_RPC_URL` for real domains, `VITE_LOCAL_RPC_URL` for localhost) instead
+  of baking one endpoint into the build. See [ENVIRONMENTS.md](./ENVIRONMENTS.md).
+
+Re-check both after any dashboard change:
+
+```bash
+for net in mainnet devnet; do
+  printf "%s no-origin: " "$net"
+  curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' "https://$net.helius-rpc.com/?api-key=$HELIUS_KEY"
+done
+```
+
+Mainnet must be `403`. Devnet returning `200` is expected and cannot currently
+be fixed from the dashboard.
 
 The deploy workflow fails fast if `VITE_RPC_URL` is unset, rather than shipping
 a site that 403s for every visitor.
@@ -152,12 +249,17 @@ site is live and talking to the chain.
 The claim page reads two files from the deployed site:
 
 - `app/public/proofs/old-holders.json`
+- `app/public/snapshot/holders.csv`, `excluded.csv`, `manifest.json`,
+  `influencers.csv`, `influencers-manifest.json` — the Claims and Verify tabs
+  link to these directly. Missing, they are detected and shown as "not published yet" rather
+  than linked, because the SPA rewrite would otherwise serve `index.html` under
+  a `.csv` name and look like a working download
 - `app/public/proofs/influencers.json`
 
 After you run the snapshot:
 
 ```bash
-cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json
+cp snapshot/proofs.json app/public/proofs/old-holders.json && cp snapshot/influencers-proofs.json app/public/proofs/influencers.json && cp snapshot/holders.csv snapshot/excluded.csv snapshot/manifest.json snapshot/influencers.csv snapshot/influencers-manifest.json app/public/snapshot/
 ```
 
 Commit and push — CI validates the JSON and the deploy publishes them.

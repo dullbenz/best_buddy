@@ -1,5 +1,7 @@
-name: Deploy site
+name: Deploy production
 
+# main -> mybestbuddy.fun, mainnet, public. Staging is a separate pipeline on
+# `develop`; nothing reaches this one without going through there first.
 on:
   push:
     branches: [main]
@@ -17,9 +19,10 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and deploy to Firebase Hosting
+    name: Build and deploy to production
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: production
     # Only deploy what already passed CI on this exact commit.
     steps:
       - uses: actions/checkout@v4
@@ -29,27 +32,49 @@ jobs:
           node-version: 22
           cache: npm
 
+      # functions/ needs its own install: the Firebase CLI loads the trigger
+      # locally before it will upload anything.
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          cd app && npm install --legacy-peer-deps
+          (cd app && npm install --legacy-peer-deps)
+          (cd functions && npm install)
 
       - name: Build
         working-directory: app
         env:
           VITE_RPC_URL: ${{ vars.VITE_RPC_URL }}
+          VITE_LOCAL_RPC_URL: https://api.mainnet-beta.solana.com
           VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID }}
+          VITE_CANONICAL_HOST: ${{ vars.CANONICAL_HOST || 'mybestbuddy.fun' }}
         run: |
           if [ -z "$VITE_RPC_URL" ]; then
             echo "::error::Repository variable VITE_RPC_URL is not set. The public RPC returns 403 to browsers, so the dashboard would not load."
             exit 1
           fi
+          case "$VITE_RPC_URL" in
+            *devnet*|*testnet*|*localhost*)
+              echo "::error::VITE_RPC_URL points at '$VITE_RPC_URL'. Production must not ship a devnet build."
+              exit 1
+              ;;
+          esac
           npm run build
 
-      - name: Deploy
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Authenticate to Firebase
+        uses: google-github-actions/auth@v2
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
-          channelId: live
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # Production is no longer hosting-only: /api/terms is served by the
+      # `terms` function, and the Firestore rules behind it must ship with it.
+      # action-hosting-deploy cannot do either, so deploy through the CLI.
+      #
+      # `stagingGate` is deliberately excluded — it belongs to the other
+      # environment and naming the functions explicitly stops a production
+      # deploy from ever touching it.
+      - name: Deploy hosting, API and rules
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only "hosting:production,functions:terms,firestore:rules" \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" \
+            --non-interactive

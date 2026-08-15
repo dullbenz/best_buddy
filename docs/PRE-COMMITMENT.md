@@ -8,7 +8,7 @@
 
 ## Why this exists
 
-The original Buddy token (`7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump`) was
+The legacy Buddy token (`7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump`) was
 abandoned by its creator, who sold into the community he built and continued
 collecting creator fees from a project he had walked away from. The evidence is
 in [RECEIPTS.md](./RECEIPTS.md) — transaction by transaction.
@@ -29,7 +29,7 @@ claim opens.
 | Bucket | Who | Window | How it pays |
 |---|---|---|---|
 | 1 | Community stakers | perpetual | pro-rata, continuously |
-| 2 | Old Buddy holders | 30 days | instantly, no lockup |
+| 2 | Legacy Buddy holders | 30 days | instantly, no lockup |
 | 3 | Influencers | 72 hours | 30-day stream on claim |
 | 4a | The original 2014 Bitcoin signer | until 2030-12-31 | 12-month stream |
 | 4b | The new dev | automatic | 12-month stream behind a cliff |
@@ -44,7 +44,7 @@ up in bucket 1.
 
 | Bucket | Amount | Share |
 |---|---|---|
-| 2 — old holders | `<amount>` | `<55%>` |
+| 2 — Legacy Buddy holders | `<amount>` | `<55%>` |
 | 3 — influencers | `<amount>` | `<15%>` |
 | 4a — original signer | `<amount>` | `<20%>` |
 | 4b — new dev | `<amount>` | `<10%>` |
@@ -55,7 +55,7 @@ generates and by what other people forfeit, not by a pre-mine.
 
 ---
 
-## Bucket 2 — old Buddy holders
+## Bucket 2 — Legacy Buddy holders
 
 Snapshot taken at slot `<slot>` (`<UTC time>`), chosen **retroactively** — the
 block of `<the documented event: e.g. the creator's final sell transaction>`,
@@ -133,8 +133,13 @@ The dev's allocation streams linearly over 12 months behind a `<30>`-day cliff.
 ever receive from this allocation exists only inside the distributor contract
 and comes out at a fixed rate that nobody — including the dev — can accelerate.
 
-Ongoing dev income is the retained share of pump.fun creator fees, disclosed
-here: `<X%>` retained, `<Y%>` routed to the community staking pool.
+Ongoing dev income is the retained share of pump.fun creator fees: **10%
+retained, 90% to the community staking pool.**
+
+That split is set once, on chain, through pump.fun's fee-sharing config — which
+revokes its own admin immediately afterwards. It is therefore **permanent and
+publicly verifiable**, exactly like the burned upgrade authority. Neither we nor
+anyone else can change it later.
 
 ---
 
@@ -145,26 +150,31 @@ Stake the token to register; rewards accrue continuously and pro-rata.
 | Tier | Multiplier | Lock | Early exit |
 |---|---|---|---|
 | Flexible | 1.0x | none, 3-day unstake cooldown | n/a |
-| 1 month | 1.5x | 30 days | forfeits boost + 10% |
-| 3 months | 2.0x | 90 days | forfeits boost + 10% |
-| 12 months | 3.0x | 365 days | forfeits boost + 10% |
+| 1 month | 1.5x | 30 days | forfeits boost + 15% |
+| 3 months | 2.0x | 90 days | forfeits boost + 15% |
+| 12 months | 5.0x | 365 days | forfeits boost + 15% |
 
 **Base rewards are claimable at any time, in every tier.** The portion your
 multiplier earns above 1.0x — the "boost" — is held in escrow until your lock
 matures.
 
-That split exists for a specific reason. Without it, someone could take the 3.0x
-rate, collect triple rewards continuously, exit after a few weeks, and have
+That split exists for a specific reason. Without it, someone could take the 5.0x
+rate, collect five times the rewards continuously, exit after a few weeks, and have
 captured the full multiplier while honouring almost none of the commitment it
 paid for — diluting everyone who actually locked. With it, breaking a lock
 leaves you with roughly what a flexible staker would have earned, which is
 exactly what you actually committed to.
 
-Early exit forfeits the escrowed boost plus 10% of principal. Both go straight
+Early exit forfeits the escrowed boost plus 15% of principal. Both go straight
 into the pool for the stakers who stayed.
 
-The pool is fed by routed creator fees, donations from anyone, and every
-forfeiture in the system.
+The pool is fed by a 90% share of pump.fun creator fees, donations from anyone,
+and every forfeiture in the system.
+
+Fees do not arrive automatically. They accumulate at pump.fun until someone
+moves them — and **anyone can**, because every instruction in that chain is
+permissionless. The site has a button that runs it from your own wallet. We
+have no special ability to do it, and no ability to prevent it.
 
 ---
 

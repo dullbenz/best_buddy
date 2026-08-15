@@ -50,4 +50,6 @@ pub enum DistributorError {
     NoStakers,
     #[msg("Message is too long to encode with a single-byte varint")]
     MessageTooLong,
+    #[msg("Account is not a wrapped-SOL token account owned by the SOL vault")]
+    InvalidWsolAccount,
 }

@@ -3,7 +3,7 @@ use crate::errors::DistributorError;
 use crate::state::*;
 use crate::utils::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount, Transfer};
+use anchor_spl::token::{Token, TokenAccount};
 
 // ---------------------------------------------------------------------------
 // Bucket 2 — old Buddy holders. 30-day window, instant transfer, no stream.
@@ -27,6 +27,11 @@ pub struct ClaimOldHolder<'info> {
         bump
     )]
     pub receipt: Account<'info, ClaimReceipt>,
+
+    /// Needed only so the payout can decrement `reserved_token`, which is what
+    /// lets `sync_token_rewards` tell accounted funds from stray ones.
+    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
     pub vault: Account<'info, TokenAccount>,
@@ -87,18 +92,12 @@ pub fn claim_old_holder(
     receipt.claimed_at = now;
     receipt.bump = ctx.bumps.receipt;
 
-    let config_bump = config.bump;
-    let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config_bump]]];
-    anchor_spl::token::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.vault.to_account_info(),
-                to: ctx.accounts.destination.to_account_info(),
-                authority: config.to_account_info(),
-            },
-            signer,
-        ),
+    crate::instructions::staking::pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        &mut ctx.accounts.pool,
         amount,
     )?;
 
@@ -317,6 +316,10 @@ pub struct StreamWithdraw<'info> {
     )]
     pub stream: Account<'info, Stream>,
 
+    /// Needed only so the payout can decrement `reserved_token`.
+    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
     pub vault: Account<'info, TokenAccount>,
 
@@ -342,18 +345,12 @@ pub fn stream_withdraw(ctx: Context<StreamWithdraw>) -> Result<()> {
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    let config_bump = ctx.accounts.config.bump;
-    let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config_bump]]];
-    anchor_spl::token::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.vault.to_account_info(),
-                to: ctx.accounts.destination.to_account_info(),
-                authority: ctx.accounts.config.to_account_info(),
-            },
-            signer,
-        ),
+    crate::instructions::staking::pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        &mut ctx.accounts.pool,
         amount,
     )?;
 

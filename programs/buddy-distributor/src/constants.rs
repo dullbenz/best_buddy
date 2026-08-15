@@ -23,7 +23,7 @@ pub const BPS_DENOMINATOR: u64 = 10_000;
 pub const TIER_FLEXIBLE_BPS: u64 = 10_000; // 1.0x
 pub const TIER_ONE_MONTH_BPS: u64 = 15_000; // 1.5x
 pub const TIER_THREE_MONTH_BPS: u64 = 20_000; // 2.0x
-pub const TIER_TWELVE_MONTH_BPS: u64 = 30_000; // 3.0x
+pub const TIER_TWELVE_MONTH_BPS: u64 = 50_000; // 5.0x
 
 /// Lock durations in seconds.
 pub const ONE_DAY: i64 = 86_400;
@@ -38,7 +38,7 @@ pub const UNSTAKE_COOLDOWN: i64 = 3 * ONE_DAY;
 
 /// Penalty applied to *principal* when a locked position exits early, in bps.
 /// The forfeited boost escrow is on top of this. Both flow to the stake pool.
-pub const EMERGENCY_EXIT_SLASH_BPS: u64 = 1_000; // 10%
+pub const EMERGENCY_EXIT_SLASH_BPS: u64 = 1_500; // 15%
 
 /// Claim windows.
 pub const OLD_HOLDER_CLAIM_WINDOW: i64 = 30 * ONE_DAY;
@@ -57,7 +57,17 @@ pub const BITCOIN_MSG_PREFIX: &[u8] = b"\x18Bitcoin Signed Message:\n";
 /// The claim message template the original signer must sign. The full message
 /// is this prefix followed by the base58 destination Solana address, binding
 /// the signature to one specific recipient so it cannot be replayed elsewhere.
-pub const SIGNER_CLAIM_MESSAGE_PREFIX: &str = "I am the original Buddy. Claim to Solana address: ";
+pub const SIGNER_CLAIM_MESSAGE_PREFIX: &str = "I am the original Signer. Claim to Solana address: ";
 
 #[constant]
 pub const PROGRAM_VERSION: u8 = 1;
+
+/// Wrapped SOL. Hard-coded so `unwrap_wsol` can only ever act on the real one.
+///
+/// Declared as a plain constant rather than a `declare_id!` module: a second
+/// `declare_id!` anywhere in the crate overwrites the program address Anchor
+/// writes into the generated IDL, which would point every client at the wrong
+/// program entirely.
+pub const WSOL_MINT: Pubkey = anchor_lang::solana_program::pubkey!(
+    "So11111111111111111111111111111111111111112"
+);
