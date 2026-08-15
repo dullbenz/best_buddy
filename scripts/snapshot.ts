@@ -8,7 +8,7 @@
  * against the same slot and must land on the identical root. `verify-snapshot.ts`
  * does exactly that.
  *
- * IMPORTANT — historical slots need an archival RPC. The public
+ * IMPORTANT: historical slots need an archival RPC. The public
  * `api.mainnet-beta.solana.com` endpoint only serves current state, so running
  * this after the announced slot has passed will silently produce a *different*
  * holder set. Use Helius / Triton / QuickNode with archival access, or run this
@@ -44,12 +44,12 @@ interface Exclusion {
 }
 
 const EXCLUSIONS: Exclusion[] = [
-  // { address: "<old dev wallet>", reason: "creator wallet — dumped on holders, see receipts #1" },
+  // { address: "<old dev wallet>", reason: "creator wallet: dumped on holders, see receipts #1" },
   // { address: "<PumpSwap pool vault>", reason: "AMM pool vault, not a community holder" },
   // { address: "<Meteora pool vault>",  reason: "AMM pool vault, not a community holder" },
 ];
 
-/** Balances below this are ignored — dust accounts inflate the tree for nothing. */
+/** Balances below this are ignored: dust accounts inflate the tree for nothing. */
 const MIN_BALANCE_BASE_UNITS = 1n;
 
 /** Total tokens allocated to bucket 2, in base units of the NEW token. */
@@ -124,8 +124,8 @@ function applyExclusions(holders: HolderRow[]): {
 
 /**
  * Distribute the bucket pro-rata to old holdings. The largest holder absorbs
- * the rounding remainder so the allocations sum to exactly the bucket total —
- * otherwise a few base units would be permanently unclaimable and the sweep
+ * the rounding remainder so the allocations sum to exactly the bucket total.
+ * Otherwise a few base units would be permanently unclaimable and the sweep
  * accounting would never balance.
  */
 function allocate(

@@ -1,7 +1,7 @@
 /**
  * Jumping between tabs from inside a tab.
  *
- * The app has no router — tabs are a `useState` in `App`. That is fine until a
+ * The app has no router: tabs are a `useState` in `App`. That is fine until a
  * claim on one page needs to point at the proof on another: "these files match
  * the fingerprint on chain" is worth nothing if checking it means reading a
  * sentence, switching tabs by hand, and hunting for the right card.

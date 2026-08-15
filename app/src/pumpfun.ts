@@ -6,7 +6,7 @@
  *
  * The distributor program never references pump.fun. If it did, their next
  * interface change would permanently break an immutable contract that has to
- * keep working until 2030 — and they shipped two breaking fee changes in a
+ * keep working until 2030, and they shipped two breaking fee changes in a
  * single quarter. Keeping the coupling here means a change on their side costs
  * us a frontend redeploy instead of a dead fee stream.
  *
@@ -96,7 +96,7 @@ const meta = (
  *
  * Account order is exactly `pump_amm.json` → `transfer_creator_fees_to_pump_v2`.
  * Solana matches accounts positionally, so a single misordered entry fails the
- * whole transaction — check this list against the vendored IDL, do not trust it.
+ * whole transaction. Check this list against the vendored IDL, do not trust it.
  */
 export function transferCreatorFeesToPumpIx(
   payer: PublicKey,
@@ -286,7 +286,7 @@ export async function readSharingConfig(
 
   // There is no explicit `admin_revoked` flag. pump.fun's docs say
   // `update_fee_shares_v2` "revokes further admin updates", and clearing the
-  // admin to the default pubkey is the conventional way to express that — but
+  // admin to the default pubkey is the conventional way to express that, but
   // we have not confirmed the mechanism against a live account. The Verify page
   // therefore shows the actual admin rather than asserting a verdict it cannot
   // justify, and the throwaway-coin rehearsal is where this gets settled.

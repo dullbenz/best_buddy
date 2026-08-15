@@ -13,7 +13,7 @@
  *
  * What this does NOT prove: anything time-dependent. The 30-day and 72-hour
  * windows and the 2030 sweep cannot be exercised on a live chain without
- * waiting — those are covered by the bankrun integration tests, which fake the
+ * waiting. Those are covered by the bankrun integration tests, which fake the
  * clock. Run `npm test` for those.
  *
  *   RPC_URL=https://api.devnet.solana.com KEYPAIR=~/.config/solana/id.json \
@@ -89,7 +89,7 @@ async function main() {
   const program = new Program(idl, provider) as Program<any>;
   const account = program.account as any;
 
-  console.log(`\nBUDDY DISTRIBUTOR — DEVNET REHEARSAL`);
+  console.log(`\nBUDDY DISTRIBUTOR: DEVNET REHEARSAL`);
   console.log(`rpc:     ${rpc}`);
   console.log(`payer:   ${payer.publicKey.toBase58()}`);
   console.log(`program: ${program.programId.toBase58()}`);
@@ -202,7 +202,7 @@ async function main() {
   ok(`funded ${oldHolders.length + influencers.length} mock claimant wallets`);
 
   // -------------------------------------------------------------------------
-  heading("initialize — create the config, pool and vaults");
+  heading("initialize: create the config, pool and vaults");
 
   const pda = (seed: string, extra?: Buffer) =>
     PublicKey.findProgramAddressSync(
@@ -245,7 +245,7 @@ async function main() {
   ok(`vault  ${vaultPda.toBase58()}`);
 
   // -------------------------------------------------------------------------
-  heading("fund_vault — move the committed allocations in");
+  heading("fund_vault: move the committed allocations in");
 
   await program.methods
     .fundVault(new BN(TOTAL.toString()))
@@ -261,7 +261,7 @@ async function main() {
   ok(`vault holds ${BigInt(funded.value.amount) / UNIT} tokens`);
 
   // -------------------------------------------------------------------------
-  heading("lock_config — the irreversible one");
+  heading("lock_config, the irreversible one");
 
   await program.methods
     .lockConfig()
@@ -281,14 +281,14 @@ async function main() {
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .rpc();
-    throw new Error("FUNDING SUCCEEDED AFTER LOCK — this should be impossible");
+    throw new Error("FUNDING SUCCEEDED AFTER LOCK. This should be impossible");
   } catch (e: any) {
     if (String(e).includes("should be impossible")) throw e;
-    ok(`further funding is rejected (ConfigLocked) — the lock holds`);
+    ok(`further funding is rejected (ConfigLocked), so the lock holds`);
   }
 
   // -------------------------------------------------------------------------
-  heading("create_dev_stream — the dev wallet ends up holding nothing");
+  heading("create_dev_stream: the dev wallet ends up holding nothing");
 
   await program.methods
     .createDevStream(new BN(30 * 86400))
@@ -304,7 +304,7 @@ async function main() {
   info(`cliff ${new Date(Number(devStream.cliff) * 1000).toISOString().slice(0, 10)}, ends ${new Date(Number(devStream.end) * 1000).toISOString().slice(0, 10)}`);
 
   // -------------------------------------------------------------------------
-  heading("Old-holder claim — a real Merkle proof accepted on chain");
+  heading("Old-holder claim: a real Merkle proof accepted on chain");
 
   const holder = oldHolders[0];
   const holderAta = getAssociatedTokenAddressSync(mint.publicKey, holder.kp.publicKey);
@@ -349,14 +349,14 @@ async function main() {
       })
       .signers([holder.kp])
       .rpc();
-    throw new Error("DOUBLE CLAIM SUCCEEDED — this should be impossible");
+    throw new Error("DOUBLE CLAIM SUCCEEDED. This should be impossible");
   } catch (e: any) {
     if (String(e).includes("should be impossible")) throw e;
     ok(`the same wallet cannot claim twice`);
   }
 
   // -------------------------------------------------------------------------
-  heading("Influencer claim — opens a stream instead of paying out");
+  heading("Influencer claim: opens a stream instead of paying out");
 
   const inf = influencers[0];
   await program.methods
@@ -375,10 +375,10 @@ async function main() {
     .rpc();
 
   const infStream = await account.stream.fetch(pda("stream", inf.kp.publicKey.toBuffer()));
-  ok(`${BigInt(infStream.total) / UNIT} tokens streaming over 30 days — nothing paid up front`);
+  ok(`${BigInt(infStream.total) / UNIT} tokens streaming over 30 days, nothing paid up front`);
 
   // -------------------------------------------------------------------------
-  heading("Staking — base pays out, boost is escrowed");
+  heading("Staking: base pays out, boost is escrowed");
 
   const staker = Keypair.generate();
   await provider.sendAndConfirm(
@@ -472,14 +472,14 @@ async function main() {
       })
       .signers([staker])
       .rpc();
-    throw new Error("ESCROW RELEASED EARLY — this should be impossible");
+    throw new Error("ESCROW RELEASED EARLY. This should be impossible");
   } catch (e: any) {
     if (String(e).includes("should be impossible")) throw e;
     ok(`the boost cannot be withdrawn before the lock matures`);
   }
 
   // -------------------------------------------------------------------------
-  heading("Sync — value that arrives from outside the program");
+  heading("Sync: value that arrives from outside the program");
 
   // This is how pump.fun creator fees reach stakers, and how a donation sent
   // straight to the published vault address is rescued rather than frozen.
@@ -497,7 +497,7 @@ async function main() {
   let poolNow = await account.stakePool.fetch(poolPda);
   const beforeSync = BigInt(poolNow.lifetimeSolRewards);
   ok(`sent ${gift / LAMPORTS_PER_SOL} SOL straight to the vault`);
-  info(`ledger still shows ${beforeSync} lamports of rewards — it cannot see it`);
+  info(`ledger still shows ${beforeSync} lamports of rewards, because it cannot see it`);
 
   await program.methods
     .syncSolRewards()
@@ -511,7 +511,7 @@ async function main() {
 
   poolNow = await account.stakePool.fetch(poolPda);
   const afterSync = BigInt(poolNow.lifetimeSolRewards);
-  ok(`after sync the ledger shows ${afterSync} — credited ${afterSync - beforeSync}`);
+  ok(`after sync the ledger shows ${afterSync}, having credited ${afterSync - beforeSync}`);
   info(`anyone can call this; it needs no signer beyond whoever pays the fee`);
 
   // -------------------------------------------------------------------------
@@ -536,7 +536,7 @@ async function main() {
     cd app
     VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=${program.programId.toBase58()} npm run dev
 
-  Not covered here (needs a fake clock — see the bankrun tests via 'npm test'):
+  Not covered here (needs a fake clock, see the bankrun tests via 'npm test'):
     - the 30-day and 72-hour windows expiring
     - the three sweeps moving remainders into bucket 1
     - emergency exit forfeiting boost + 15%

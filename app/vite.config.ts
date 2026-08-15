@@ -16,7 +16,7 @@ export default defineConfig({
   ],
   server: {
     // The Helius production key is domain-locked, and Helius rejects
-    // "localhost" as an allowed-domain value — so local dev cannot reach
+    // "localhost" as an allowed-domain value, so local dev cannot reach
     // mainnet through it directly. Serving the dev server over our permanent
     // ngrok dev domain gives requests a real Origin that Helius will accept,
     // and doubles as a link testers can open.

@@ -5,13 +5,13 @@ use anchor_lang::prelude::*;
 
 /// After a bucket's deadline passes, whatever is left in it belongs to the
 /// community. The tokens are already physically in the vault, so every sweep
-/// is pure accounting — no transfer happens.
+/// is pure accounting: no transfer happens.
 ///
 /// How fast the community receives it depends on how fast the claimant would
 /// have: the old-holder bucket paid instantly, so its sweep credits the pool
 /// instantly; the influencer and signer buckets streamed, so their sweeps open
 /// a `CommunityStream` on the identical schedule. A sweep must never pay the
-/// community faster than a claim would have paid the claimant — otherwise an
+/// community faster than a claim would have paid the claimant; otherwise an
 /// expiry becomes a jackpot event worth rooting for.
 ///
 /// All sweeps are permissionless. Nobody has to trust the team to run them,

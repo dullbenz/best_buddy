@@ -9,7 +9,7 @@ import {
   pda,
 } from "../config";
 import { countdown, fmtAmount, fmtTokens } from "../format";
-import { useDistributor } from "../useDistributor";
+import { useDistributor, useStream } from "../useDistributor";
 import { useUpgradeAuthority } from "../useUpgradeAuthority";
 import {
   AuthorityDiagram,
@@ -25,9 +25,9 @@ import { TokenHandover } from "./TokenHandover";
  * The front door, laid out as an engineering document rather than a coin page.
  *
  * Two things are being solved at once. A newcomer has to understand what this
- * is, what happened, and what they personally should do — so the copy is plain
+ * is, what happened, and what they personally should do, so the copy is plain
  * and the routes are explicit. Someone who has been rugged before has to see
- * that whoever built this is precise — so the page is numbered, ruled, and
+ * that whoever built this is precise, so the page is numbered, ruled, and
  * specified like a datasheet, and every assertion carries the command that
  * settles it one click away.
  *
@@ -43,6 +43,10 @@ export function Landing({
 }) {
   const { config, pool, vaultBalance, loading, error } = useDistributor();
   const upgrade = useUpgradeAuthority();
+  // The dev stream is one account and it is the only way to tell "waiting for
+  // the cliff" apart from "already dripping", which are very different states
+  // to a reader deciding whether the team can sell yet.
+  const { stream: devStream } = useStream(config?.devWallet ?? null);
 
   const now = Date.now() / 1000;
   const signerLeft = countdown(ORIGINAL_SIGNER_DEADLINE, now);
@@ -53,7 +57,7 @@ export function Landing({
   const burned = upgrade.immutable === true;
 
   // The live mint, read from the contract rather than pasted into the source.
-  // Before launch there is nothing to read and the buy route says so plainly —
+  // Before launch there is nothing to read and the buy route says so plainly,
   // which is also when impersonation scams are most likely, so it says that too.
   const newMint: string | null = chainReadable
     ? config.rewardMint?.toBase58?.() ?? null
@@ -113,6 +117,55 @@ export function Landing({
   const remainingOf = (alloc: any, claimed: any): bigint =>
     chainReadable ? BigInt(alloc.toString()) - BigInt(claimed.toString()) : 0n;
 
+  /**
+   * The amber line under each allocation row: where that bucket is in its own
+   * lifecycle, right now.
+   *
+   * The two multi-person buckets can only speak about the window, since there
+   * is no single stream to count down; the two single-claimant ones can follow
+   * their money all the way through. Writing one generic line for all four
+   * would have meant saying nothing true about any of them.
+   */
+  const legacyClock = !config
+    ? null
+    : config.oldHolderSwept
+      ? "window closed, the rest went to stakers"
+      : oldLeft
+        ? `${oldLeft} left to claim`
+        : "claim deadline passed, awaiting sweep";
+
+  const influencerClock = !config
+    ? null
+    : config.influencerSwept
+      ? "window closed, the rest is streaming to stakers"
+      : infLeft
+        ? `${infLeft} left to claim`
+        : "claim deadline passed, awaiting sweep";
+
+  const signerClock = !config
+    ? null
+    : config.originalSignerClaimed
+      ? "claimed, now streaming over 12 months"
+      : config.originalSignerSwept
+        ? "never claimed, now streaming to stakers"
+        : signerLeft
+          ? `${signerLeft} left to claim`
+          : "deadline passed, awaiting sweep";
+
+  const teamClock = (() => {
+    if (!config) return null;
+    // The live slot already says "not set up yet" in this state, and a clock
+    // repeating it would just be a second line saying nothing new.
+    if (!config.devStreamCreated || !devStream) return null;
+    const cliff = Number(devStream.cliff);
+    const end = Number(devStream.end);
+    if (now < cliff) {
+      return `${countdown(cliff, now)} before the first token unlocks`;
+    }
+    const left = countdown(end, now);
+    return left ? `streaming, ${left} left` : "fully released";
+  })();
+
   const specCells = [
     {
       label: "Who can change the contract",
@@ -141,19 +194,19 @@ export function Landing({
       note: "never back to the team",
     },
     bucketCell(
-      "Unclaimed by legacy holders",
+      "Awaiting claim by legacy holders",
       remainingOf(config?.oldHolderAllocation ?? 0, config?.oldHolderClaimed ?? 0),
       oldLeft,
       { swept: config?.oldHolderSwept, sweptNote: "all of it went to stakers" }
     ),
     bucketCell(
-      "Unclaimed by influencers",
+      "Awaiting claim by influencers",
       remainingOf(config?.influencerAllocation ?? 0, config?.influencerClaimed ?? 0),
       infLeft,
       { swept: config?.influencerSwept, sweptNote: "now streaming to stakers" }
     ),
     bucketCell(
-      "Unclaimed by the 2014 signer",
+      "Awaiting claim by the 2014 signer",
       chainReadable ? BigInt(config.originalSignerAllocation.toString()) : 0n,
       signerLeft,
       {
@@ -200,7 +253,7 @@ export function Landing({
         </div>
 
         {/* The hero's claim, drawn. Placed inside the hero rather than after
-            the spec strip so the narrative beat lands before the data does —
+            the spec strip so the narrative beat lands before the data does;
             the strip below is the summary of this, not a separate section. */}
         <TokenHandover />
       </section>
@@ -208,7 +261,7 @@ export function Landing({
       {/* ---- the spec strip ------------------------------------------ */}
       {/* Rolling, like the ticker under it, because it now carries a cell per
           claim bucket and seven cells will not sit still on one line without
-          shrinking each to uselessness. Pauses on hover — these are numbers,
+          shrinking each to uselessness. Pauses on hover: these are numbers,
           not a slogan, and a reader must be able to stop and read one. */}
       <div className="l-spec">
         <div className="l-spec-run">
@@ -246,7 +299,7 @@ export function Landing({
         <ol className="l-index">
           {/* The message itself, not a description of it. This row is the
               origin of the name and the one fact on the page that predates
-              everyone involved — paraphrasing it while the real thing sits
+              everyone involved. Paraphrasing it while the real thing sits
               one link away was leaving the best evidence off the page. */}
           <IndexRow
             when="2014"
@@ -336,7 +389,7 @@ export function Landing({
             disabled={!newMint}
           />
           {/* Three separate ways to be owed something, and they pay out on
-              three different terms — so no single closing line is true of all
+              three different terms, so no single closing line is true of all
               of them, and the old one ("arrives instantly") was only true of
               the first. Listed rather than run together, because a reader is
               looking for the one that describes them. */}
@@ -403,6 +456,7 @@ export function Landing({
                 ? `${fmtTokens(config.oldHolderClaimed, true)} of ${fmtAmount(config.oldHolderAllocation, true)} claimed`
                 : null
             }
+            clock={legacyClock}
           />
           <AllocRow
             who="Influencers"
@@ -413,6 +467,7 @@ export function Landing({
                 ? `${fmtTokens(config.influencerClaimed, true)} of ${fmtAmount(config.influencerAllocation, true)} claimed`
                 : null
             }
+            clock={influencerClock}
           />
           <AllocRow
             who="Whoever signed that 2014 message"
@@ -425,7 +480,7 @@ export function Landing({
                   : `${fmtAmount(config.originalSignerAllocation, true)} still waiting`
                 : null
             }
-            clock={signerLeft ?? null}
+            clock={signerClock}
           />
           <AllocRow
             who="The team"
@@ -438,6 +493,7 @@ export function Landing({
                   : "not set up yet"
                 : null
             }
+            clock={teamClock}
           />
         </div>
 
@@ -449,16 +505,16 @@ export function Landing({
 
         <Sub
           title="And what happens to the rest"
-          blurb="Every deadline above has the same consequence when it passes."
+          blurb="Three of the allocations above have a claim deadline, and all three have the same consequence when it passes."
         />
         <Figure
-          caption="Unclaimed allocations, forfeited staking escrow, trading fees and donations all end in the same place. There is no path back to the team, because the contract has no instruction that would allow one."
+          caption="Unclaimed allocations, forfeited staking escrow, trading fees and donations all end in the same place."
         >
           <BucketFlowDiagram />
         </Figure>
 
         <div className="l-rule">
-          <span className="l-micro">The rule that covers all four</span>
+          <span className="l-micro">The rule for anything left over</span>
           <p className="l-rule-line">
             Anything nobody claims becomes rewards for the people who stake.
           </p>
@@ -541,8 +597,8 @@ export function Landing({
           }
           plain={
             <>
-              This is exactly how the last coin died. Here the builder's tokens
-              never touch a wallet they control. They sit in the contract and
+              This is exactly how the last coin died. Here the team's tokens
+              are not initially in a wallet they control. They sit in the contract and
               come out a little each day for twelve months, after a waiting
               period at the start. Nobody can speed that up, including them.
             </>
@@ -792,7 +848,7 @@ function AllocRow({
 }
 
 /**
- * A plain question, a plain answer, and the command that settles it — folded
+ * A plain question, a plain answer, and the command that settles it, folded
  * away by default so the page reads as English until someone asks for proof.
  */
 function Proof({

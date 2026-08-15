@@ -6,7 +6,7 @@ use anchor_lang::prelude::*;
 ///
 /// Everything in here that governs a claim is written once at `initialize` and
 /// frozen by `lock_config`. After the lock, the authority can no longer change
-/// allocations, roots, deadlines or the signer key — the only remaining admin
+/// allocations, roots, deadlines or the signer key; the only remaining admin
 /// surface is emergency-free. This is what makes the published pre-commitment
 /// document binding rather than aspirational.
 #[account]
@@ -77,7 +77,7 @@ impl Config {
     }
 }
 
-/// Bucket 1 — the community staking pool.
+/// Bucket 1: the community staking pool.
 ///
 /// Rewards arrive here from three sources: the share of pump.fun creator fees
 /// directed at this program's vaults, voluntary donations, and every forfeiture
@@ -86,7 +86,7 @@ impl Config {
 /// N stakers costs O(1).
 ///
 /// Nothing pushes fees in automatically. Value that arrives from outside sits
-/// uncredited until someone — anyone — calls `sync_sol_rewards` or
+/// uncredited until someone (anyone) calls `sync_sol_rewards` or
 /// `sync_token_rewards`, which is what keeps the funding path free of any
 /// privileged operator.
 #[account]
@@ -111,16 +111,16 @@ pub struct StakePool {
     /// Funds that entered the vaults through this program's own instructions
     /// and are therefore already on the ledger.
     ///
-    /// Anything a vault holds *above* these figures arrived from outside — a
-    /// pump.fun fee distribution, a donation, a mistake — and is uncredited
+    /// Anything a vault holds *above* these figures arrived from outside (a
+    /// pump.fun fee distribution, a donation, a mistake) and is uncredited
     /// until someone calls the matching `sync_*` instruction. Without this
     /// distinction those funds would be stranded permanently, because payouts
     /// only ever release amounts the accumulator knows about and the program is
     /// immutable after launch.
     ///
     /// Maintained strictly at the points where value physically enters or
-    /// leaves a vault. Internal reclassification — a slashed stake becoming
-    /// staker rewards, say — moves nothing and must not touch them.
+    /// leaves a vault. Internal reclassification (a slashed stake becoming
+    /// staker rewards, say) moves nothing and must not touch them.
     pub reserved_sol: u64,
     pub reserved_token: u64,
     pub bump: u8,
@@ -254,7 +254,7 @@ impl Tier {
 ///
 /// The base/boost split lives here. Rewards accrue on `weight` (amount x tier
 /// multiplier), but only the portion attributable to `amount x 1.0` is
-/// immediately claimable. The remainder — the part the multiplier bought — is
+/// immediately claimable. The remainder, the part the multiplier bought, is
 /// escrowed until the lock matures, and is forfeited on early exit. Without
 /// this, a staker could take the 5.0x rate, claim continuously, and leave after
 /// a few weeks having honoured none of the commitment the multiplier paid for.
@@ -269,7 +269,7 @@ pub struct StakePosition {
     pub lock_end: i64,
     /// Timestamp of an unstake request for a flexible position; zero if none.
     pub unstake_requested_at: i64,
-    /// Accumulator checkpoints — rewards already accounted for.
+    /// Accumulator checkpoints: rewards already accounted for.
     pub token_debt: u128,
     pub sol_debt: u128,
     /// Settled base rewards, withdrawable at any time.
@@ -418,8 +418,8 @@ impl Stream {
 /// owning program may debit an account's lamports directly, and paying stakers
 /// out of a system-owned PDA would need a CPI on every single claim.
 ///
-/// Lamports can land here from anywhere — a pump.fun fee distribution, a
-/// donation — because crediting an account needs no permission. They only
+/// Lamports can land here from anywhere (a pump.fun fee distribution, a
+/// donation) because crediting an account needs no permission. They only
 /// become staker rewards once `sync_sol_rewards` accounts for them, which
 /// anyone may call.
 #[account]
@@ -429,7 +429,7 @@ pub struct SolVault {
 }
 
 /// One-shot marker proving a wallet already claimed from a Merkle bucket.
-/// Its existence *is* the double-claim guard — `init` fails if it is present.
+/// Its existence *is* the double-claim guard: `init` fails if it is present.
 #[account]
 #[derive(InitSpace)]
 pub struct ClaimReceipt {
@@ -444,7 +444,7 @@ pub struct ClaimReceipt {
 ///
 /// The rule this enforces: forfeiting a stream does not turn it into a lump
 /// sum. An influencer who claimed would have received their tokens across 30
-/// days, and the 2014 signer across a year — so when they never claim and the
+/// days, and the 2014 signer across a year, so when they never claim and the
 /// allocation returns to the stakers, it returns at exactly that pace. Sweeping
 /// must never pay the community faster than claiming would have paid the
 /// claimant, or a sweep becomes a jackpot event worth lobbying for.
@@ -456,7 +456,7 @@ pub struct ClaimReceipt {
 #[account]
 #[derive(InitSpace)]
 pub struct CommunityStream {
-    /// Which sweep created it — see `COMMUNITY_STREAM_INFLUENCERS` /
+    /// Which sweep created it. See `COMMUNITY_STREAM_INFLUENCERS` /
     /// `COMMUNITY_STREAM_SIGNER`. Doubles as the PDA seed suffix.
     pub kind: u8,
     pub total: u64,

@@ -1,7 +1,7 @@
 //! # Buddy Distributor
 //!
 //! A four-bucket community distributor for the Buddy relaunch. The token itself
-//! launches on pump.fun as an ordinary fair launch — no custom mint, no LP
+//! launches on pump.fun as an ordinary fair launch: no custom mint, no LP
 //! custody, no admin keys over supply. Everything bespoke lives here instead.
 //!
 //! | Bucket | Who | Window | Payout |
@@ -15,7 +15,7 @@
 //! One rule governs everything: **whatever goes unclaimed ends up in bucket 1.**
 //! Expired influencer allocations, the old-holder remainder, the founder
 //! allocation if the 2014 signer never appears, forfeited boost escrow and
-//! slashed principal from early unstakers — all of it becomes staking rewards
+//! slashed principal from early unstakers: all of it becomes staking rewards
 //! for the community that stayed.
 //!
 //! The new dev holds nothing after deployment. His allocation exists only as a
@@ -33,12 +33,12 @@ use instructions::*;
 
 declare_id!("6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b");
 
-// NOTE: builds emit one warning here — anchor-lang 0.31.1 calls the deprecated
-// `AccountInfo::realloc` inside this macro's expansion. It is left visible on
-// purpose. A module-scoped `#[allow(deprecated)]` does not reach it, because
-// the macro also emits sibling items at crate level; the only thing that
-// silences it is a crate-wide allow, which would also hide genuine deprecations
-// in the actual logic. One known warning beats that trade.
+// NOTE: builds emit one warning here, because anchor-lang 0.31.1 calls the
+// deprecated `AccountInfo::realloc` inside this macro's expansion. It is left
+// visible on purpose. A module-scoped `#[allow(deprecated)]` does not reach it,
+// because the macro also emits sibling items at crate level; the only thing
+// that silences it is a crate-wide allow, which would also hide genuine
+// deprecations in the actual logic. One known warning beats that trade.
 //
 // It is cosmetic: `realloc` still works, and once deployed the bytecode is
 // frozen regardless of what the SDK renames later.
@@ -107,7 +107,7 @@ pub mod buddy_distributor {
     }
 
     /// Credit lamports that reached the SOL vault without going through
-    /// `notify_sol_rewards` — pump.fun fee distributions, donations, mistakes.
+    /// `notify_sol_rewards`: pump.fun fee distributions, donations, mistakes.
     pub fn sync_sol_rewards(ctx: Context<SyncSolRewards>) -> Result<()> {
         instructions::rewards::sync_sol_rewards(ctx)
     }

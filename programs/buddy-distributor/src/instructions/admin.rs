@@ -30,7 +30,7 @@ pub struct Initialize<'info> {
 
     /// The key allowed to fund buckets before the lock. It has no power at all
     /// afterwards, and the window is a single short session, so a plain wallet
-    /// is sufficient — the authority that actually matters long-term is the
+    /// is sufficient; the authority that actually matters long-term is the
     /// program's upgrade authority, which is burned on launch day.
     /// CHECK: stored as a plain key; never signs after `lock_config`.
     pub authority: UncheckedAccount<'info>,
@@ -92,7 +92,7 @@ pub fn initialize(ctx: Context<Initialize>, params: InitializeParams) -> Result<
     };
 
     // `init` already funds the vault to rent exemption. That floor is never
-    // spendable as rewards — `pay_sol_from_vault` subtracts it before paying.
+    // spendable as rewards: `pay_sol_from_vault` subtracts it before paying.
     ctx.accounts.sol_vault.bump = ctx.bumps.sol_vault;
 
     let config = &mut ctx.accounts.config;
@@ -257,7 +257,7 @@ pub fn lock_config(ctx: Context<LockConfig>) -> Result<()> {
     Ok(())
 }
 
-/// Create the dev's vesting stream. Permissionless on purpose — anyone can
+/// Create the dev's vesting stream. Permissionless on purpose: anyone can
 /// trigger it, and it can only ever produce the exact terms fixed at init.
 /// The dev's tokens never touch a wallet he controls; they exist only inside
 /// this stream.

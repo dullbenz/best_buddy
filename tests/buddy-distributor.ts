@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-// See tests/helpers.ts — named imports from this CJS package break on Node 22.18+.
+// See tests/helpers.ts: named imports from this CJS package break on Node 22.18+.
 const { BN } = anchor;
 import { Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -287,7 +287,7 @@ describe("buddy-distributor", () => {
   });
 
   // -----------------------------------------------------------------------
-  describe("bucket 2 — old Buddy holders", () => {
+  describe("bucket 2: old Buddy holders", () => {
     it("pays out instantly with a valid proof", async () => {
       const b = await bootstrap();
       const dest = await claimOldHolder(b, 0);
@@ -393,7 +393,7 @@ describe("buddy-distributor", () => {
   });
 
   // -----------------------------------------------------------------------
-  describe("bucket 3 — influencers", () => {
+  describe("bucket 3: influencers", () => {
     async function claimInfluencer(b: Bootstrapped, index: number) {
       const inf = b.influencers[index];
       await b.env.program.methods
@@ -483,7 +483,7 @@ describe("buddy-distributor", () => {
       const after = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
 
       // The sweep itself pays the community nothing. Forfeiting a stream must
-      // not turn it into a lump sum — the pool is only credited by the
+      // not turn it into a lump sum; the pool is only credited by the
       // release crank, on the schedule the influencer would have had.
       assert.equal(
         after.lifetimeTokenRewards.toString(),
@@ -540,7 +540,7 @@ describe("buddy-distributor", () => {
   });
 
   // -----------------------------------------------------------------------
-  describe("bucket 4 — founders", () => {
+  describe("bucket 4: founders", () => {
     it("honours the dev cliff, then streams over 12 months", async () => {
       const b = await bootstrap();
       await b.env.program.methods
@@ -748,7 +748,7 @@ describe("buddy-distributor", () => {
   });
 
   // -----------------------------------------------------------------------
-  describe("bucket 1 — staking, base/boost split", () => {
+  describe("bucket 1: staking, base/boost split", () => {
     it("pays base immediately and escrows the boost for a locked tier", async () => {
       const b = await bootstrap({ fundExtra: 100_000n * UNIT });
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
@@ -814,7 +814,7 @@ describe("buddy-distributor", () => {
       assert.equal(pos.escrowToken.toString(), "0");
     });
 
-    it("forfeits the whole boost escrow even when rewards are claimed first — the claim-then-exit attack", async () => {
+    it("forfeits the whole boost escrow even when rewards are claimed first (the claim-then-exit attack)", async () => {
       const b = await bootstrap({ fundExtra: 100_000n * UNIT });
       const attacker = await makeStaker(b.env, 1_000n * UNIT);
       const loyal = await makeStaker(b.env, 1_000n * UNIT);
@@ -980,8 +980,8 @@ describe("buddy-distributor", () => {
       await warpBy(b.env.context, 3 * DAY + 1);
       await doUnstake();
 
-      // Flexible weight equals the amount, so the whole 500 was base — nothing
-      // was ever escrowed.
+      // Flexible weight equals the amount, so the whole 500 was base and
+      // nothing was ever escrowed.
       const pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
       assert.equal(pos.escrowToken.toString(), "0");
       assert.equal((await tokenBalance(b.env, acct)).toString(), (1_500n * UNIT).toString());
@@ -1143,12 +1143,12 @@ describe("buddy-distributor", () => {
     });
   });
   // -----------------------------------------------------------------------
-  describe("sync — funds that arrive from outside", () => {
+  describe("sync: funds that arrive from outside", () => {
     // Value can be credited to an account without this program's involvement:
     // a pump.fun fee distribution, a donation to an address we publish, a
     // mistake. `notify_*` cannot book those, because it only credits what it
-    // transfers itself. Without `sync_*` they would be visible, unowned and —
-    // the program being immutable — frozen for good.
+    // transfers itself. Without `sync_*` they would be visible, unowned and
+    // (the program being immutable) frozen for good.
 
     const syncSol = (b: Bootstrapped) =>
       b.env.program.methods

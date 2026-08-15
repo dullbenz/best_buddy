@@ -3,8 +3,8 @@
  *
  * The claim UI cannot be exercised against an empty tree: with nobody in the
  * snapshot every wallet gets the same "not in the snapshot" answer, so the half
- * of the page that actually matters — the amount, the terms, the stream, the
- * claim button — is unreachable. This writes a small, deliberately fake
+ * of the page that actually matters (the amount, the terms, the stream, the
+ * claim button) is unreachable. This writes a small, deliberately fake
  * allocation set so those paths can be walked.
  *
  * Everything it writes lands under a cluster-scoped directory
@@ -58,7 +58,7 @@ function main() {
   const target = new PublicKey(testWallet).toBase58();
 
   // Fabricated legacy balances, in whole tokens of the old mint. The test
-  // wallet is given a middling holding rather than the largest — the biggest
+  // wallet is given a middling holding rather than the largest: the biggest
   // holder absorbs the rounding remainder, and testing that path by accident
   // would hide an off-by-one in the ordinary case.
   const legacyHoldings: Array<[string, bigint]> = [
@@ -78,7 +78,7 @@ function main() {
   // excluded.csv path renders with content rather than an empty table.
   const excluded: Array<[string, bigint, string]> = [
     [filler("pool-vault"), 31_000_000n, "AMM pool vault, not a community holder"],
-    [filler("old-dev"), 12_500_000n, "creator wallet — dumped on holders, see receipts #1"],
+    [filler("old-dev"), 12_500_000n, "creator wallet: dumped on holders, see receipts #1"],
   ];
 
   const totalHeld = legacyHoldings.reduce((s, [, b]) => s + b, 0n);
@@ -100,7 +100,7 @@ function main() {
     amount: (BUCKET_TWO - assigned).toString(),
   });
 
-  // Influencers are hand-authored amounts, not derived — same as the real list.
+  // Influencers are hand-authored amounts, not derived; same as the real list.
   const influencerAllocs: Allocation[] = [
     { address: target, amount: (9_000_000n * UNIT).toString() },
     { address: filler("influencer-1"), amount: (7_500_000n * UNIT).toString() },
@@ -171,7 +171,7 @@ function main() {
   write(
     path.join(snapDir, "manifest.json"),
     json({
-      FIXTURE: `fabricated ${CLUSTER} test data — not a real snapshot`,
+      FIXTURE: `fabricated ${CLUSTER} test data, not a real snapshot`,
       oldTokenMint: "7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump",
       slot: Number(process.env.SNAPSHOT_SLOT ?? 0),
       takenAt,
@@ -205,7 +205,7 @@ function main() {
   write(
     path.join(snapDir, "influencers-manifest.json"),
     json({
-      FIXTURE: `fabricated ${CLUSTER} test data — not a real list`,
+      FIXTURE: `fabricated ${CLUSTER} test data, not a real list`,
       merkleRoot: influencers.tree.rootHex,
       entries: influencerAllocs.length,
       total: influencers.total.toString(),

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
  *
  * The holder snapshot is thousands of rows in production. Rendering all of
  * them was fine with a ten-row fixture and would be a wall of DOM on the real
- * list, so every table pages — the two published lists and the stream history
+ * list, so every table pages: the two published lists and the stream history
  * alike, because they will all outgrow a screen and none of them should behave
  * differently from the others.
  *

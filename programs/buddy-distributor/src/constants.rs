@@ -51,7 +51,7 @@ pub const INFLUENCER_CLAIM_WINDOW: i64 = 3 * ONE_DAY; // 72 hours
 pub const INFLUENCER_STREAM_DURATION: i64 = 30 * ONE_DAY;
 pub const FOUNDER_STREAM_DURATION: i64 = 365 * ONE_DAY;
 
-/// Unix timestamp for 2030-12-31T23:59:59Z — the deadline for the original
+/// Unix timestamp for 2030-12-31T23:59:59Z, the deadline for the original
 /// 2014 Bitcoin message signer to claim.
 pub const ORIGINAL_SIGNER_DEADLINE: i64 = 1_924_991_999;
 

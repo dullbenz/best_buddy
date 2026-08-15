@@ -31,7 +31,7 @@ pub struct NotifyTokenRewards<'info> {
 
 /// Push token rewards into bucket 1 from an account you control.
 ///
-/// Permissionless — anyone can top the pool up. Use this when you hold the
+/// Permissionless: anyone can top the pool up. Use this when you hold the
 /// tokens and want to donate them; use `sync_token_rewards` instead when tokens
 /// have already landed in the vault by some other route.
 pub fn notify_token_rewards(ctx: Context<NotifyTokenRewards>, amount: u64) -> Result<()> {
@@ -133,12 +133,12 @@ pub fn flush_pending(ctx: Context<FlushPending>) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------
-// Sync — turn funds that arrived from outside into staker rewards.
+// Sync: turn funds that arrived from outside into staker rewards.
 //
 // Crediting an account on Solana needs no permission, so value can land in the
 // vaults without this program being involved: a pump.fun fee distribution, a
 // donation to an address published on the Verify page, a mistake. `notify_*`
-// cannot help — it books only what it transfers itself.
+// cannot help; it books only what it transfers itself.
 //
 // Without these instructions such funds would be visible, unowned and
 // permanently frozen, on a contract that can never be patched. With them,
@@ -245,7 +245,7 @@ pub struct UnwrapWsol<'info> {
 ///
 /// Once a pump.fun coin graduates to the AMM, creator fees are paid in wrapped
 /// SOL into a token account rather than as native lamports. Without this the
-/// vault could receive fees it was structurally unable to distribute — and
+/// vault could receive fees it was structurally unable to distribute and,
 /// being immutable, would stay that way forever.
 ///
 /// Permissionless, and hard-wired to the wSOL mint so it can never be pointed

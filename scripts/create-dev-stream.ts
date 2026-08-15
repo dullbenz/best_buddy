@@ -1,7 +1,7 @@
 /**
  * Create the dev's vesting stream.
  *
- * Permissionless on purpose — anyone can run this, and it can only ever produce
+ * Permissionless on purpose: anyone can run this, and it can only ever produce
  * the terms fixed at initialization. Run it immediately after `lock_config` so
  * the dev wallet is visibly empty from the first block.
  *
@@ -39,7 +39,7 @@ async function main() {
   const state = await (program.account as any).config.fetch(config);
 
   if (state.devStreamCreated) {
-    console.log("dev stream already exists — nothing to do");
+    console.log("dev stream already exists, nothing to do");
     return;
   }
 

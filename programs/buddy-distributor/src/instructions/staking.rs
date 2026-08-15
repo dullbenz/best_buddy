@@ -11,7 +11,7 @@ use anchor_spl::token::{Token, TokenAccount, Transfer};
 /// rent-exempt floor is never spendable.
 ///
 /// This is the single exit for lamports, which is why `reserved_sol` is
-/// decremented here rather than at each of the four call sites — one place to
+/// decremented here rather than at each of the four call sites: one place to
 /// get right, and no way to add a fifth exit that forgets.
 pub(crate) fn pay_sol_from_vault<'info>(
     sol_vault: &Account<'info, SolVault>,
@@ -141,7 +141,7 @@ pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
         // Settle at the *old* weight before anything about the position changes.
         position.settle(pool)?;
         // A top-up may keep the current tier or move up to a longer lock, but it
-        // may never move down — that would let someone buy the 5.0x rate and
+        // may never move down; that would let someone buy the 5.0x rate and
         // then shorten the commitment it was paying for.
         require!(
             tier.multiplier_bps() >= position.tier.multiplier_bps(),
@@ -231,7 +231,7 @@ pub struct RequestUnstake<'info> {
     pub position: Account<'info, StakePosition>,
 }
 
-/// Start the flexible-tier cooldown. Locked tiers do not use this — their gate
+/// Start the flexible-tier cooldown. Locked tiers do not use this: their gate
 /// is maturity, not a timer the staker starts.
 pub fn request_unstake(ctx: Context<RequestUnstake>) -> Result<()> {
     let position = &mut ctx.accounts.position;
@@ -401,7 +401,7 @@ pub struct EmergencyExit<'info> {
 
 /// Break a lock early.
 ///
-/// The staker keeps their settled base rewards — that is the part a flexible
+/// The staker keeps their settled base rewards. That is the part a flexible
 /// staker would have earned anyway, and it was always immediately claimable.
 /// They forfeit the boost escrow (the portion the multiplier bought, which they
 /// did not finish earning) plus 15% of principal. Both forfeitures are
@@ -452,7 +452,7 @@ pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {
     position.escrow_token = 0;
     position.escrow_sol = 0;
 
-    // The slash and the forfeited boost stay physically in the vaults — they
+    // The slash and the forfeited boost stay physically in the vaults; they
     // are only reclassified from "this staker's" to "everyone else's". The
     // reserved counters therefore stay exactly where they are.
     let redistributed_token = forfeited_token
@@ -524,7 +524,7 @@ pub struct ClaimRewards<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-/// Withdraw settled base rewards. Available to every tier at any time — this is
+/// Withdraw settled base rewards. Available to every tier at any time: this is
 /// the check-in loop, and locking it away would defeat the point of the pool.
 /// The boost portion is deliberately untouched here.
 pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
@@ -595,7 +595,7 @@ pub struct WithdrawBoostEscrow<'info> {
 }
 
 /// Release the boost portion once the lock has matured. Before maturity this
-/// always fails — that is precisely what makes the multiplier conditional on
+/// always fails; that is precisely what makes the multiplier conditional on
 /// honouring the lock rather than a free upgrade.
 pub fn withdraw_boost_escrow(ctx: Context<WithdrawBoostEscrow>) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;

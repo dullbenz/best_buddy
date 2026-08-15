@@ -104,7 +104,7 @@ export function Claims() {
    *
    * Landing an influencer on "this wallet is not in the snapshot" is a bad
    * first answer to give someone who is in fact owed something. Runs once, and
-   * never after the reader has picked a tab themselves — a page that keeps
+   * never after the reader has picked a tab themselves; a page that keeps
    * re-deciding where you are is worse than one that guesses wrong once.
    */
   useEffect(() => {
@@ -123,8 +123,8 @@ export function Claims() {
   }, [address, oldProofs, infProofs]);
   // A stream releases continuously, so a figure computed once at load is
   // already stale by the time it is read. Everything time-derived on this page
-  // hangs off this clock, which advances on its own — the countdowns and the
-  // available balance both move without a refresh.
+  // hangs off this clock, which advances on its own, so the countdowns and
+  // the available balance both move without a refresh.
   const now = useClock();
   const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
   const infLeft = config ? countdown(Number(config.influencerDeadline), now) : null;
@@ -194,7 +194,7 @@ export function Claims() {
       localStorage.setItem(`buddy.terms.${signer}`, encoded);
 
       // Publishing is best-effort on purpose. The register is a transparency
-      // aid, not a gate — refusing to let someone claim their allocation
+      // aid, not a gate: refusing to let someone claim their allocation
       // because our own server was down would be the wrong failure.
       try {
         const res = await fetch(TERMS_API, {
@@ -270,7 +270,7 @@ export function Claims() {
   /**
    * Claim bucket 4a by proving control of the 2014 Bitcoin key.
    *
-   * No wallet signature proves anything here — the authorisation is the
+   * No wallet signature proves anything here; the authorisation is the
    * Bitcoin signature itself, made offline in whatever wallet holds that key.
    * The connected wallet only pays the fee and names where the tokens go, and
    * the message binds the signature to that address so a copied signature
@@ -363,7 +363,7 @@ export function Claims() {
   /**
    * Both bucket cards render whether or not a wallet is connected.
    *
-   * What they say is the substance of the offer — who is owed what, and on
+   * What they say is the substance of the offer: who is owed what, and on
    * what terms. Hiding that behind a connect button asks people to plug a
    * wallet into a site before it has told them anything, which is exactly the
    * instinct this project should not be punishing.
@@ -579,8 +579,8 @@ export function Claims() {
   /**
    * One section at a time, rather than all of them stacked.
    *
-   * Each bucket carries a lot of necessary explanation — what a stream is, what
-   * the fingerprint proves, what happens to what nobody claims — and stacking
+   * Each bucket carries a lot of necessary explanation (what a stream is, what
+   * the fingerprint proves, what happens to what nobody claims), and stacking
    * them made the page long enough that the thing a visitor actually came for
    * was several screens down. These are alternatives, not a sequence: almost
    * nobody is both a legacy holder and an influencer, so showing both at once
@@ -763,7 +763,7 @@ function SnapshotMoment() {
  * The answer to "does this wallet have anything", boxed.
  *
  * This is what the visitor came for, and it was a paragraph of muted body text
- * indistinguishable from the explanation around it — a "no" that scrolled past
+ * indistinguishable from the explanation around it: a "no" that scrolled past
  * unread. It is the one thing on the card addressed to them personally, so it
  * gets the only strong border on the card.
  */
@@ -789,8 +789,8 @@ function Verdict({
  *
  * A standing rule rather than news, so it reads as a specification footnote
  * instead of competing with the verdict above it for the same attention. The
- * fact still matters — it is the difference between a forfeited allocation
- * going to the community and going back to the team — but it is the same fact
+ * fact still matters (it is the difference between a forfeited allocation
+ * going to the community and going back to the team), but it is the same fact
  * on every visit, and it should not shout on every visit.
  */
 function ForfeitNote({
@@ -812,7 +812,7 @@ function ForfeitNote({
  * Check any address without connecting a wallet.
  *
  * The snapshot is a published fact, so requiring a wallet connection to read it
- * was a barrier with nothing behind it — and a bad one for this audience
+ * was a barrier with nothing behind it, and a bad one for this audience
  * specifically, who have been rugged once and are not keen to connect a wallet
  * to a site they are still deciding about. It also lets someone check on behalf
  * of a friend, or check a cold wallet from a hot one.
@@ -947,7 +947,7 @@ type FileStatus = "checking" | "published" | "pending";
  * A single-page app answers 200 with index.html for any path that does not
  * exist, so a link to a file that has not been generated yet silently "works"
  * and hands the visitor a copy of the website instead. On a page whose whole
- * argument is "check this yourself", that is the worst available failure — so
+ * argument is "check this yourself", that is the worst available failure, so
  * probe the content type and say plainly when a file is not published yet.
  */
 function useFileStatus(files: ReadonlyArray<{ url: string }>) {
@@ -1052,8 +1052,8 @@ function SnapshotFiles({
 /**
  * What a "30-day stream" actually is, in mechanical terms.
  *
- * People reasonably assume a stream is a promise someone keeps. It is not —
- * it is arithmetic in an account nobody can edit, so it is worth showing the
+ * People reasonably assume a stream is a promise someone keeps. It is not. It
+ * is arithmetic in an account nobody can edit, so it is worth showing the
  * arithmetic.
  */
 function StreamExplainer() {
@@ -1088,7 +1088,7 @@ function StreamExplainer() {
  * Everything about this wallet's own stream, on its own page.
  *
  * The three totals answer "how much and when", and the history answers "what
- * have I already done" — which the stream account itself cannot, because it
+ * have I already done", which the stream account itself cannot, because it
  * keeps a running total and no record of the individual releases. Those are
  * recovered from the transactions that touched the account.
  *
@@ -1227,7 +1227,7 @@ function Progress({ done, total }: { done: number; total: number }) {
  * The stream, surfaced on Overview so it is not hidden behind a tab.
  *
  * A single line, not a card. Overview is a page of lists and this is a pointer
- * to somewhere else — giving it a heading and its own button made it look like
+ * to somewhere else; giving it a heading and its own button made it look like
  * a section with content of its own, which it is not. One fact and one exit,
  * with the whole row as the target rather than a button inside it.
  */
@@ -1263,7 +1263,7 @@ function StreamShortcut({
  *
  * Streams vest per second. Reading `Date.now()` during render gives a number
  * that is correct at first paint and wrong from then until something unrelated
- * happens to re-render — which is why the available balance only moved on a
+ * happens to re-render, which is why the available balance only moved on a
  * manual refresh. Nothing here touches the network: the chain already told us
  * the start, end and total, so the rest is arithmetic the browser can do.
  */
@@ -1284,7 +1284,7 @@ function useClock(intervalMs = 1000): number {
  * signature made offline, in whatever wallet holds a key from 2014, over a
  * message naming the Solana address the tokens should go to. That binding is
  * what stops a signature posted publicly from being replayed into someone
- * else's wallet — and it is why the message has to be regenerated for each
+ * else's wallet, and it is why the message has to be regenerated for each
  * destination rather than signed once.
  *
  * Anyone can relay the transaction. The connected wallet is only paying the

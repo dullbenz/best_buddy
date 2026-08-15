@@ -37,8 +37,8 @@ function pct(part: bigint, whole: bigint): number {
 
 /**
  * Memoised because the page above it now ticks once a second to keep the
- * stream figure live. None of this table's inputs change on that tick — the
- * ledger object is itself memoised — so without this it would re-render
+ * stream figure live. None of this table's inputs change on that tick (the
+ * ledger object is itself memoised), so without this it would re-render
  * twenty-five rows every second to produce identical output.
  */
 export const ClaimTables = memo(function ClaimTables({

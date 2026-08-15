@@ -12,7 +12,7 @@
  * reinterpreted as a leaf preimage.
  *
  * Odd nodes at a level are promoted unchanged to the next level rather than
- * duplicated — duplicating the last node is the classic CVE-2012-2459 style
+ * duplicated. Duplicating the last node is the classic CVE-2012-2459 style
  * footgun where two different trees produce the same root.
  */
 import { PublicKey } from "@solana/web3.js";

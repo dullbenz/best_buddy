@@ -323,7 +323,7 @@ export async function setupEnv(): Promise<Env> {
 }
 
 // ---------------------------------------------------------------------------
-// Bitcoin message signing — mirrors utils.rs so the on-chain verifier is
+// Bitcoin message signing: mirrors utils.rs so the on-chain verifier is
 // exercised against signatures produced exactly the way a real wallet would.
 // ---------------------------------------------------------------------------
 
@@ -349,7 +349,7 @@ export function signerClaimMessage(destination: PublicKey): string {
 
 export interface BitcoinKey {
   privateKey: Uint8Array;
-  /** Uncompressed X||Y, the 0x04 prefix stripped — the form the program stores. */
+  /** Uncompressed X||Y, the 0x04 prefix stripped (the form the program stores). */
   publicKeyXY: Uint8Array;
 }
 

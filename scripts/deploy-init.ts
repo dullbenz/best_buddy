@@ -126,7 +126,7 @@ async function main() {
   };
 
   if (!execute) {
-    console.log("DRY RUN — set EXECUTE=1 to send these three transactions:");
+    console.log("DRY RUN. Set EXECUTE=1 to send these three transactions:");
     console.log("  1. initialize");
     console.log("  2. fund_vault");
     console.log("  3. lock_config   <-- irreversible; freezes every parameter above");

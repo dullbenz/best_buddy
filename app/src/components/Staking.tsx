@@ -273,8 +273,8 @@ export function Staking() {
 /**
  * The tiers as plans you pick between, not a spec table.
  *
- * Each card carries both halves of the trade — what you gain and what it costs
- * — because the cost is a real lockup with a real penalty, and burying that in
+ * Each card carries both halves of the trade (what you gain and what it costs),
+ * because the cost is a real lockup with a real penalty, and burying that in
  * a footnote is how people end up surprised.
  */
 function TierCards({

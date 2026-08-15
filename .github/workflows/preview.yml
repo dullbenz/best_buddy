@@ -1,7 +1,7 @@
 name: Preview deploy
 
 # Every pull request gets its own temporary URL. Useful for reviewing copy and
-# layout changes to the claim flow before they reach the community — a broken
+# layout changes to the claim flow before they reach the community: a broken
 # claim page during the 72-hour influencer window is expensive.
 on:
   pull_request:

@@ -35,7 +35,7 @@ export interface Ledger {
   error: string | null;
   /**
    * True once the chain read succeeded. While false, claim status is unknown
-   * rather than negative — the table must not print "unclaimed" for everyone
+   * rather than negative: the table must not print "unclaimed" for everyone
    * because a request was throttled.
    */
   statusKnown: boolean;
@@ -52,7 +52,7 @@ async function loadCsvColumn(
   const out = new Map<string, string>();
   const res = await fetch(url);
   // A missing file is normal before the snapshot is published, and an SPA
-  // rewrite answers 200 with HTML — so check the type, not just the status.
+  // rewrite answers 200 with HTML, so check the type, not just the status.
   const type = res.headers.get("content-type") ?? "";
   if (!res.ok || type.includes("text/html")) return out;
   const text = await res.text();
@@ -95,7 +95,7 @@ export function useClaimLedger(
     (async () => {
       try {
         // getProgramAccounts is the expensive call in the RPC's eyes and the
-        // first thing a rate limiter drops — the public devnet endpoint 429s
+        // first thing a rate limiter drops; the public devnet endpoint 429s
         // it routinely. Worth a couple of retries, because the alternative is
         // a table that cannot say whether anyone has claimed.
         const withRetry = async <T,>(fn: () => Promise<T>): Promise<T> => {
@@ -114,7 +114,7 @@ export function useClaimLedger(
         // Sequential, not Promise.all: these are the two heaviest calls the
         // app makes, and firing them together doubles the instantaneous burst
         // that gets them throttled in the first place. Neither is on a latency
-        // path — the table can arrive a few hundred milliseconds later.
+        // path, and the table can arrive a few hundred milliseconds later.
         const allReceipts = await withRetry<any[]>(() =>
           (program.account as any).claimReceipt.all()
         );
@@ -124,7 +124,7 @@ export function useClaimLedger(
         if (cancelled) return;
 
         // Receipts are keyed by their PDA, and the two buckets share one
-        // account type — so the address alone cannot say which list a receipt
+        // account type, so the address alone cannot say which list a receipt
         // belongs to. The PDA can, since the seed differs.
         const byPda = new Map<string, number>();
         for (const r of allReceipts) {

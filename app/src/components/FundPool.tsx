@@ -30,7 +30,7 @@ import { useProgram } from "../useProgram";
  * The crank.
  *
  * pump.fun's fee instructions are permissionless, so anyone can move creator
- * fees out of their vault — and our sync instructions are permissionless too.
+ * fees out of their vault, and our sync instructions are permissionless too.
  * Chained together that means any visitor can push the community's fees into
  * the staking pool with their own wallet. Nobody holds a key for it, and nobody
  * has to trust the team to run a bot.
@@ -258,7 +258,7 @@ export function FundPool() {
         tx.add(transferCreatorFeesToPumpIx(publicKey, sharingConfigPda(mint)));
       }
 
-      // 2. Pay the frozen shareholder list — our vault is one of them.
+      // 2. Pay the frozen shareholder list; our vault is one of them.
       if ((pending?.bondingCurve ?? 0n) > 0n || (pending?.amm ?? 0n) > 0n) {
         tx.add(distributeCreatorFeesIx(publicKey, mint, [solVault, config.devWallet]));
       }

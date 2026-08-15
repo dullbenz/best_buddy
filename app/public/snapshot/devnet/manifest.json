@@ -1,5 +1,5 @@
 {
-  "FIXTURE": "fabricated devnet test data — not a real snapshot",
+  "FIXTURE": "fabricated devnet test data, not a real snapshot",
   "oldTokenMint": "7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump",
   "slot": 483637296,
   "takenAt": "2026-08-15T00:22:45.771Z",
@@ -13,7 +13,7 @@
     },
     {
       "address": "FU53N3uwwsdYQCKV4pHdeN8wFF6ZFHUhs3HYkAQeuiaK",
-      "reason": "creator wallet — dumped on holders, see receipts #1"
+      "reason": "creator wallet: dumped on holders, see receipts #1"
     }
   ],
   "minBalanceBaseUnits": "1"

@@ -24,7 +24,7 @@ export interface UpgradeAuthorityState {
 }
 
 /**
- * Read who — if anyone — can still replace this program's code.
+ * Read who, if anyone, can still replace this program's code.
  *
  * This is the most important single fact about any Solana contract, and the one
  * most projects never surface. A frozen config only governs what the program's
@@ -33,7 +33,7 @@ export interface UpgradeAuthorityState {
  *
  * The upgradeable loader stores it in a ProgramData account derived from the
  * program id. Layout: 4-byte enum discriminant, 8-byte slot, then a 1-byte
- * Option tag — 0 means None, which is what immutable looks like — followed by
+ * Option tag (0 means None, which is what immutable looks like), followed by
  * the 32-byte authority when the tag is 1.
  */
 function useUpgradeAuthoritySource(): UpgradeAuthorityState {
@@ -59,7 +59,7 @@ function useUpgradeAuthoritySource(): UpgradeAuthorityState {
 
         if (!info) {
           // No ProgramData account at all means the program was deployed with a
-          // non-upgradeable loader — also immutable, just by a different route.
+          // non-upgradeable loader: also immutable, just by a different route.
           setState({ immutable: true, authority: null, loading: false, error: null });
           return;
         }
@@ -98,7 +98,7 @@ const UpgradeAuthorityContext = createContext<UpgradeAuthorityState | null>(null
 /**
  * Shared, for the same reason the distributor read is: the Landing and Verify
  * tabs both want this, it is one account, and it cannot change while a page is
- * open — a program upgrade would not reach an already-loaded tab anyway.
+ * open, since a program upgrade would not reach an already-loaded tab anyway.
  */
 export function UpgradeAuthorityProvider({ children }: { children: ReactNode }) {
   const value = useUpgradeAuthoritySource();

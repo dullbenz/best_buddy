@@ -3,7 +3,7 @@
  *
  * Used for the influencer list (bucket 3), which is authored by hand rather
  * than derived from chain state. The output is published in full alongside the
- * root — the whole point of the influencer programme being on-chain is that
+ * root. The whole point of the influencer programme being on-chain is that
  * there are no hidden allocations.
  *
  * Usage:

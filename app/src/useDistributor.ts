@@ -19,8 +19,8 @@ export interface DistributorState {
   solVaultBalance: bigint;
   /**
    * Lamports the SOL vault must keep to stay rent-exempt. `sync_sol_rewards`
-   * subtracts this before crediting anything, so the UI has to as well —
-   * otherwise the rent deposit reads as undistributed rewards forever.
+   * subtracts this before crediting anything, so the UI has to as well.
+   * Otherwise the rent deposit reads as undistributed rewards forever.
    */
   solVaultRentFloor: bigint;
   /** Vault lamports the reward ledger has not booked yet. Never negative. */
@@ -35,7 +35,7 @@ export interface DistributorState {
  *
  * Fetched once for the whole app rather than once per component. Seven of the
  * eight tabs want this same data, and each used to mount its own copy of the
- * hook and re-read the chain from scratch — so simply clicking through the
+ * hook and re-read the chain from scratch, so simply clicking through the
  * tabs cost around seventy RPC calls for numbers that never differed between
  * them, and the public devnet endpoint started answering 429.
  *
@@ -255,7 +255,7 @@ export interface ClaimReceipts {
  * The proof files say what a wallet is *owed*; they say nothing about whether
  * it has taken it. Without this the claim button stayed live and unchanged
  * after a successful claim, so the only way to find out it had worked was to
- * press it again and read the error — which is the worst possible way to learn
+ * press it again and read the error, which is the worst possible way to learn
  * that your tokens already arrived.
  *
  * The contract records each claim in a receipt PDA and refuses a second one, so

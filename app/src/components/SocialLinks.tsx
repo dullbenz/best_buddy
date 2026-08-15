@@ -5,7 +5,7 @@ import { BrandMark, brandName } from "./BrandIcons";
  * The outbound links, as marks only.
  *
  * Icon-only because these are four logos people already recognise, and because
- * the row sits inline beside the wordmark — labels would push it onto a second
+ * the row sits inline beside the wordmark; labels would push it onto a second
  * line and cost vertical space in the one place the page cannot afford it.
  *
  * Nothing is hidden before launch. A market link with no URL renders dimmed

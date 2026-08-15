@@ -25,7 +25,7 @@ pub fn verify_merkle_proof(proof: &[[u8; 32]], root: [u8; 32], leaf: [u8; 32]) -
 }
 
 /// Build the leaf for a claim. Double-hashed to make second-preimage attacks
-/// against internal nodes infeasible — a 64-byte internal node can never be
+/// against internal nodes infeasible: a 64-byte internal node can never be
 /// mistaken for a leaf preimage.
 pub fn claim_leaf(claimant: &Pubkey, amount: u64) -> [u8; 32] {
     let inner = keccak::hashv(&[claimant.as_ref(), &amount.to_le_bytes()]).0;
@@ -69,7 +69,7 @@ pub fn signer_claim_message(destination: &Pubkey) -> Vec<u8> {
 ///
 /// `header` is the first byte of the 65-byte base64 signature Bitcoin wallets
 /// emit: `27 + recid` for an uncompressed key, `31 + recid` for a compressed
-/// one. Both forms are accepted — the recovered key is identical either way,
+/// one. Both forms are accepted; the recovered key is identical either way,
 /// since compression only affects how the key is serialised, not its value.
 pub fn verify_bitcoin_signature(
     message: &[u8],

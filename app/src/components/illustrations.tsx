@@ -4,7 +4,7 @@
  * Every one of these exists because a specific idea does not survive being
  * written as a sentence. "A 30-day stream behind a cliff" means nothing to
  * someone new; the same thing as a shape on a time axis is understood in about
- * a second. Nothing here is decorative — if a diagram were removed, the
+ * a second. Nothing here is decorative: if a diagram were removed, the
  * paragraph next to it would get harder to understand, which is the test.
  *
  * All of them are inline, use CSS custom properties so they follow the theme,
@@ -86,16 +86,36 @@ export function FeeTrapDiagram() {
 }
 
 /* ------------------------------------------------------------------ *
- * The four buckets emptying into the staking pool. This is the single
- * most important idea on the page, so it gets the biggest drawing.
+ * What ends up in the staking pool. This is the single most important
+ * idea on the page, so it gets the biggest drawing.
+ *
+ * The team is deliberately absent. Only three allocations have a claim
+ * deadline and a sweep instruction behind them; the team's tokens vest
+ * on a stream from the moment claims open and can never reach the pool.
+ * Drawing a fourth box here would have promised a forfeiture the
+ * contract has no instruction to perform.
  * ------------------------------------------------------------------ */
 export function BucketFlowDiagram() {
-  const boxes = [
+  // The two sides are the two ways money reaches the pool: allocations nobody
+  // claimed, and money arriving from outside. They are drawn identically and
+  // mirrored, because they are equals here. Making the right-hand pair fainter
+  // than the left would have implied fees and donations were the lesser
+  // source, which is the opposite of true once the claim windows close.
+  const unclaimed = [
     { label: "Legacy holders", sub: "30 days" },
     { label: "Influencers", sub: "72 hours" },
     { label: "2014 signer", sub: "until 2030" },
-    { label: "The builder", sub: "12 months" },
   ];
+  const incoming = [
+    { label: "Trading fees", sub: "90% share" },
+    { label: "Donations", sub: "from anyone" },
+  ];
+
+  // Mirrored about the 220 centre line: boxes 180 wide on each edge, each
+  // side's spine 34px inboard of its own boxes.
+  const SPINE_L = 214;
+  const SPINE_R = 226;
+  const FLOOR = 268;
 
   return (
     <svg
@@ -106,12 +126,12 @@ export function BucketFlowDiagram() {
       style={{ maxWidth: 470 }}
     >
       <title id="flow-title">
-        Each of the four allocations has a deadline. Whatever is not claimed by
-        then flows into the community staking pool, along with trading fees and
-        donations.
+        Three of the allocations have a claim deadline. Whatever is not claimed
+        by then flows into the community staking pool, along with trading fees
+        and donations.
       </title>
 
-      {boxes.map((b, i) => {
+      {unclaimed.map((b, i) => {
         const y = 8 + i * 50;
         return (
           <g key={b.label}>
@@ -124,7 +144,7 @@ export function BucketFlowDiagram() {
             </text>
             {/* elbow into the spine */}
             <path
-              d={`M180 ${y + 19} H 214 V 268`}
+              d={`M180 ${y + 19} H ${SPINE_L} V ${FLOOR}`}
               fill="none"
               stroke="var(--border)"
               strokeWidth="1"
@@ -133,27 +153,49 @@ export function BucketFlowDiagram() {
         );
       })}
 
-      <text x="228" y="120" fill="var(--muted)" fontSize="11" fontFamily={MONO} letterSpacing="1.2">
-        WHATEVER IS
+      {incoming.map((b, i) => {
+        const y = 8 + i * 50;
+        return (
+          <g key={b.label}>
+            <rect x="260" y={y} width="180" height="38" rx="2" fill="var(--panel-2)" stroke="var(--border)" />
+            {/* Anchored to the right edge, so the two stacks read outward from
+                the pool rather than both running left to right. */}
+            <text x="428" y={y + 17} fill="var(--text)" fontSize="12.5" textAnchor="end">
+              {b.label}
+            </text>
+            <text
+              x="428"
+              y={y + 31}
+              fill="var(--muted)"
+              fontSize="10.5"
+              fontFamily={MONO}
+              letterSpacing="1"
+              textAnchor="end"
+            >
+              {b.sub}
+            </text>
+            <path
+              d={`M260 ${y + 19} H ${SPINE_R} V ${FLOOR}`}
+              fill="none"
+              stroke="var(--border)"
+              strokeWidth="1"
+            />
+          </g>
+        );
+      })}
+
+      {/* One caption per stack, each sitting under its own boxes. They used to
+          share the middle, but the two spines now run through there. */}
+      <text x="0" y="234" fill="var(--muted)" fontSize="11" fontFamily={MONO} letterSpacing="1.2">
+        WHATEVER IS NOT CLAIMED
       </text>
-      <text x="228" y="135" fill="var(--muted)" fontSize="11" fontFamily={MONO} letterSpacing="1.2">
-        NOT CLAIMED
+      <text x="440" y="234" fill="var(--muted)" fontSize="11" fontFamily={MONO} letterSpacing="1.2" textAnchor="end">
+        WHATEVER COMES IN
       </text>
 
-      {/* side inputs */}
-      <rect x="272" y="18" width="168" height="34" rx="2" fill="none" stroke="var(--border)" strokeDasharray="3 3" />
-      <text x="356" y="39" fill="var(--muted)" fontSize="11.5" textAnchor="middle">
-        Trading fees
-      </text>
-      <rect x="272" y="62" width="168" height="34" rx="2" fill="none" stroke="var(--border)" strokeDasharray="3 3" />
-      <text x="356" y="83" fill="var(--muted)" fontSize="11.5" textAnchor="middle">
-        Donations, from anyone
-      </text>
-      <path d="M356 96 V 268" fill="none" stroke="var(--border)" strokeDasharray="3 3" />
-
-      {/* arrow into the pool */}
-      <path d="M214 268 l-4 -8 h8 z" fill="var(--accent)" transform="translate(0,4)" />
-      <path d="M356 268 l-4 -8 h8 z" fill="var(--border)" transform="translate(0,4)" />
+      {/* arrows into the pool */}
+      <path d={`M${SPINE_L} ${FLOOR} l-4 -8 h8 z`} fill="var(--accent)" transform="translate(0,4)" />
+      <path d={`M${SPINE_R} ${FLOOR} l-4 -8 h8 z`} fill="var(--accent)" transform="translate(0,4)" />
 
       {/* the pool */}
       <rect x="0" y="272" width="440" height="52" rx="2" fill="var(--panel-2)" stroke="var(--accent)" strokeWidth="1.5" />
@@ -225,7 +267,7 @@ export function PayoutShapes() {
       />
       <PayoutShape
         title="Cliff, then stream"
-        sub="The builder. Nothing at all at first, then daily across a year."
+        sub="The team. Nothing at all at first, then daily across a year."
         path="M18 66 H 52 L 142 12"
       />
     </div>

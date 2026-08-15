@@ -36,7 +36,7 @@ except as the source above. `favicon.ico` is copied from it verbatim.
 
 ## Note on the header
 
-The header shows the dog's head, not the full badge — at 44px the scene is
+The header shows the dog's head, not the full badge. At 44px the scene is
 unreadable, and the wordmark next to it already says "Buddy". The badge earns
 its place on link previews and exchange listings, where it is shown big enough
 to be understood.

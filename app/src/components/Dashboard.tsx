@@ -12,7 +12,7 @@ import { useDistributor } from "../useDistributor";
  * The public transparency view.
  *
  * Everything here is read straight from chain and needs no wallet. It is the
- * answer to "why should we trust you this time" — every bucket, every
+ * answer to "why should we trust you this time": every bucket, every
  * deadline, every forfeiture, visible to anyone who loads the page.
  */
 export function Dashboard() {
@@ -286,7 +286,7 @@ function Copy({ text }: { text: string }) {
 /**
  * The 2014 evidence, laid out so a stranger can check it in about a minute.
  *
- * Only the last row is what the contract actually enforces — the on-chain
+ * Only the last row is what the contract actually enforces: the on-chain
  * public key. The Bitcoin address, message and transaction are here so you can
  * confirm that key belongs to that 2014 transaction. Anything we have not
  * published yet says so, rather than showing a plausible-looking blank.

@@ -251,7 +251,7 @@ export function HowItWorks() {
 /**
  * The Legacy Buddy token, named and linked.
  *
- * Naming it is not a risk to manage — it is the evidence. Everything claimed
+ * Naming it is not a risk to manage; it is the evidence. Everything claimed
  * about the abandonment is visible in that token's own history, so the links
  * go to the places people already trust rather than to a screenshot of ours.
  */

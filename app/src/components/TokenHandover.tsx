@@ -78,7 +78,7 @@ function MintAddress({ mint }: { mint: string | null }) {
 /**
  * One token, as a card.
  *
- * The image is the only thing here that can fail — the artwork is swapped
+ * The image is the only thing here that can fail: the artwork is swapped
  * before launch and a missing file must not leave a broken-image glyph on the
  * hero. It falls back to the ticker's initial, which still reads as a token.
  */
@@ -152,13 +152,13 @@ function TokenCard({
 /**
  * The handover: the story moving from the abandoned token to this one.
  *
- * This is the hero's claim — "same story, but built to last" — drawn rather
+ * This is the hero's claim, "same story, but built to last", drawn rather
  * than asserted. The legacy card is deliberately shown *first and intact*,
  * then settles into a desaturated archival state as the track completes; the
  * point is inheritance, not erasure. Nothing about the old token is hidden,
  * including its still-live market links.
  *
- * Motion runs once, on scroll into view, rather than on mount — the strip sits
+ * Motion runs once, on scroll into view, rather than on mount: the strip sits
  * below a tall hero on small screens and animating out of sight would mean
  * most visitors see only the final frame. `prefers-reduced-motion` skips
  * straight to that final frame, which is the fully legible state anyway.

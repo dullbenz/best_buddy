@@ -48,7 +48,7 @@ interface Check {
  * The "don't trust us" page.
  *
  * Every claim the project makes about itself is restated here as something the
- * reader can confirm — live from chain where we can do it for them, and as a
+ * reader can confirm: live from chain where we can do it for them, and as a
  * copy-pasteable command where they should do it themselves. Anyone technical
  * enough to run the commands can then vouch for the result publicly, which is
  * worth far more than the team asserting it.
@@ -73,7 +73,7 @@ export function Verify() {
 
   // Every distinct host this page has actually talked to, read from the
   // browser's own resource timings rather than asserted by us. It is the same
-  // data the network tab shows, gathered by the page itself — which turns "we
+  // data the network tab shows, gathered by the page itself, which turns "we
   // have no backend" from a promise into something visible on the page making
   // the promise.
   const [origins, setOrigins] = useState<string[]>([]);
@@ -112,11 +112,11 @@ export function Verify() {
   const checks: Check[] = [];
 
   // A verification page must never render a verdict it could not actually
-  // reach. Unreadable chain state is "unknown", never pass and never fail —
+  // reach. Unreadable chain state is "unknown", never pass and never fail:
   // a false VERIFIED here would be worse than showing nothing at all.
   const UNREADABLE = "Could not read this from the chain. Check it yourself below.";
 
-  // 1 — immutability, the one that matters most.
+  // 1: immutability, the one that matters most.
   checks.push({
     title: "The program can never be changed",
     status: upgrade.loading || upgrade.error || upgrade.immutable === null
@@ -136,7 +136,7 @@ export function Verify() {
     command: `solana program show ${programId}`,
   });
 
-  // 2 — config frozen.
+  // 2: config frozen.
   checks.push({
     title: "Allocations, deadlines and Merkle roots are frozen",
     status: loading || !config ? "pending" : config.locked ? "pass" : "fail",
@@ -156,13 +156,13 @@ export function Verify() {
     linkLabel: "Decode the config account on Solscan",
   });
 
-  // 3 — the vault covers everything still owed.
+  // 3: the vault covers everything still owed.
   //
   // Deliberately measured against *outstanding* obligations rather than the
   // original committed total: the vault legitimately shrinks as Legacy Buddy holders
   // claim, so comparing to the launch-day total would report a false failure
-  // the moment claims started. This is a lower bound — the vault also holds
-  // stream remainders we cannot enumerate from here — so it must always hold.
+  // the moment claims started. This is a lower bound (the vault also holds
+  // stream remainders we cannot enumerate from here), so it must always hold.
   const outstanding =
     config && pool
       ? BigInt(config.oldHolderAllocation) -
@@ -191,7 +191,7 @@ export function Verify() {
     command: `spl-token balance --address ${vaultPda}`,
   });
 
-  // 4 — the Token Creator cannot dump.
+  // 4: the Token Creator cannot dump.
   checks.push({
     title: "The Token Creator's tokens are locked in a stream",
     status: loading || !config ? "pending" : config.devStreamCreated ? "pass" : "fail",
@@ -206,7 +206,7 @@ export function Verify() {
       "The original token failed because its creator could sell whenever he liked. Here the Token Creator's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate.",
   });
 
-  // 5 — reproduce the snapshot.
+  // 5: reproduce the snapshot.
   checks.push({
     id: VERIFY_ANCHORS.snapshotReproducible,
     title: "The Legacy Buddy holder snapshot is reproducible from public data",
@@ -218,9 +218,9 @@ export function Verify() {
     command: `RPC_URL=<your-rpc> npx ts-node scripts/verify-snapshot.ts --onchain`,
   });
 
-  // 6 — the fee split is frozen and points at the community.
+  // 6: the fee split is frozen and points at the community.
   // Creator fees are paid as lamports, so the shareholder to look for is the
-  // SOL vault — not the token vault.
+  // SOL vault, not the token vault.
   const vaultShare = sharing?.shareholders.find(
     (h) => h.address === solVaultPda
   );
@@ -251,7 +251,7 @@ export function Verify() {
     linkLabel: "Inspect the fee-sharing config on Solscan",
   });
 
-  // 7 — there is nothing between you and the chain.
+  // 7: there is nothing between you and the chain.
   const unexpectedOrigins = origins.filter((h) => h !== RPC_HOST);
   checks.push({
     id: VERIFY_ANCHORS.noBackend,
@@ -268,7 +268,7 @@ export function Verify() {
       "There is no API of ours in the middle. Your browser asks the chain directly and renders the answer, which means we have no opportunity to change a number on the way past. If this page showed you a balance the chain disagrees with, any explorer would catch it instantly. It also means your wallet only ever signs transactions built in front of you, and never sends anything to a server of ours. The list above is measured live by the page itself, and you can confirm it independently in your browser's network tab: open developer tools, reload, and see the same hosts. The one server-side component in this project is the public influencer terms register, which records signatures for transparency and cannot affect who can claim what: a claim is verified on chain against the Merkle root, not against us.",
   });
 
-  // 8 — source matches what is deployed.
+  // 8: source matches what is deployed.
   checks.push({
     id: VERIFY_ANCHORS.sourceMatchesDeployed,
     title: "The published source matches the deployed bytecode",

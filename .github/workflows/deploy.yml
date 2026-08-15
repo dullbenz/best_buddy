@@ -69,7 +69,7 @@ jobs:
       # `terms` function, and the Firestore rules behind it must ship with it.
       # action-hosting-deploy cannot do either, so deploy through the CLI.
       #
-      # `stagingGate` is deliberately excluded — it belongs to the other
+      # `stagingGate` is deliberately excluded because it belongs to the other
       # environment and naming the functions explicitly stops a production
       # deploy from ever touching it.
       - name: Deploy hosting, API and rules
