@@ -262,7 +262,7 @@ export function Verify() {
         ? "Reading this page's own network activity…"
         : `Besides this domain, this page has contacted ${origins.length === 1 ? "one host" : `${origins.length} hosts`}: ${origins.join(", ")}.` +
           (unexpectedOrigins.length === 0
-            ? ` That is the Solana RPC${RPC_IS_KEYED ? "" : " (public endpoint)"} and nothing else — every balance, deadline and allocation on this site was read straight from the chain by your own browser.`
+            ? ` That is the Solana RPC${RPC_IS_KEYED ? "" : " (public endpoint)"} and nothing else — every balance, deadline and allocation on this site was read directly on-chain by your browser.`
             : ` ${unexpectedOrigins.join(", ")} ${unexpectedOrigins.length === 1 ? "is" : "are"} not the RPC and should not be there.`),
     why:
       "There is no API of ours in the middle. Your browser asks the chain directly and renders the answer, which means we have no opportunity to change a number on the way past — if this page showed you a balance the chain disagrees with, any explorer would catch it instantly. It also means your wallet only ever signs transactions built in front of you, and never sends anything to a server of ours. The list above is measured live by the page itself, and you can confirm it independently in your browser's network tab: open developer tools, reload, and see the same hosts. The one server-side component in this project is the public influencer terms register, which records signatures for transparency and cannot affect who can claim what — a claim is verified on chain against the Merkle root, not against us.",

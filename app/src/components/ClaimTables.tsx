@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { solscanAccount } from "../config";
-import { fmtAmount, fmtDate, fmtTokens, shortAddress } from "../format";
+import { TOKEN_SYMBOL, solscanAccount } from "../config";
+import { fmtDate, fmtTokens, shortAddress } from "../format";
 import type { LedgerRow } from "../useClaimData";
 
 /**
@@ -70,8 +70,7 @@ export function ClaimTables({
       <h2>The published lists</h2>
       <p className="muted">
         Everyone on each list, what they are owed, and whether they have taken
-        it. Read straight from the chain — the claim status here is the receipt
-        the contract wrote, not a record we keep.
+        it, as verifiable on-chain.
       </p>
 
       <div className="table-controls">
@@ -119,8 +118,9 @@ export function ClaimTables({
           {which === "influencers" && (
             <>
               {" "}
-              · every stream runs 30 days from the moment it is opened, so the
-              percentages below move on their own
+              · withdrawn is what each has actually taken out, so it moves only
+              when they withdraw. What is <em>available</em> to them grows on
+              its own across the 30 days their stream runs.
             </>
           )}
         </p>
@@ -132,10 +132,16 @@ export function ClaimTables({
             <tr>
               {which === "influencers" ? <th>Handle</th> : null}
               <th>Wallet</th>
-              {which === "legacy" ? <th className="num">Held then</th> : null}
-              <th className="num">Allocation</th>
+              {which === "legacy" ? (
+                <th className="num">
+                  Legacy $Buddy at snapshot
+                </th>
+              ) : null}
+              <th className="num">Allocation ({TOKEN_SYMBOL})</th>
               <th>Status</th>
-              {which === "influencers" ? <th className="num">Withdrawn</th> : null}
+              {which === "influencers" ? (
+                <th className="num">Withdrawn ({TOKEN_SYMBOL})</th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -167,7 +173,7 @@ export function ClaimTables({
                       )}
                     </td>
                   ) : null}
-                  <td className="num">{fmtAmount(r.allocation, true)}</td>
+                  <td className="num">{fmtTokens(r.allocation, true)}</td>
                   <td>
                     {r.claimedAt === null ? (
                       <span className="pill pill-open">unclaimed</span>

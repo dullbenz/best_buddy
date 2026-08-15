@@ -418,19 +418,33 @@ main {
 
 /* ---- the stream page ---- */
 
-/* Green-accented, because this page only exists for a wallet that has
-   something — the same signal the positive verdict uses. */
-.card-stream {
-  border-color: color-mix(in srgb, var(--good) 45%, var(--border));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--good) 5%, var(--panel)) 0%,
-    var(--panel) 55%
-  );
+/* The one item on Overview that belongs to *you* rather than to the public
+   lists below it, so it carries the same green the positive verdict does. The
+   stream page itself is plain — it is already a page of its own and has
+   nothing to stand out from. */
+/* `.card.stream-shortcut`, not `.stream-shortcut`: `.card` sets background and
+   border at equal specificity and is defined further down the file, so a bare
+   class here loses and the tint silently never renders. */
+.card.stream-shortcut {
+  border-color: var(--good);
+  background: color-mix(in srgb, var(--good) 12%, var(--panel));
 }
 
-.card-stream h2 {
+.stream-shortcut h2 {
   color: var(--good);
+}
+
+.shortcut-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.shortcut-body p {
+  margin: 0;
+  max-width: 52ch;
 }
 
 /* The withdraw button was flush against the stats above it. */
@@ -525,9 +539,17 @@ main {
 }
 
 .status {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.status a {
   font-size: 12px;
-  word-break: break-all;
+  white-space: nowrap;
 }
 
 .bigstat {
@@ -1127,21 +1149,22 @@ a.prov-value {
   color: var(--text);
 }
 
-/* Already claimed. Neutral rather than green: green says "there is something
-   here for you", and there no longer is — the money has arrived. */
+/* Already claimed. Amber rather than green: green means "there is something
+   here for you" and there no longer is, but this is still a result worth
+   seeing at a glance rather than a greyed-out afterthought. */
 .verdict-done {
-  border-color: var(--border);
-  background: var(--panel-2);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel-2));
 }
 
 .verdict-done .verdict-head {
-  color: var(--muted);
+  color: var(--accent);
 }
 
 /* Owed something. */
 .verdict-hit {
   border-color: var(--good);
-  background: color-mix(in srgb, var(--good) 9%, var(--panel-2));
+  background: color-mix(in srgb, var(--good) 12%, var(--panel-2));
 }
 
 .verdict-hit .verdict-head {

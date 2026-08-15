@@ -15,7 +15,7 @@ import {
   pda,
   solscanTx,
 } from "../config";
-import { countdown, fmtAmount, fmtDate } from "../format";
+import { countdown, fmtAmount, fmtDate, shortAddress } from "../format";
 import { VERIFY_ANCHORS, goTo } from "../nav";
 import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "../router";
 import { useClaimReceipts, useDistributor, useStream } from "../useDistributor";
@@ -49,7 +49,9 @@ export function Claims() {
 
   const [oldProofs, setOldProofs] = useState<ProofFile | null>(null);
   const [infProofs, setInfProofs] = useState<ProofFile | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<
+    { text: string; signature?: string } | null
+  >(null);
   const [busy, setBusy] = useState(false);
   // Base58 of the wallet's signature over INFLUENCER_TERMS. Gates the claim.
   //
@@ -147,11 +149,11 @@ export function Claims() {
           systemProgram: SystemProgram.programId,
         })
         .rpc();
-      setStatus(`Claimed. Transaction ${sig}`);
+      setStatus({ text: "Claimed — the tokens are in your wallet.", signature: sig });
       refresh();
       receipts.refresh();
     } catch (e: any) {
-      setStatus(`Failed: ${e?.message ?? String(e)}`);
+      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
     } finally {
       setBusy(false);
     }
@@ -185,18 +187,18 @@ export function Claims() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: signer, signature: encoded }),
         });
-        setStatus(
-          res.ok
+        setStatus({
+          text: res.ok
             ? "Terms signed and published to the public register. You can claim now."
-            : "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim."
-        );
+            : "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim.",
+        });
       } catch {
-        setStatus(
-          "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim."
-        );
+        setStatus({
+          text: "Terms signed. The public register could not be reached, so it was not recorded there — you can still claim.",
+        });
       }
     } catch (e: any) {
-      setStatus(`Not signed: ${e?.message ?? String(e)}`);
+      setStatus({ text: `Not signed: ${e?.message ?? String(e)}` });
     } finally {
       setBusy(false);
     }
@@ -220,12 +222,12 @@ export function Claims() {
           systemProgram: SystemProgram.programId,
         })
         .rpc();
-      setStatus(`Stream opened. Transaction ${sig}`);
+      setStatus({ text: "Stream opened.", signature: sig });
       refresh();
       receipts.refresh();
       refreshStream();
     } catch (e: any) {
-      setStatus(`Failed: ${e?.message ?? String(e)}`);
+      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
     } finally {
       setBusy(false);
     }
@@ -248,11 +250,11 @@ export function Claims() {
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .rpc();
-      setStatus(`Withdrawn. Transaction ${sig}`);
+      setStatus({ text: "Withdrawn.", signature: sig });
       refresh();
       refreshStream();
     } catch (e: any) {
-      setStatus(`Failed: ${e?.message ?? String(e)}`);
+      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
     } finally {
       setBusy(false);
     }
@@ -510,6 +512,15 @@ export function Claims() {
       marked: false,
       body: (
         <>
+          {stream && (
+            <StreamShortcut
+              available={withdrawable}
+              onOpen={() => {
+                setTab("stream");
+                pushRoute("claims", "stream");
+              }}
+            />
+          )}
           <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
           <ClaimTables
             legacy={ledger.legacy}
@@ -570,7 +581,21 @@ export function Claims() {
 
       {publicKey && !config ? <div className="card">Loading…</div> : active.body}
 
-      {status && <div className="card status">{status}</div>}
+      {status && (
+        <div className="card status">
+          <span>{status.text}</span>
+          {status.signature && (
+            <a
+              className="mono"
+              href={solscanTx(status.signature)}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {shortAddress(status.signature)} <span aria-hidden="true">&#8599;</span>
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -977,7 +1002,7 @@ function StreamPage({
   const releasedPct = total === 0n ? 0 : Number((withdrawn * 10000n) / total) / 100;
 
   return (
-    <section className="card card-stream">
+    <section className="card">
       <h2>Your stream</h2>
       <p className="muted">
         {fmtAmount(total)} committed to this wallet, releasing steadily until{" "}
@@ -1017,7 +1042,7 @@ function StreamPage({
 
       <div className="files">
         <div className="files-head">
-          Your withdrawal history
+          Transaction history
           <span className="files-note">
             read from the transactions that touched this stream, not from a log
             we keep — every row is checkable on an explorer.
@@ -1063,5 +1088,48 @@ function Progress({ done, total }: { done: number; total: number }) {
     <div className="progress" role="progressbar" aria-valuenow={Math.round(p)}>
       <div className="progress-fill" style={{ width: `${p}%` }} />
     </div>
+  );
+}
+
+/**
+ * The stream, surfaced on Overview so it is not hidden behind a tab.
+ *
+ * Green because it is the one thing on this page that is specifically *yours*
+ * and specifically actionable — everything else on Overview is a public list.
+ * A summary and a way in, not a second copy of the stream page: the number
+ * that matters is what can be taken right now.
+ */
+function StreamShortcut({
+  available,
+  onOpen,
+}: {
+  available: number;
+  onOpen: () => void;
+}) {
+  const ready = available >= 1;
+  return (
+    <section className="card stream-shortcut">
+      <div className="shortcut-body">
+        <div>
+          <h2>You have a stream open</h2>
+          <p className="muted">
+            {ready ? (
+              <>
+                <strong>{fmtAmount(BigInt(Math.floor(available)))}</strong> is
+                available to withdraw right now, and more releases every day.
+              </>
+            ) : (
+              <>
+                Nothing has released yet. It accrues continuously, so there will
+                be something to take shortly.
+              </>
+            )}
+          </p>
+        </div>
+        <button className="primary" onClick={onOpen}>
+          Open your stream <span aria-hidden="true">&rarr;</span>
+        </button>
+      </div>
+    </section>
   );
 }
