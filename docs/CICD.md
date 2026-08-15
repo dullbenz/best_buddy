@@ -155,7 +155,7 @@ Under **Variables** (visible in logs — never put a secret here):
 | `FIREBASE_PROJECT_ID` | your Firebase project ID |
 | `VITE_RPC_URL` | your Helius/Triton RPC URL, used whenever the page is served from a real domain |
 | `STAGING_RPC_URL` | the same key against `devnet.helius-rpc.com`, so staging exercises the real endpoint rather than the public one |
-| `VITE_PROGRAM_ID` | `4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V` |
+| `VITE_PROGRAM_ID` | `6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b` |
 
 > **On `VITE_RPC_URL`:** anything in a frontend build is public by definition —
 > anyone can read the key out of the JavaScript bundle. That is normal and

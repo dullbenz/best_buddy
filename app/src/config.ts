@@ -47,7 +47,7 @@ export const RPC_IS_KEYED = !servedFromLocalhost && !!KEYED_RPC;
 
 export const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID ??
-    "4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V",
+    "6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b",
 );
 
 /** Decimals of the new token; pump.fun mints use 6. */

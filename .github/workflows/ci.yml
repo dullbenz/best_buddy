@@ -150,7 +150,7 @@ jobs:
         working-directory: app
         env:
           VITE_RPC_URL: ${{ vars.VITE_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
-          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID || '4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V' }}
+          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID || '6CajKQsknNZKf7DDrXUfuKMajaRC59LJd9R3g9CxCz2b' }}
         run: npm run build
 
       - name: Check the published proofs are valid JSON
