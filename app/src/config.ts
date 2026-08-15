@@ -236,20 +236,34 @@ export const INFLUENCER_PROOFS_URL = `/proofs${publishedDir}/influencers.json`;
  * important, not less: there is no way to re-derive it, so the only check
  * available is that the names are stated openly and the Merkle root matches.
  */
+/**
+ * The real mainnet snapshot, filled in on launch day. Both must be set
+ * together: a date without a slot is unverifiable, and a slot without a date
+ * is unreadable.
+ */
+const MAINNET_SNAPSHOT_TAKEN_AT: string | null = null;
+const MAINNET_SNAPSHOT_SLOT: number | null = null;
+
 export const SNAPSHOT = {
   /**
    * The moment the holder list was frozen.
    *
-   * These are the devnet fixture's real values, standing in so the sentence
-   * reads the way it will on launch day rather than as two dashed blanks.
-   * **Both must be replaced with the mainnet snapshot's own date and slot**
-   * before the production deploy — they are the one claim on the page that a
-   * reader can check against the chain, and shipping devnet numbers to
-   * mainnet would make the page provably wrong on its most checkable fact.
-   * The launch checklist carries this as a step.
+   * Cluster-aware, and it has to be. Off mainnet these hold the devnet
+   * fixture's real values so the sentence reads the way it will on launch day
+   * instead of as two dashed blanks. On mainnet they stay null until the real
+   * snapshot is taken, because this is the one claim on the page a reader can
+   * check against the chain in ten seconds — and a devnet slot is not merely
+   * wrong there, it is a block number tens of millions of slots in mainnet's
+   * future. A site whose whole argument is "go and check" cannot afford its
+   * most checkable sentence to be impossible.
+   *
+   * Fill the two constants above on launch day. Until then production says
+   * plainly that the snapshot has not happened yet, which is true.
    */
-  takenAt: "2026-08-14T00:52:17Z" as string | null,
-  slot: 483_637_296 as number | null,
+  takenAt: (IS_MAINNET ? MAINNET_SNAPSHOT_TAKEN_AT : "2026-08-14T00:52:17Z") as
+    | string
+    | null,
+  slot: (IS_MAINNET ? MAINNET_SNAPSHOT_SLOT : 483_637_296) as number | null,
 
   legacy: [
     {
