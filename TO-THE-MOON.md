@@ -557,6 +557,17 @@ has the numbers; the post is a summary and a link.
 - [ ] Snapshot verified and published
 - [ ] Proof files committed and deployed to the site
 
+**Wallet reputation** — start this early, it has a lead time
+- [ ] Production actually deployed and publicly reachable. Phantom's scanner
+      cannot vouch for a site it cannot fetch, and today `mybestbuddy.fun`
+      returns 404 while `staging` returns 401
+- [ ] Warning re-checked from a real wallet once the site is live and the
+      domain has aged a little. The "this domain is new" notice clears on its
+      own; the red "this dApp could be malicious" may not
+- [ ] If it persists, appeal to review@phantom.com — manual review, reported
+      at 48-72h, so do not leave it until launch day. Vouching from a known
+      Solana community member is reported to speed it up
+
 **Program identity** — the repo currently carries a devnet id
 - [ ] Fresh mainnet keypair generated at §0.1, `declare_id!` and both
       `Anchor.toml` entries updated to match, then rebuilt
