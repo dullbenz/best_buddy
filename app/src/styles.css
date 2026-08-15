@@ -406,6 +406,57 @@ main {
   white-space: nowrap;
 }
 
+/* Paging, shared by every list on the site. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pager-count {
+  letter-spacing: 0.06em;
+}
+
+.pager-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pager-btn {
+  min-width: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.pager-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pager-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pager-page {
+  min-width: 48px;
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+
 /* The chain read failed. Not "unclaimed" — we do not know, and saying we do
    would be inventing a fact about someone else's money. */
 .pill-unknown {

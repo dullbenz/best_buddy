@@ -15,7 +15,8 @@ import {
   pda,
   solscanTx,
 } from "../config";
-import { countdown, fmtAmount, fmtDate, shortAddress } from "../format";
+import { countdown, fmtAmount, fmtDate, shortSignature } from "../format";
+import { Pager, usePaged } from "./Pager";
 import { VERIFY_ANCHORS, goTo } from "../nav";
 import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "../router";
 import { useClaimReceipts, useDistributor, useStream } from "../useDistributor";
@@ -222,7 +223,10 @@ export function Claims() {
           systemProgram: SystemProgram.programId,
         })
         .rpc();
-      setStatus({ text: "Stream opened.", signature: sig });
+      setStatus({
+        text: `Claimed ${fmtAmount(infEntry.amount)} as your influencer allocation. The stream is open.`,
+        signature: sig,
+      });
       refresh();
       receipts.refresh();
       refreshStream();
@@ -230,6 +234,22 @@ export function Claims() {
       setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Read what a stream_withdraw actually released, from its log. */
+  async function releasedIn(signature: string): Promise<bigint | null> {
+    try {
+      const tx = await connection.getParsedTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+      });
+      const line = (tx?.meta?.logMessages ?? []).find((l) =>
+        l.includes("stream_withdraw:")
+      );
+      const amount = line?.match(/released (\d+)/)?.[1];
+      return amount ? BigInt(amount) : null;
+    } catch {
+      return null;
     }
   }
 
@@ -250,7 +270,13 @@ export function Claims() {
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .rpc();
-      setStatus({ text: "Withdrawn.", signature: sig });
+      const released = await releasedIn(sig);
+      setStatus({
+        text: released
+          ? `Withdrawal of ${fmtAmount(released)} successful.`
+          : "Withdrawal successful.",
+        signature: sig,
+      });
       refresh();
       refreshStream();
     } catch (e: any) {
@@ -580,8 +606,6 @@ export function Claims() {
         ))}
       </nav>
 
-      {publicKey && !config ? <div className="card">Loading…</div> : active.body}
-
       {status && (
         <div className="card status">
           <span>{status.text}</span>
@@ -589,14 +613,17 @@ export function Claims() {
             <a
               className="mono"
               href={solscanTx(status.signature)}
+              title={status.signature}
               target="_blank"
               rel="noreferrer noopener"
             >
-              {shortAddress(status.signature)} <span aria-hidden="true">&#8599;</span>
+              {shortSignature(status.signature)} <span aria-hidden="true">&#8599;</span>
             </a>
           )}
         </div>
       )}
+
+      {publicKey && !config ? <div className="card">Loading…</div> : active.body}
     </div>
   );
 }
@@ -996,6 +1023,7 @@ function StreamPage({
   beneficiary: PublicKey | null;
 }) {
   const { events, loading } = useStreamHistory(beneficiary);
+  const history = usePaged(events, 10);
   const total = BigInt(stream.total.toString());
   const withdrawn = BigInt(stream.withdrawn.toString());
   const end = Number(stream.end);
@@ -1037,7 +1065,7 @@ function StreamPage({
           {withdrawable < 1 ? "Nothing available yet" : "Withdraw available"}
         </button>
         <span className="muted small">
-          Withdraw as often or as rarely as you like. Nothing expires.
+          Withdraw as often or as rarely as you like. You've already claimed, so it never expires.
         </span>
       </div>
 
@@ -1056,7 +1084,7 @@ function StreamPage({
             Nothing withdrawn yet. When you do, it will appear here.
           </p>
         ) : (
-          events.map((e) => (
+          history.slice.map((e) => (
             <div className="file-row" key={e.signature}>
               <div className="file-meta">
                 <span className="file-name">
@@ -1064,20 +1092,37 @@ function StreamPage({
                     ? e.amount === null
                       ? "Withdrawal"
                       : `Withdrew ${fmtAmount(e.amount)}`
-                    : "Stream opened"}
+                    : `Claimed ${fmtAmount(total)} as influencer allocation and opened this stream`}
                 </span>
                 <span className="file-desc">
                   {e.at ? fmtDate(e.at) : "time unknown"}
                 </span>
               </div>
               <div className="file-actions">
-                <a href={solscanTx(e.signature)} target="_blank" rel="noreferrer noopener">
-                  transaction
+                <a
+                  className="mono"
+                  href={solscanTx(e.signature)}
+                  title={e.signature}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  {shortSignature(e.signature)}
                 </a>
               </div>
             </div>
           ))
         )}
+        <div className="file-foot">
+          <Pager
+            page={history.page}
+            pageCount={history.pageCount}
+            from={history.from}
+            to={history.to}
+            total={history.total}
+            unit="transactions"
+            onPage={history.setPage}
+          />
+        </div>
       </div>
     </section>
   );

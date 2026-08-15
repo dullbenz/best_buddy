@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { TOKEN_SYMBOL, solscanAccount } from "../config";
 import { fmtDate, fmtTokens, shortAddress } from "../format";
 import type { LedgerRow } from "../useClaimData";
+import { Pager, usePaged } from "./Pager";
 
 /**
  * Who is on each list, and what they have done about it.
@@ -67,12 +68,16 @@ export function ClaimTables({
 
   const claimed = rows.filter((r) => r.claimedAt !== null).length;
 
+  const paged = usePaged(filtered, 25);
+  // Both a new search and a switch between lists start over at page one.
+  useEffect(() => paged.reset(), [search, which]);
+
   return (
     <section className="card">
       <h2>The published lists</h2>
       <p className="muted">
-        Everyone on each list, what they are owed, and whether they have taken
-        it, as verifiable on-chain.
+        Everyone on each list, what they are owed, and whether they have claimed
+        , as verifiable on-chain.
       </p>
 
       <div className="table-controls">
@@ -142,13 +147,11 @@ export function ClaimTables({
               ) : null}
               <th className="num">Allocation ({TOKEN_SYMBOL})</th>
               <th>Status</th>
-              {which === "influencers" ? (
-                <th className="num">Withdrawn ({TOKEN_SYMBOL})</th>
-              ) : null}
+              {which === "influencers" ? <th className="num">Withdrawn</th> : null}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => {
+            {paged.slice.map((r) => {
               const mine = highlight === r.address;
               return (
                 <tr key={r.address} className={mine ? "is-mine" : undefined}>
@@ -206,6 +209,16 @@ export function ClaimTables({
           </tbody>
         </table>
       </div>
+
+      <Pager
+        page={paged.page}
+        pageCount={paged.pageCount}
+        from={paged.from}
+        to={paged.to}
+        total={paged.total}
+        unit="wallets"
+        onPage={paged.setPage}
+      />
 
       {loading && <p className="muted small">Reading claim status from the chain…</p>}
       {!loading && rows.length === 0 && (

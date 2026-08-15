@@ -54,10 +54,36 @@ export function countdown(deadline: number, now = Date.now() / 1000): string | n
   return `${minutes}m`;
 }
 
+/**
+ * A timestamp in the reader's own timezone.
+ *
+ * Previously UTC, which is unambiguous and also asks every reader to do
+ * arithmetic to answer "was that before or after I did the thing". The times
+ * on this site are all things the reader did or watched happen, so their own
+ * clock is the useful frame. The chain is still the source; only the rendering
+ * is local.
+ */
+const dateTime = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 export function fmtDate(unix: number): string {
-  return new Date(unix * 1000).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+  return dateTime.format(new Date(unix * 1000));
 }
 
 export function shortAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
+}
+
+/**
+ * A transaction signature, shortened from the front.
+ *
+ * Not the middle-ellipsis used for wallet addresses. An address is something
+ * you recognise, so showing both ends helps you match it against one you
+ * already know. A signature is something you look up — nobody has one
+ * memorised — so a readable prefix you can search for beats two fragments.
+ */
+export function shortSignature(signature: string): string {
+  return signature.length > 12 ? `${signature.slice(0, 12)}…` : signature;
 }
