@@ -50,73 +50,6 @@ export function Dashboard() {
 
   return (
     <div className="stack">
-      <section className="card highlight">
-        <h2>Bucket 4: the 2014 signer, and the team</h2>
-
-        <div className="split">
-          <div className="split-half">
-            <div className="split-head">
-              <h3>The original 2014 signer</h3>
-              <span className="badge">
-                {config.originalSignerSwept
-                  ? "returned to community"
-                  : config.originalSignerClaimed
-                  ? "claimed"
-                  : "unclaimed"}
-              </span>
-            </div>
-
-            <div className="bigstat">
-              <span className="value">{signerLeft ?? "expired"}</span>
-              <span className="label">
-                {config.originalSignerClaimed
-                  ? "CLAIMED. The original signer came back"
-                  : `remaining · deadline ${fmtDate(ORIGINAL_SIGNER_DEADLINE)}`}
-              </span>
-            </div>
-
-            <p className="muted small">
-              {fmtAmount(config.originalSignerAllocation, true)}, waiting
-              for whoever holds the Bitcoin key that signed the 2014 message
-              this coin is named after. They prove it by signing, with no
-              permission, no paperwork and nothing we can veto, and it streams to
-              them over 12 months. Unclaimed by 2030, it streams to the stakers
-              instead, over that same year.
-            </p>
-
-            <Provenance signerPubkey={config.originalSignerPubkey} />
-          </div>
-
-          <div className="split-half">
-            <div className="split-head">
-              <h3>The team</h3>
-              <span className={config.devStreamCreated ? "badge pass" : "badge fail"}>
-                {config.devStreamCreated ? "locked up" : "not locked yet"}
-              </span>
-            </div>
-
-            <div className="bigstat">
-              <span className="value">{fmtAmount(config.devAllocation, true)}</span>
-              <span className="label">over 12 months, behind a cliff</span>
-            </div>
-
-            <p className="muted small">
-              Nothing is held in anyone's personal wallet. The tokens sit in
-              this contract and are released a little at a time, with none at
-              all before the cliff, into a team multisig that no single member
-              controls. There is no instruction that pays them out faster, not
-              for the team, not for anyone.
-            </p>
-            <p className="muted small">
-              Even withdrawing what has vested takes more than one member:
-              the multisig itself has to sign, and the contract will only pay
-              into the multisig's own account, so a withdrawal can be
-              proposed but never redirected.
-            </p>
-          </div>
-        </div>
-      </section>
-
       <section className="card">
         <h2>Bucket 1: community staking pool</h2>
         <p className="muted">
@@ -205,6 +138,73 @@ export function Dashboard() {
           done={Number(config.influencerClaimed)}
           total={Number(config.influencerAllocation)}
         />
+      </section>
+
+      <section className="card">
+        <h2>Bucket 4: the 2014 signer, and the team</h2>
+
+        <div className="split">
+          <div className="split-half">
+            <div className="split-head">
+              <h3>The original 2014 signer</h3>
+              <span className="badge">
+                {config.originalSignerSwept
+                  ? "returned to community"
+                  : config.originalSignerClaimed
+                  ? "claimed"
+                  : "unclaimed"}
+              </span>
+            </div>
+
+            <div className="bigstat">
+              <span className="value">{signerLeft ?? "expired"}</span>
+              <span className="label">
+                {config.originalSignerClaimed
+                  ? "CLAIMED. The original signer came back"
+                  : `remaining · deadline ${fmtDate(ORIGINAL_SIGNER_DEADLINE)}`}
+              </span>
+            </div>
+
+            <p className="muted small">
+              {fmtAmount(config.originalSignerAllocation, true)}, waiting
+              for whoever holds the Bitcoin key that signed the 2014 message
+              this coin is named after. They prove it by signing, with no
+              permission, no paperwork and nothing we can veto, and it streams to
+              them over 12 months. Unclaimed by 2030, it streams to the stakers
+              instead, over that same year.
+            </p>
+
+            <Provenance signerPubkey={config.originalSignerPubkey} />
+          </div>
+
+          <div className="split-half">
+            <div className="split-head">
+              <h3>The team</h3>
+              <span className={config.devStreamCreated ? "badge pass" : "badge fail"}>
+                {config.devStreamCreated ? "locked up" : "not locked yet"}
+              </span>
+            </div>
+
+            <div className="bigstat">
+              <span className="value">{fmtAmount(config.devAllocation, true)}</span>
+              <span className="label">over 12 months, behind a cliff</span>
+            </div>
+
+            <p className="muted small">
+              Nothing is held in anyone's personal wallet. The tokens sit in
+              this contract and are released a little at a time, with none at
+              all before the cliff, into a team multisig that no single member
+              controls. There is no instruction that pays them out faster, not
+              for the team, not for anyone.
+            </p>
+            <p className="muted small">
+              Even withdrawing what has vested takes more than one member:
+              the multisig itself has to sign, and the contract will only pay
+              into the multisig's own account, so a withdrawal can be
+              proposed but never redirected.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="card">
