@@ -54,24 +54,37 @@ export function Staking() {
         <TierCards selected={-1} onSelect={() => {}} />
 
         <p className="muted small">
-          <strong>Is Flexible really a lockup?</strong> Partly, and it is fairer
-          to say so than to hide behind the word "flexible". Leaving takes three
-          days: you request to unstake, wait, then withdraw. So you cannot exit
-          within the same day.
+          <strong>Why is there a 24-hour exit delay on Flexible?</strong> It is
+          fairer to explain this than to hide it behind the word "flexible".
+          Leaving is two steps: request to unstake, wait 24 hours, then withdraw
+          whenever suits you — there is no window to miss, and your stake keeps
+          earning through the whole day.
           <br />
-          What makes it different from the locked tiers is that{" "}
-          <strong>nothing is ever at risk and nothing is forfeited.</strong> You
-          get 100% of your tokens and all your base rewards, always. Your stake
-          keeps earning throughout the three days, the clock starts the moment
-          you ask rather than the moment you staked, and once it elapses you can
-          withdraw whenever suits you; there is no window to miss. Break a
-          locked tier early and you lose the whole bonus plus 15% of your stake;
-          Flexible has no equivalent, because there is nothing to break.
+          The delay is not friction for its own sake; it is what makes the
+          rewards honest. Trading fees pile up in public view until anyone
+          presses the button that hands them to stakers, and rewards are split
+          among whoever is staked <em>at that instant</em>. Without a delay, a
+          bot could stake a huge amount, trigger the payout, take the biggest
+          share, and leave — all in one transaction, diluting everyone who was
+          actually staying. With the delay, jumping in is free but jumping out
+          costs a day, so grabbing a visible pot no longer works.
           <br />
-          The delay exists so nobody can watch a large reward land, stake for a
-          moment to capture a slice of it, and leave in the same block. Without
-          it, everyone who actually stays would be diluted by people who were
-          never really there.
+          What never changes: <strong>nothing is at risk and nothing is
+          forfeited on Flexible.</strong> You always get 100% of your tokens and
+          all your rewards. Break a locked tier early and you lose the bonus
+          plus 15%; Flexible has no equivalent, because there is nothing to
+          break.
+        </p>
+
+        <p className="muted small">
+          <strong>Locked tiers are separate lock-ups, not one pot.</strong> Lock
+          today and again tomorrow, and you hold two independent lock-ups, each
+          with its own amount, its own maturity date, and its own bonus — shown
+          and withdrawn separately on My Buddy. The multiplier applies while a
+          lock-up is running; once it matures, that lock-up earns at 1× like a
+          flexible stake until you withdraw it, and its bonus is released in
+          full. Anyone can flip a matured lock-up down to 1× (the demote crank
+          on the Fund pool tab); withdrawing does it automatically.
         </p>
 
         {!publicKey ? (
@@ -130,13 +143,17 @@ export function Staking() {
 export function TierCards({
   selected,
   onSelect,
+  ids,
 }: {
   selected: number;
   onSelect: (id: number) => void;
+  /** Restrict to these tier ids; the lock-up form passes the locked three. */
+  ids?: number[];
 }) {
+  const tiers = ids ? TIERS.filter((t) => ids.includes(t.id)) : TIERS;
   return (
     <div className="tiers">
-      {TIERS.map((t) => {
+      {tiers.map((t) => {
         const active = t.id === selected;
         return (
           <button

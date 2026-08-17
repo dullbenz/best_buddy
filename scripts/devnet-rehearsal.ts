@@ -52,6 +52,7 @@ const INF_ALLOC = 150_000n * UNIT;
 const SIGNER_ALLOC = 200_000n * UNIT;
 const DEV_ALLOC = 100_000n * UNIT;
 const STAKE_TEST = 50_000n * UNIT;
+const LOCK_TEST = 10_000n * UNIT;
 const TOTAL = OLD_ALLOC + INF_ALLOC + SIGNER_ALLOC + DEV_ALLOC;
 
 /** Placeholder key standing in for the real 2014 one. */
@@ -378,7 +379,7 @@ async function main() {
   ok(`${BigInt(infStream.total) / UNIT} tokens streaming over 30 days, nothing paid up front`);
 
   // -------------------------------------------------------------------------
-  heading("Staking: base pays out, boost is escrowed");
+  heading("Staking: a flexible position plus a separate lockup entity");
 
   const staker = Keypair.generate();
   await provider.sendAndConfirm(
@@ -394,13 +395,14 @@ async function main() {
   await provider.sendAndConfirm(
     new Transaction().add(
       createAssociatedTokenAccountInstruction(payer.publicKey, stakerAta, staker.publicKey, mint.publicKey),
-      createMintToInstruction(mint.publicKey, stakerAta, payer.publicKey, STAKE_TEST)
+      createMintToInstruction(mint.publicKey, stakerAta, payer.publicKey, STAKE_TEST + LOCK_TEST)
     )
   );
 
-  // Tier 2 = 3 months at 2.0x, so exactly half of any reward is boost.
+  // Flexible: no tier argument any more, weight == amount, exit gated only by
+  // the 24-hour unstake cooldown.
   await program.methods
-    .stake(new BN(STAKE_TEST.toString()), 2)
+    .stake(new BN(STAKE_TEST.toString()))
     .accountsPartial({
       owner: staker.publicKey,
       config: configPda,
@@ -413,7 +415,38 @@ async function main() {
     })
     .signers([staker])
     .rpc();
-  ok(`staked ${STAKE_TEST / UNIT} tokens at the 3-month 2.0x tier`);
+  ok(`staked ${STAKE_TEST / UNIT} tokens flexible (1.0x, weight == amount)`);
+
+  // Locked principal lives in its own account per lock, addressed by an index
+  // that must match the wallet's counter. Tier 3 = 5 months at 5.0x, so four
+  // fifths of whatever this lockup earns is boost held in escrow to maturity.
+  const lockupIndex = 0;
+  const lockupIndexLe = Buffer.alloc(8); // u64 LE of lockupIndex
+  const lockupPda = PublicKey.findProgramAddressSync(
+    [Buffer.from("lockup"), staker.publicKey.toBuffer(), lockupIndexLe],
+    program.programId
+  )[0];
+  const lockupCounterPda = PublicKey.findProgramAddressSync(
+    [Buffer.from("lockup_count"), staker.publicKey.toBuffer()],
+    program.programId
+  )[0];
+
+  await program.methods
+    .lockTokens(new BN(LOCK_TEST.toString()), 3, new BN(lockupIndex))
+    .accountsPartial({
+      owner: staker.publicKey,
+      config: configPda,
+      pool: poolPda,
+      counter: lockupCounterPda,
+      lockup: lockupPda,
+      vault: vaultPda,
+      source: stakerAta,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+    })
+    .signers([staker])
+    .rpc();
+  ok(`locked ${LOCK_TEST / UNIT} tokens at the 5-month 5.0x tier (lockup #${lockupIndex})`);
 
   const rewardAmount = 10_000n * UNIT;
   await provider.sendAndConfirm(
@@ -452,30 +485,46 @@ async function main() {
     .rpc();
 
   const paid = BigInt((await connection.getTokenAccountBalance(stakerAta)).value.amount) - before;
-  const position = await account.stakePosition.fetch(pda("stake", staker.publicKey.toBuffer()));
-  ok(`paid out ${paid / UNIT} as base (the 1.0x share)`);
-  ok(`held back ${BigInt(position.escrowToken) / UNIT} as boost, locked until maturity`);
+  ok(`flexible position claimed ${paid / UNIT} tokens, all of it base (1.0x holds no escrow)`);
 
+  const lockBefore = BigInt((await connection.getTokenAccountBalance(stakerAta)).value.amount);
+  await program.methods
+    .claimLockupRewards()
+    .accountsPartial({
+      owner: staker.publicKey,
+      config: configPda,
+      pool: poolPda,
+      lockup: lockupPda,
+      vault: vaultPda,
+      solVault: solVaultPda,
+      destination: stakerAta,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      rent: SYSVAR_RENT_PUBKEY,
+    })
+    .signers([staker])
+    .rpc();
+
+  const lockPaid = BigInt((await connection.getTokenAccountBalance(stakerAta)).value.amount) - lockBefore;
+  const lockup = await account.lockup.fetch(lockupPda);
+  ok(`lockup claimed ${lockPaid / UNIT} as base (the 1.0x share)`);
+  ok(`held back ${BigInt(lockup.escrowToken) / UNIT} as boost, escrowed until maturity`);
+
+  // Demotion is the permissionless crank that releases a matured lock's
+  // escrow and cuts it back to 1x. Prove it cannot fire early.
   try {
     await program.methods
-      .withdrawBoostEscrow()
+      .demoteMatured()
       .accountsPartial({
-        owner: staker.publicKey,
+        cranker: payer.publicKey,
         config: configPda,
         pool: poolPda,
-        position: pda("stake", staker.publicKey.toBuffer()),
-        vault: vaultPda,
-        solVault: solVaultPda,
-        destination: stakerAta,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        rent: SYSVAR_RENT_PUBKEY,
+        lockup: lockupPda,
       })
-      .signers([staker])
       .rpc();
-    throw new Error("ESCROW RELEASED EARLY. This should be impossible");
+    throw new Error("DEMOTED BEFORE MATURITY. This should be impossible");
   } catch (e: any) {
     if (String(e).includes("should be impossible")) throw e;
-    ok(`the boost cannot be withdrawn before the lock matures`);
+    ok(`the lock cannot be demoted before it matures (EscrowNotMatured)`);
   }
 
   // -------------------------------------------------------------------------

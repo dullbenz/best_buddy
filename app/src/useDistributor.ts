@@ -207,6 +207,107 @@ export function useStakePosition(owner: PublicKey | null): StakeInfo {
   return { position, loading, refresh };
 }
 
+export interface LockupEntry {
+  pubkey: PublicKey;
+  account: any;
+}
+
+export interface LockupsInfo {
+  lockups: LockupEntry[];
+  loading: boolean;
+  refresh: () => void;
+}
+
+/**
+ * Every lock-up this wallet holds, each one a separate account with its own
+ * amount, clock and escrow. `owner` is the first field after the 8-byte
+ * discriminator, so the memcmp filter sits at offset 8.
+ */
+export function useLockups(owner: PublicKey | null): LockupsInfo {
+  const program = useProgram();
+  const [lockups, setLockups] = useState<LockupEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [nonce, setNonce] = useState(0);
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    if (!program || !owner) {
+      setLockups([]);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const all: Array<{ publicKey: PublicKey; account: any }> = await (
+          program.account as any
+        ).lockup.all([{ memcmp: { offset: 8, bytes: owner.toBase58() } }]);
+        const sorted = all
+          .map((l) => ({ pubkey: l.publicKey, account: l.account }))
+          .sort((a, b) => Number(a.account.index) - Number(b.account.index));
+        if (!cancelled) setLockups(sorted);
+      } catch {
+        // No lock-ups is the normal case, not an error worth surfacing.
+        if (!cancelled) setLockups([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [program, owner?.toBase58(), nonce]);
+
+  return { lockups, loading, refresh };
+}
+
+/**
+ * Every lock-up, anyone's, that has matured but still carries its boosted
+ * weight. Feeds the demote crank on the Fund pool tab, which is why it scans
+ * all owners rather than one.
+ */
+export function useAllMaturedLockups(): LockupsInfo {
+  const program = useProgram();
+  const [lockups, setLockups] = useState<LockupEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [nonce, setNonce] = useState(0);
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    if (!program) {
+      setLockups([]);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const all: Array<{ publicKey: PublicKey; account: any }> = await (
+          program.account as any
+        ).lockup.all();
+        const now = Math.floor(Date.now() / 1000);
+        const due = all
+          .filter((l) => !l.account.demoted && Number(l.account.lockEnd) <= now)
+          .map((l) => ({ pubkey: l.publicKey, account: l.account }));
+        if (!cancelled) setLockups(due);
+      } catch {
+        if (!cancelled) setLockups([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [program, nonce]);
+
+  return { lockups, loading, refresh };
+}
+
 export function useStream(beneficiary: PublicKey | null) {
   const program = useProgram();
   const [stream, setStream] = useState<any>(null);

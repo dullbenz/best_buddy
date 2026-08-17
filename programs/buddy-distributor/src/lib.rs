@@ -31,7 +31,7 @@ pub mod utils;
 
 use instructions::*;
 
-declare_id!("GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca");
+declare_id!("ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY");
 
 // NOTE: builds emit one warning here, because anchor-lang 0.31.1 calls the
 // deprecated `AccountInfo::realloc` inside this macro's expansion. It is left
@@ -66,10 +66,10 @@ pub mod buddy_distributor {
         instructions::admin::create_dev_stream(ctx)
     }
 
-    // ---- bucket 1: staking ----
+    // ---- bucket 1: flexible staking (1.0x, cooldown-gated exit) ----
 
-    pub fn stake(ctx: Context<Stake>, amount: u64, tier: u8) -> Result<()> {
-        instructions::staking::stake(ctx, amount, tier)
+    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
+        instructions::staking::stake(ctx, amount)
     }
 
     pub fn request_unstake(ctx: Context<RequestUnstake>) -> Result<()> {
@@ -80,18 +80,43 @@ pub mod buddy_distributor {
         instructions::staking::unstake(ctx, amount)
     }
 
-    pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {
-        instructions::staking::emergency_exit(ctx)
-    }
-
-    /// Withdraw settled base rewards. Always available, every tier.
+    /// Withdraw a flexible position's settled rewards. Always available.
     pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
         instructions::staking::claim_rewards(ctx)
     }
 
-    /// Withdraw the boost portion. Only at lock maturity.
-    pub fn withdraw_boost_escrow(ctx: Context<WithdrawBoostEscrow>) -> Result<()> {
-        instructions::staking::withdraw_boost_escrow(ctx)
+    // ---- bucket 1: lockups (boosted weight, one account per lock) ----
+
+    pub fn lock_tokens(
+        ctx: Context<LockTokens>,
+        amount: u64,
+        tier: u8,
+        index: u64,
+    ) -> Result<()> {
+        instructions::staking::lock_tokens(ctx, amount, tier, index)
+    }
+
+    /// Withdraw a lockup's settled base rewards. The escrowed boost stays
+    /// until maturity.
+    pub fn claim_lockup_rewards(ctx: Context<ClaimLockupRewards>) -> Result<()> {
+        instructions::staking::claim_lockup_rewards(ctx)
+    }
+
+    /// Cut a matured lockup back to 1.0x and release its escrowed boost to
+    /// the claimable balance. Permissionless.
+    pub fn demote_matured(ctx: Context<DemoteMatured>) -> Result<()> {
+        instructions::staking::demote_matured(ctx)
+    }
+
+    /// Close a matured lockup: principal, base rewards and boost together.
+    pub fn unlock_tokens(ctx: Context<UnlockTokens>) -> Result<()> {
+        instructions::staking::unlock_tokens(ctx)
+    }
+
+    /// Break a lockup early, forfeiting the boost escrow and 15% of principal
+    /// to the stakers who stayed.
+    pub fn emergency_exit_lockup(ctx: Context<EmergencyExitLockup>) -> Result<()> {
+        instructions::staking::emergency_exit_lockup(ctx)
     }
 
     pub fn notify_token_rewards(ctx: Context<NotifyTokenRewards>, amount: u64) -> Result<()> {
@@ -121,6 +146,12 @@ pub mod buddy_distributor {
     /// pump.fun pays post-graduation creator fees in wSOL.
     pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
         instructions::rewards::unwrap_wsol(ctx)
+    }
+
+    /// Forward donations in a foreign mint to the team multisig, which
+    /// converts and donates them back. Permissionless.
+    pub fn recover_foreign_token(ctx: Context<RecoverForeignToken>) -> Result<()> {
+        instructions::rewards::recover_foreign_token(ctx)
     }
 
     // ---- buckets 2, 3, 4 ----

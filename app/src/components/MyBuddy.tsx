@@ -28,10 +28,18 @@ import {
   pda,
   signerClaimMessage,
   solscanTx,
+  u64Seed,
 } from "../config";
 import { countdown, fmtAmount, fmtDate, fmtSol, shortAddress, shortSignature } from "../format";
 import { goTo } from "../nav";
-import { useClaimReceipts, useDistributor, useStakePosition, useStream } from "../useDistributor";
+import {
+  useClaimReceipts,
+  useDistributor,
+  useLockups,
+  useStakePosition,
+  useStream,
+  type LockupEntry,
+} from "../useDistributor";
 import { useStreamHistory } from "../useClaimData";
 import { useProgram } from "../useProgram";
 import { Pager, usePaged } from "./Pager";
@@ -78,6 +86,9 @@ export function MyBuddy() {
   const { stream, refresh: refreshStream } = useStream(publicKey ?? null);
   const receipts = useClaimReceipts(publicKey ?? null);
   const { position, refresh: refreshPosition } = useStakePosition(publicKey ?? null);
+  const { lockups, loading: lockupsLoading, refresh: refreshLockups } = useLockups(
+    publicKey ?? null
+  );
 
   const [oldProofs, setOldProofs] = useState<ProofFile | null>(null);
   const [infProofs, setInfProofs] = useState<ProofFile | null>(null);
@@ -331,7 +342,10 @@ export function MyBuddy() {
   /* ---- staking actions ---- */
 
   const [stakeAmount, setStakeAmount] = useState("");
-  const [tier, setTier] = useState(0);
+  const [unstakeAmount, setUnstakeAmount] = useState("");
+  const [lockAmount, setLockAmount] = useState("");
+  // No preselected lock: a 150-day commitment should never be a default.
+  const [lockTier, setLockTier] = useState(-1);
 
   async function runStake(label: string, fn: () => Promise<string>) {
     setBusy(true);
@@ -341,12 +355,16 @@ export function MyBuddy() {
       setStatus({ text: `${label}.`, signature: sig });
       refresh();
       refreshPosition();
+      refreshLockups();
     } catch (e: any) {
       setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
     } finally {
       setBusy(false);
     }
   }
+
+  const toRaw = (amount: string) =>
+    BigInt(Math.round(parseFloat(amount) * 10 ** TOKEN_DECIMALS));
 
   const stakeAccounts = async () => ({
     owner: publicKey!,
@@ -362,10 +380,9 @@ export function MyBuddy() {
 
   const stake = () =>
     runStake("Staked", async () => {
-      const raw = BigInt(Math.round(parseFloat(stakeAmount) * 10 ** TOKEN_DECIMALS));
       const source = await ensureAta();
       return program!.methods
-        .stake(new BN(raw.toString()), tier)
+        .stake(new BN(toRaw(stakeAmount).toString()))
         .accountsPartial({
           owner: publicKey!,
           config: pda([SEEDS.config]),
@@ -384,11 +401,6 @@ export function MyBuddy() {
       program!.methods.claimRewards().accountsPartial(await stakeAccounts()).rpc()
     );
 
-  const withdrawEscrow = () =>
-    runStake("Boost escrow released", async () =>
-      program!.methods.withdrawBoostEscrow().accountsPartial(await stakeAccounts()).rpc()
-    );
-
   const requestUnstake = () =>
     runStake("Cooldown started", async () =>
       program!.methods
@@ -400,17 +412,76 @@ export function MyBuddy() {
         .rpc()
     );
 
-  const unstake = () =>
+  const unstake = (raw: bigint) =>
     runStake("Unstaked", async () =>
       program!.methods
-        .unstake(new BN(position.amount.toString()))
+        .unstake(new BN(raw.toString()))
         .accountsPartial(await stakeAccounts())
         .rpc()
     );
 
-  const emergencyExit = () =>
+  const lockNew = () =>
+    runStake("Locked", async () => {
+      const source = await ensureAta();
+      const counter = pda([SEEDS.lockupCount, publicKey!.toBuffer()]);
+      // The program requires index == counter.count; no counter yet means 0.
+      let index = 0n;
+      try {
+        const c = await (program!.account as any).lockupCounter.fetch(counter);
+        index = BigInt(c.count.toString());
+      } catch {
+        index = 0n;
+      }
+      return program!.methods
+        .lockTokens(new BN(toRaw(lockAmount).toString()), lockTier, new BN(index.toString()))
+        .accountsPartial({
+          owner: publicKey!,
+          config: pda([SEEDS.config]),
+          pool: pda([SEEDS.pool]),
+          counter,
+          lockup: pda([SEEDS.lockup, publicKey!.toBuffer(), u64Seed(index)]),
+          vault: pda([SEEDS.vault]),
+          source,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+    });
+
+  const lockupAccounts = async (lockup: PublicKey) => ({
+    owner: publicKey!,
+    config: pda([SEEDS.config]),
+    pool: pda([SEEDS.pool]),
+    lockup,
+    vault: pda([SEEDS.vault]),
+    solVault: pda([SEEDS.solVault]),
+    destination: await ensureAta(),
+    tokenProgram: TOKEN_PROGRAM_ID,
+    rent: SYSVAR_RENT_PUBKEY,
+  });
+
+  const claimLockup = (l: LockupEntry) =>
+    runStake("Lock-up rewards claimed", async () =>
+      program!.methods
+        .claimLockupRewards()
+        .accountsPartial(await lockupAccounts(l.pubkey))
+        .rpc()
+    );
+
+  const unlock = (l: LockupEntry) =>
+    runStake("Unlocked. Principal, boost and rewards are in your wallet", async () =>
+      program!.methods
+        .unlockTokens()
+        .accountsPartial(await lockupAccounts(l.pubkey))
+        .rpc()
+    );
+
+  const exitLockup = (l: LockupEntry) =>
     runStake("Exited early", async () =>
-      program!.methods.emergencyExit().accountsPartial(await stakeAccounts()).rpc()
+      program!.methods
+        .emergencyExitLockup()
+        .accountsPartial(await lockupAccounts(l.pubkey))
+        .rpc()
     );
 
   /* ---- derived figures ---- */
@@ -427,7 +498,12 @@ export function MyBuddy() {
       })()
     : 0;
   const withdrawable = stream ? Math.max(0, vested - Number(stream.withdrawn)) : 0;
-  const lockLeft = position ? countdown(Number(position.lockEnd), now) : null;
+
+  // Flexible exits in two steps: request, wait 24 hours, withdraw.
+  const requestedAt = position ? Number(position.unstakeRequestedAt) : 0;
+  const cooldownLeft =
+    requestedAt > 0 ? countdown(requestedAt + 24 * 3600, now) : null;
+  const canUnstake = requestedAt > 0 && !cooldownLeft;
 
   /* ---- the page ---- */
 
@@ -615,9 +691,9 @@ export function MyBuddy() {
         />
       ) : null}
 
-      {/* ---- staking ---- */}
+      {/* ---- staking: the flexible position ---- */}
       <section className="card">
-        <h2>Your stake</h2>
+        <h2>Your flexible stake</h2>
 
         {position ? (
           <>
@@ -631,54 +707,65 @@ export function MyBuddy() {
                 <span className="stat-label">Base, claimable now</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{fmtAmount(position.escrowToken, true)}</span>
-                <span className="stat-label">Boost, held to maturity</span>
-              </div>
-              <div className="stat">
                 <span className="stat-value">{fmtSol(position.claimableSol)} SOL</span>
                 <span className="stat-label">SOL rewards</span>
               </div>
             </div>
-            {lockLeft && (
+
+            {cooldownLeft && (
               <p className="muted small">
-                Lock matures in {lockLeft}. Leaving before then forfeits the entire
-                boost escrow plus 15% of principal, both of which go to the stakers
-                who stay.
+                Exit requested. You can unstake in {cooldownLeft}, and the stake
+                keeps earning until you actually withdraw.
               </p>
             )}
+
             <div className="button-row">
               <button disabled={busy} onClick={claimRewards}>
-                Claim base rewards
+                Claim rewards
               </button>
-              <button disabled={busy || !!lockLeft} onClick={withdrawEscrow}>
-                Release boost escrow
-              </button>
-              <button disabled={busy} onClick={requestUnstake}>
-                Start cooldown
-              </button>
-              <button disabled={busy} onClick={unstake}>
-                Unstake all
-              </button>
-              {lockLeft && (
-                <button className="danger" disabled={busy} onClick={emergencyExit}>
-                  Emergency exit (forfeit boost + 15%)
+              {requestedAt === 0 && (
+                <button disabled={busy} onClick={requestUnstake}>
+                  Start 24h exit
                 </button>
               )}
             </div>
+
+            {canUnstake && (
+              <div className="form-row">
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="Amount to unstake"
+                  value={unstakeAmount}
+                  onChange={(e) => setUnstakeAmount(e.target.value)}
+                />
+                <button
+                  disabled={busy || !unstakeAmount || parseFloat(unstakeAmount) <= 0}
+                  onClick={() => unstake(toRaw(unstakeAmount))}
+                >
+                  Unstake
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => unstake(BigInt(position.amount.toString()))}
+                >
+                  Unstake all
+                </button>
+              </div>
+            )}
+
             <hr className="rule" />
             <h3 className="tiers-title">Add to your stake</h3>
           </>
         ) : (
           <p className="muted">
-            Nothing staked from this wallet yet. Staking registers you for every
-            reward the ecosystem generates: trading fees, donations, and
-            everything forfeited by people who did not show up. What each tier
-            costs and pays is spelled out on the{" "}
-            <TabLink tab="staking">Staking</TabLink> tab.
+            Nothing staked flexibly from this wallet yet. Flexible earns the
+            base rate on every reward the ecosystem generates, claims any time,
+            and exits a day after you ask, with no penalty, ever. The full
+            terms are on the <TabLink tab="staking">Staking</TabLink> tab.
           </p>
         )}
-
-        <TierCards selected={tier} onSelect={setTier} />
 
         <div className="form-row">
           <input
@@ -694,7 +781,71 @@ export function MyBuddy() {
             disabled={busy || !stakeAmount || parseFloat(stakeAmount) <= 0}
             onClick={stake}
           >
-            Stake {TIERS[tier]?.name}
+            Stake flexible
+          </button>
+        </div>
+      </section>
+
+      {/* ---- staking: the lock-ups, one row per account ---- */}
+      <section className="card">
+        <h2>Your lock-ups</h2>
+        <p className="muted small">
+          Each lock-up is its own position with its own amount, its own clock
+          and its own escrowed boost, so each one is shown and managed on its
+          own row.
+        </p>
+
+        {lockupsLoading && lockups.length === 0 ? (
+          <p className="muted">Reading your lock-ups…</p>
+        ) : lockups.length === 0 ? (
+          <p className="muted">
+            No lock-ups from this wallet yet. Locking multiplies your share of
+            every reward for as long as you commit; what each length pays and
+            costs is spelled out on the <TabLink tab="staking">Staking</TabLink>{" "}
+            tab and on the cards below.
+          </p>
+        ) : (
+          <div className="files">
+            <div className="files-head">
+              {lockups.length} lock-up{lockups.length === 1 ? "" : "s"}
+              <span className="files-note">
+                read from the chain on every visit; each row is its own account
+              </span>
+            </div>
+            {lockups.map((l) => (
+              <LockupRow
+                key={l.pubkey.toBase58()}
+                lockup={l}
+                now={now}
+                busy={busy}
+                onClaim={() => claimLockup(l)}
+                onUnlock={() => unlock(l)}
+                onExit={() => exitLockup(l)}
+              />
+            ))}
+          </div>
+        )}
+
+        <hr className="rule" />
+        <h3 className="tiers-title">Open a new lock-up</h3>
+        <TierCards selected={lockTier} onSelect={setLockTier} ids={[1, 2, 3]} />
+        <div className="form-row">
+          <input
+            type="number"
+            min="0"
+            step="any"
+            placeholder="Amount to lock"
+            value={lockAmount}
+            onChange={(e) => setLockAmount(e.target.value)}
+          />
+          <button
+            className="primary"
+            disabled={
+              busy || lockTier < 0 || !lockAmount || parseFloat(lockAmount) <= 0
+            }
+            onClick={lockNew}
+          >
+            {lockTier >= 0 ? `Lock for ${TIERS[lockTier].name}` : "Pick a lock length"}
           </button>
         </div>
       </section>
@@ -718,6 +869,80 @@ export function MyBuddy() {
           action like any other, so it lives on this page.
         </ForfeitNote>
       </section>
+    </div>
+  );
+}
+
+/** Anchor decodes the `Tier` enum as `{ oneMonth: {} }`; map it back to TIERS. */
+const TIER_IDS: Record<string, number> = {
+  flexible: 0,
+  oneMonth: 1,
+  threeMonth: 2,
+  fiveMonth: 3,
+};
+
+/**
+ * One lock-up as a row: what is in it, where its clock stands, and the two
+ * things its owner can do about it right now.
+ */
+function LockupRow({
+  lockup,
+  now,
+  busy,
+  onClaim,
+  onUnlock,
+  onExit,
+}: {
+  lockup: LockupEntry;
+  now: number;
+  busy: boolean;
+  onClaim: () => void;
+  onUnlock: () => void;
+  onExit: () => void;
+}) {
+  const a = lockup.account;
+  const tier = TIERS[TIER_IDS[Object.keys(a.tier ?? {})[0]] ?? 0];
+  const left = countdown(Number(a.lockEnd), now);
+  const claimableSol = BigInt(a.claimableSol.toString());
+  const escrowToken = BigInt(a.escrowToken.toString());
+  const escrowSol = BigInt(a.escrowSol.toString());
+
+  const state = left
+    ? `matures in ${left}`
+    : a.demoted
+      ? "matured; earning at 1x until you withdraw"
+      : "matured; unlock pays out everything";
+
+  return (
+    <div className="file-row">
+      <div className="file-meta">
+        <span className="file-name">
+          {fmtAmount(a.amount, true)} · {tier.name} at {tier.multiplier} · {state}
+        </span>
+        <span className="file-desc">
+          claimable now: {fmtAmount(a.claimableToken, true)}
+          {claimableSol > 0n ? ` + ${fmtSol(claimableSol)} SOL` : ""}
+          {escrowToken > 0n || escrowSol > 0n
+            ? ` · boost in escrow: ${fmtAmount(escrowToken, true)}${
+                escrowSol > 0n ? ` + ${fmtSol(escrowSol)} SOL` : ""
+              }`
+            : ""}
+        </span>
+      </div>
+      <div className="file-actions">
+        <button disabled={busy} onClick={onClaim}>
+          Claim rewards
+        </button>
+        {left ? (
+          <button className="danger" disabled={busy} onClick={onExit}>
+            Emergency exit (forfeit boost + 15%)
+          </button>
+        ) : (
+          <button className="primary" disabled={busy} onClick={onUnlock}>
+            Unlock
+          </button>
+        )}
+      </div>
     </div>
   );
 }

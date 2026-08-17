@@ -5,10 +5,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-buddy_distributor = "GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca"
+buddy_distributor = "ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY"
 
 [programs.devnet]
-buddy_distributor = "GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca"
+buddy_distributor = "ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY"
 
 [registry]
 url = "https://api.apr.dev"

@@ -47,7 +47,7 @@ export const RPC_IS_KEYED = !servedFromLocalhost && !!KEYED_RPC;
 
 export const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID ??
-    "GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca",
+    "ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY",
 );
 
 /** Decimals of the new token; pump.fun mints use 6. */
@@ -430,6 +430,8 @@ export const SEEDS = {
   influencerClaim: Buffer.from("inf_claim"),
   stream: Buffer.from("stream"),
   communityStream: Buffer.from("community_stream"),
+  lockup: Buffer.from("lockup"),
+  lockupCount: Buffer.from("lockup_count"),
 };
 
 /** `CommunityStream.kind` values, which must match the program's constants. */
@@ -450,71 +452,83 @@ export const TIERS = [
     id: 0,
     name: "Flexible",
     multiplier: "1.0x",
-    lock: "3 days to exit",
-    tagline: "Exit any day you choose, though it takes 3 days to complete",
+    lock: "24h to exit",
+    tagline: "Exit any day you choose, one day after you ask",
     perks: [
       "Earn a share of every reward, from day one",
       "Claim your rewards at any time",
-      "Keeps earning during the 3-day exit",
+      "Keeps earning during the 24-hour exit",
       "No penalty, ever. You always get 100% back",
     ],
     costs: [
       "No bonus: you earn the base rate only",
-      "Unstaking takes 3 days: request it, wait, then withdraw",
+      "Unstaking takes 24 hours: request it, wait a day, then withdraw",
     ],
   },
   {
     id: 1,
     name: "1 month",
-    multiplier: "1.5x",
+    multiplier: "2.0x",
     lock: "30 days",
-    tagline: "A modest bonus for a short commitment",
+    tagline: "Double weight for a short commitment",
     perks: [
-      "Counts as 1.5× your stake when rewards are split",
+      "Counts as 2× your stake when rewards are split",
       "Base rewards still claimable any time",
-      "Bonus paid in full at day 30",
+      "Bonus released in full when the lock matures",
+      "Each lock-up is its own position, with its own clock",
     ],
     costs: [
       "Locked for 30 days",
       "Leaving early forfeits the entire bonus plus 15% of your stake",
+      "After day 30 it keeps earning at 1× until you withdraw",
     ],
   },
   {
     id: 2,
     name: "3 months",
-    multiplier: "2.0x",
+    multiplier: "3.0x",
     lock: "90 days",
-    tagline: "Double weight for a quarter",
+    tagline: "Triple weight for a quarter",
     perks: [
-      "Counts as 2× your stake when rewards are split",
+      "Counts as 3× your stake when rewards are split",
       "Base rewards still claimable any time",
-      "Bonus paid in full at day 90",
+      "Bonus released in full when the lock matures",
+      "Each lock-up is its own position, with its own clock",
     ],
     costs: [
       "Locked for 90 days",
       "Leaving early forfeits the entire bonus plus 15% of your stake",
+      "After day 90 it keeps earning at 1× until you withdraw",
     ],
   },
   {
     id: 3,
-    name: "12 months",
+    name: "5 months",
     multiplier: "5.0x",
-    lock: "365 days",
-    tagline: "Five times the share, for a full year",
+    lock: "150 days",
+    tagline: "Five times the share, for five months",
     popular: true,
     perks: [
       "Counts as 5× your stake when rewards are split",
       "Base rewards still claimable any time",
-      "Bonus paid in full at day 365",
+      "Bonus released in full when the lock matures",
       "Earns from everything others forfeit along the way",
     ],
     costs: [
-      "Locked for a full year",
+      "Locked for 150 days",
       "Leaving early forfeits the entire bonus plus 15% of your stake",
+      "After day 150 it keeps earning at 1× until you withdraw",
     ],
   },
 ];
 
 export function pda(seeds: (Buffer | Uint8Array)[]): PublicKey {
   return PublicKey.findProgramAddressSync(seeds, PROGRAM_ID)[0];
+}
+
+/** A u64 as the 8 little-endian bytes PDA seeds are built from. */
+export function u64Seed(value: bigint | number): Uint8Array {
+  const bytes = new Uint8Array(8);
+  new DataView(bytes.buffer).setBigUint64(0, BigInt(value), true);
+  return bytes;
 }

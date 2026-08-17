@@ -6,6 +6,8 @@ pub const VAULT_SEED: &[u8] = b"vault";
 pub const SOL_VAULT_SEED: &[u8] = b"sol_vault";
 pub const POOL_SEED: &[u8] = b"pool";
 pub const STAKE_SEED: &[u8] = b"stake";
+pub const LOCKUP_SEED: &[u8] = b"lockup";
+pub const LOCKUP_COUNT_SEED: &[u8] = b"lockup_count";
 pub const OLD_CLAIM_SEED: &[u8] = b"old_claim";
 pub const INFLUENCER_CLAIM_SEED: &[u8] = b"inf_claim";
 pub const STREAM_SEED: &[u8] = b"stream";
@@ -26,9 +28,9 @@ pub const BPS_DENOMINATOR: u64 = 10_000;
 /// Staking tier multipliers, in basis points of the staked amount.
 /// Weight = amount * multiplier_bps / 10_000.
 pub const TIER_FLEXIBLE_BPS: u64 = 10_000; // 1.0x
-pub const TIER_ONE_MONTH_BPS: u64 = 15_000; // 1.5x
-pub const TIER_THREE_MONTH_BPS: u64 = 20_000; // 2.0x
-pub const TIER_TWELVE_MONTH_BPS: u64 = 50_000; // 5.0x
+pub const TIER_ONE_MONTH_BPS: u64 = 20_000; // 2.0x
+pub const TIER_THREE_MONTH_BPS: u64 = 30_000; // 3.0x
+pub const TIER_FIVE_MONTH_BPS: u64 = 50_000; // 5.0x
 
 /// Lock durations in seconds.
 pub const ONE_DAY: i64 = 86_400;
@@ -49,21 +51,24 @@ pub const LOCK_ONE_MONTH: i64 = 30 * ONE_DAY;
 #[cfg(not(feature = "fast-clock"))]
 pub const LOCK_THREE_MONTH: i64 = 90 * ONE_DAY;
 #[cfg(not(feature = "fast-clock"))]
-pub const LOCK_TWELVE_MONTH: i64 = 365 * ONE_DAY;
+pub const LOCK_FIVE_MONTH: i64 = 150 * ONE_DAY;
 
 #[cfg(feature = "fast-clock")]
-pub const LOCK_ONE_MONTH: i64 = 5 * 60; // 5 minutes
+pub const LOCK_ONE_MONTH: i64 = 60; // 1 minute
 #[cfg(feature = "fast-clock")]
-pub const LOCK_THREE_MONTH: i64 = 8 * 60; // 8 minutes
+pub const LOCK_THREE_MONTH: i64 = 120; // 2 minutes
 #[cfg(feature = "fast-clock")]
-pub const LOCK_TWELVE_MONTH: i64 = 12 * 60; // 12 minutes
+pub const LOCK_FIVE_MONTH: i64 = 180; // 3 minutes
 
 /// Cooldown a flexible staker must wait between requesting an unstake and
-/// withdrawing. Prevents same-block stake/claim/unstake cycling.
+/// withdrawing. 24 hours: fee pots accrue in public view, so without a delay a
+/// large wallet could stake into a visibly fat pot, capture its share the
+/// moment it is synced, and leave in the same breath. A day makes that capture
+/// unpriceable in advance without turning flexible into a lock in disguise.
 #[cfg(not(feature = "fast-clock"))]
-pub const UNSTAKE_COOLDOWN: i64 = 3 * ONE_DAY;
+pub const UNSTAKE_COOLDOWN: i64 = ONE_DAY;
 #[cfg(feature = "fast-clock")]
-pub const UNSTAKE_COOLDOWN: i64 = 3 * 60; // 3 minutes
+pub const UNSTAKE_COOLDOWN: i64 = 60; // 1 minute
 
 /// Penalty applied to *principal* when a locked position exits early, in bps.
 /// The forfeited boost escrow is on top of this. Both flow to the stake pool.
@@ -81,13 +86,13 @@ pub const INFLUENCER_STREAM_DURATION: i64 = 30 * ONE_DAY;
 pub const FOUNDER_STREAM_DURATION: i64 = 365 * ONE_DAY;
 
 #[cfg(feature = "fast-clock")]
-pub const OLD_HOLDER_CLAIM_WINDOW: i64 = 45 * 60; // 45 minutes
+pub const OLD_HOLDER_CLAIM_WINDOW: i64 = 6 * 60; // 6 minutes
 #[cfg(feature = "fast-clock")]
-pub const INFLUENCER_CLAIM_WINDOW: i64 = 20 * 60; // 20 minutes
+pub const INFLUENCER_CLAIM_WINDOW: i64 = 4 * 60; // 4 minutes
 #[cfg(feature = "fast-clock")]
-pub const INFLUENCER_STREAM_DURATION: i64 = 15 * 60; // 15 minutes
+pub const INFLUENCER_STREAM_DURATION: i64 = 3 * 60; // 3 minutes
 #[cfg(feature = "fast-clock")]
-pub const FOUNDER_STREAM_DURATION: i64 = 30 * 60; // 30 minutes
+pub const FOUNDER_STREAM_DURATION: i64 = 5 * 60; // 5 minutes
 
 /// Unix timestamp for 2030-12-31T23:59:59Z, the deadline for the original
 /// 2014 Bitcoin message signer to claim.

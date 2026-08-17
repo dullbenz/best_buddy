@@ -1,21 +1,26 @@
 import * as anchor from "@coral-xyz/anchor";
 // See tests/helpers.ts: named imports from this CJS package break on Node 22.18+.
 const { BN } = anchor;
-import { Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL, Transaction } from "@solana/web3.js";
+import { ACCOUNT_SIZE, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { assert } from "chai";
 import { buildTree, hashLeaf, MerkleTree } from "../scripts/merkle";
 import {
   advanceSlot,
   airdropTo,
+  createMint,
   createWrappedSolAccount,
   DAY,
   Env,
+  LOCK_DURATION,
   ORIGINAL_SIGNER_DEADLINE,
   Tier,
+  UNSTAKE_COOLDOWN,
   createTokenAccount,
   expectFailure,
   fundSol,
+  lockupCounterPda,
+  lockupPda,
   makeBitcoinKey,
   mintTo,
   setupEnv,
@@ -176,9 +181,10 @@ async function claimOldHolder(b: Bootstrapped, index: number) {
   return dest;
 }
 
-async function stake(env: Env, staker: Keypair, source: PublicKey, amount: bigint, tier: number) {
+/** Flexible staking: one position per wallet, no tier argument, 1.0x always. */
+async function stake(env: Env, staker: Keypair, source: PublicKey, amount: bigint) {
   await env.program.methods
-    .stake(new BN(amount.toString()), tier)
+    .stake(new BN(amount.toString()))
     .accountsPartial({
       owner: staker.publicKey,
       config: env.configPda,
@@ -191,6 +197,116 @@ async function stake(env: Env, staker: Keypair, source: PublicKey, amount: bigin
     })
     .signers([staker])
     .rpc();
+}
+
+/** Open a lockup at a locked tier. `index` must equal the counter's count. */
+async function lockTokens(
+  env: Env,
+  owner: Keypair,
+  source: PublicKey,
+  amount: bigint,
+  tier: number,
+  index: number,
+) {
+  await env.program.methods
+    .lockTokens(new BN(amount.toString()), tier, new BN(index))
+    .accountsPartial({
+      owner: owner.publicKey,
+      config: env.configPda,
+      pool: env.poolPda,
+      counter: lockupCounterPda(owner.publicKey, env.programId),
+      lockup: lockupPda(owner.publicKey, index, env.programId),
+      vault: env.vaultPda,
+      source,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+    })
+    .signers([owner])
+    .rpc();
+}
+
+/** The account set shared by unstake / claim_rewards on a flexible position. */
+function positionAccounts(env: Env, owner: Keypair, destination: PublicKey) {
+  return {
+    owner: owner.publicKey,
+    config: env.configPda,
+    pool: env.poolPda,
+    position: stakePda(owner.publicKey, env.programId),
+    vault: env.vaultPda,
+    solVault: env.solVaultPda,
+    destination,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    rent: SYSVAR_RENT_PUBKEY,
+  };
+}
+
+/** The account set shared by claim/unlock/emergency-exit on one lockup. */
+function lockupAccounts(env: Env, owner: Keypair, index: number, destination: PublicKey) {
+  return {
+    owner: owner.publicKey,
+    config: env.configPda,
+    pool: env.poolPda,
+    lockup: lockupPda(owner.publicKey, index, env.programId),
+    vault: env.vaultPda,
+    solVault: env.solVaultPda,
+    destination,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    rent: SYSVAR_RENT_PUBKEY,
+  };
+}
+
+async function claimRewards(env: Env, owner: Keypair, destination: PublicKey) {
+  await env.program.methods
+    .claimRewards()
+    .accountsPartial(positionAccounts(env, owner, destination))
+    .signers([owner])
+    .rpc();
+}
+
+async function claimLockupRewards(env: Env, owner: Keypair, index: number, destination: PublicKey) {
+  await env.program.methods
+    .claimLockupRewards()
+    .accountsPartial(lockupAccounts(env, owner, index, destination))
+    .signers([owner])
+    .rpc();
+}
+
+async function unlockTokens(env: Env, owner: Keypair, index: number, destination: PublicKey) {
+  await env.program.methods
+    .unlockTokens()
+    .accountsPartial(lockupAccounts(env, owner, index, destination))
+    .signers([owner])
+    .rpc();
+}
+
+async function emergencyExitLockup(env: Env, owner: Keypair, index: number, destination: PublicKey) {
+  await env.program.methods
+    .emergencyExitLockup()
+    .accountsPartial(lockupAccounts(env, owner, index, destination))
+    .signers([owner])
+    .rpc();
+}
+
+/** Permissionless demote of a matured lockup; `cranker` may be anyone. */
+async function demoteMatured(env: Env, cranker: Keypair, owner: PublicKey, index: number) {
+  await env.program.methods
+    .demoteMatured()
+    .accountsPartial({
+      cranker: cranker.publicKey,
+      config: env.configPda,
+      pool: env.poolPda,
+      lockup: lockupPda(owner, index, env.programId),
+    })
+    .signers([cranker])
+    .rpc();
+}
+
+async function fetchLockup(env: Env, owner: PublicKey, index: number) {
+  return (env.program.account as any).lockup.fetch(lockupPda(owner, index, env.programId));
+}
+
+async function fetchPool(env: Env) {
+  return (env.program.account as any).stakePool.fetch(env.poolPda);
 }
 
 async function notifyTokens(env: Env, from: Keypair, source: PublicKey, amount: bigint) {
@@ -948,226 +1064,28 @@ describe("buddy-distributor", () => {
   });
 
   // -----------------------------------------------------------------------
-  describe("bucket 1: staking, base/boost split", () => {
-    it("pays base immediately and escrows the boost for a locked tier", async () => {
+  describe("bucket 1: flexible staking", () => {
+    it("registers at weight == amount and walks the request/cooldown/unstake path", async () => {
       const b = await bootstrap({ fundExtra: 100_000n * UNIT });
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, staker, acct, 1_000n * UNIT, Tier.ThreeMonth); // 2.0x
+      await stake(b.env, staker, acct, 1_000n * UNIT);
 
-      const donor = await makeStaker(b.env, 600n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 600n * UNIT);
-
-      // Sole staker with weight 2000 receives the entire 600. Base is the
-      // amount x 1.0 share (300), boost is the remainder (300).
-      await b.env.program.methods
-        .claimRewards()
-        .accountsPartial({
-          owner: staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([staker])
-        .rpc();
-
-      assert.equal((await tokenBalance(b.env, acct)).toString(), (300n * UNIT).toString(), "base half paid out");
-
-      const pos = await (b.env.program.account as any).stakePosition.fetch(stakePda(staker.publicKey, b.env.programId));
-      assert.equal(pos.escrowToken.toString(), (300n * UNIT).toString(), "boost half escrowed");
-    });
-
-    it("refuses to release the boost escrow before maturity, and releases it after", async () => {
-      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
-      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, staker, acct, 1_000n * UNIT, Tier.ThreeMonth);
-
-      const donor = await makeStaker(b.env, 600n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 600n * UNIT);
-
-      const withdrawEscrow = () =>
-        b.env.program.methods
-          .withdrawBoostEscrow()
-          .accountsPartial({
-            owner: staker.publicKey,
-            config: b.env.configPda,
-            pool: b.env.poolPda,
-            position: stakePda(staker.publicKey, b.env.programId),
-            vault: b.env.vaultPda,
-            solVault: b.env.solVaultPda,
-            destination: acct,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY,
-          })
-          .signers([staker])
-          .rpc();
-
-      await expectFailure(withdrawEscrow(), "EscrowNotMatured");
-
-      await warpBy(b.env.context, 90 * DAY + 1);
-      await withdrawEscrow();
-      const pos = await (b.env.program.account as any).stakePosition.fetch(stakePda(staker.publicKey, b.env.programId));
-      assert.equal(pos.escrowToken.toString(), "0");
-    });
-
-    it("forfeits the whole boost escrow even when rewards are claimed first (the claim-then-exit attack)", async () => {
-      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
-      const attacker = await makeStaker(b.env, 1_000n * UNIT);
-      const loyal = await makeStaker(b.env, 1_000n * UNIT);
-
-      await stake(b.env, attacker.staker, attacker.acct, 1_000n * UNIT, Tier.TwelveMonth); // 5.0x
-      await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT, Tier.Flexible); // 1.0x
-
-      const donor = await makeStaker(b.env, 6_000n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
-
-      // Attacker drains everything claimable, then immediately breaks the lock.
-      await b.env.program.methods
-        .claimRewards()
-        .accountsPartial({
-          owner: attacker.staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(attacker.staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: attacker.acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([attacker.staker])
-        .rpc();
-
-      const afterClaim = await tokenBalance(b.env, attacker.acct);
-      const posBefore = await (b.env.program.account as any).stakePosition.fetch(
-        stakePda(attacker.staker.publicKey, b.env.programId)
-      );
-      const escrowed = BigInt(posBefore.escrowToken.toString());
-      assert.isAbove(Number(escrowed), 0, "boost must have accrued");
-
-      const poolBefore = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
-
-      await b.env.program.methods
-        .emergencyExit()
-        .accountsPartial({
-          owner: attacker.staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(attacker.staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: attacker.acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([attacker.staker])
-        .rpc();
-
-      const finalBalance = await tokenBalance(b.env, attacker.acct);
-      const principalReturned = finalBalance - afterClaim;
-      const expectedPrincipal =
-        (1_000n * UNIT * (10_000n - EMERGENCY_EXIT_SLASH_BPS)) / 10_000n;
-
-      assert.equal(
-        principalReturned.toString(),
-        expectedPrincipal.toString(),
-        "attacker gets principal minus the slash, and not one unit of the escrow"
-      );
-
-      const poolAfter = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
-      const redistributed =
-        BigInt(poolAfter.lifetimeTokenRewards.toString()) - BigInt(poolBefore.lifetimeTokenRewards.toString());
-      const expectedRedistribution =
-        escrowed + (1_000n * UNIT * EMERGENCY_EXIT_SLASH_BPS) / 10_000n;
-      assert.equal(
-        redistributed.toString(),
-        expectedRedistribution.toString(),
-        "forfeited boost plus the slash both flow back to bucket 1"
-      );
-    });
-
-    it("gives the forfeited amount to the stakers who stayed, not the one who left", async () => {
-      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
-      const quitter = await makeStaker(b.env, 1_000n * UNIT);
-      const loyal = await makeStaker(b.env, 1_000n * UNIT);
-
-      await stake(b.env, quitter.staker, quitter.acct, 1_000n * UNIT, Tier.TwelveMonth);
-      await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT, Tier.Flexible);
-
-      const donor = await makeStaker(b.env, 6_000n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
-
-      await b.env.program.methods
-        .emergencyExit()
-        .accountsPartial({
-          owner: quitter.staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(quitter.staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: quitter.acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([quitter.staker])
-        .rpc();
-
-      // The loyal staker is now the only weight in the pool, so every forfeited
-      // unit lands on them.
-      const before = await tokenBalance(b.env, loyal.acct);
-      await b.env.program.methods
-        .claimRewards()
-        .accountsPartial({
-          owner: loyal.staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(loyal.staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: loyal.acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([loyal.staker])
-        .rpc();
-      const gained = (await tokenBalance(b.env, loyal.acct)) - before;
-
-      // 1/4 of the original 4000 (weight 1000 of 4000) plus the entire forfeit.
-      assert.isAbove(Number(gained), Number(1_000n * UNIT), "loyal staker collects their share plus the forfeit");
-    });
-
-    it("escrows nothing for the flexible tier and enforces the cooldown", async () => {
-      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
-      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, staker, acct, 1_000n * UNIT, Tier.Flexible);
+      const positionPda = stakePda(staker.publicKey, b.env.programId);
+      let pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
+      assert.equal(pos.weight.toString(), (1_000n * UNIT).toString(), "flexible weight is the amount itself, 1.0x");
+      assert.equal(pos.amount.toString(), (1_000n * UNIT).toString());
 
       const donor = await makeStaker(b.env, 500n * UNIT);
       await notifyTokens(b.env, donor.staker, donor.acct, 500n * UNIT);
 
-      const positionPda = stakePda(staker.publicKey, b.env.programId);
-      const doUnstake = () =>
+      const doUnstake = (amount: bigint) =>
         b.env.program.methods
-          .unstake(new BN((1_000n * UNIT).toString()))
-          .accountsPartial({
-            owner: staker.publicKey,
-            config: b.env.configPda,
-            pool: b.env.poolPda,
-            position: positionPda,
-            vault: b.env.vaultPda,
-            solVault: b.env.solVaultPda,
-            destination: acct,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY,
-          })
+          .unstake(new BN(amount.toString()))
+          .accountsPartial(positionAccounts(b.env, staker, acct))
           .signers([staker])
           .rpc();
 
-      await expectFailure(doUnstake(), "NoUnstakeRequested");
+      await expectFailure(doUnstake(400n * UNIT), "NoUnstakeRequested");
 
       await b.env.program.methods
         .requestUnstake()
@@ -1175,111 +1093,107 @@ describe("buddy-distributor", () => {
         .signers([staker])
         .rpc();
 
-      await expectFailure(doUnstake(), "CooldownActive");
+      // Byte-identical to the attempt above; without a new slot the bank
+      // rejects it as a duplicate instead of re-executing it.
+      await advanceSlot(b.env.context);
+      await expectFailure(doUnstake(400n * UNIT), "CooldownActive");
 
-      await warpBy(b.env.context, 3 * DAY + 1);
-      await doUnstake();
+      await warpBy(b.env.context, UNSTAKE_COOLDOWN + 1);
 
-      // Flexible weight equals the amount, so the whole 500 was base and
-      // nothing was ever escrowed.
-      const pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
-      assert.equal(pos.escrowToken.toString(), "0");
-      assert.equal((await tokenBalance(b.env, acct)).toString(), (1_500n * UNIT).toString());
+      // A partial withdrawal pays principal only; the settled rewards stay
+      // on the position.
+      await doUnstake(400n * UNIT);
+      assert.equal((await tokenBalance(b.env, acct)).toString(), (400n * UNIT).toString(), "principal only on a partial");
+      pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
+      assert.equal(pos.claimableToken.toString(), (500n * UNIT).toString(), "the settled rewards stayed behind");
+
+      // A second partial rides the same request; no fresh cooldown starts.
+      await doUnstake(250n * UNIT);
+      assert.equal((await tokenBalance(b.env, acct)).toString(), (650n * UNIT).toString());
+
+      // The full exit sweeps the remaining principal plus every settled
+      // reward, and spends the request.
+      await doUnstake(350n * UNIT);
+      assert.equal((await tokenBalance(b.env, acct)).toString(), (1_500n * UNIT).toString(), "350 principal + 500 rewards");
+      pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
+      assert.equal(pos.amount.toString(), "0");
+      assert.equal(pos.claimableToken.toString(), "0");
+      assert.equal(pos.escrowToken.toString(), "0", "flexible never escrows anything");
+      assert.equal(pos.unstakeRequestedAt.toString(), "0", "the request is spent");
     });
 
-    it("refuses to break an emergency exit out of a flexible position", async () => {
+    it("cancels a pending unstake request when the owner stakes again", async () => {
       const b = await bootstrap({ fundExtra: 10_000n * UNIT });
-      const { staker, acct } = await makeStaker(b.env, 100n * UNIT);
-      await stake(b.env, staker, acct, 100n * UNIT, Tier.Flexible);
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+      await stake(b.env, staker, acct, 600n * UNIT);
 
+      const positionPda = stakePda(staker.publicKey, b.env.programId);
+      await b.env.program.methods
+        .requestUnstake()
+        .accountsPartial({ owner: staker.publicKey, position: positionPda })
+        .signers([staker])
+        .rpc();
+
+      let pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
+      assert.notEqual(pos.unstakeRequestedAt.toString(), "0");
+
+      // A deposit restarts the clock that separates a withdrawal from the
+      // rewards it would capture, so the pending request is wiped.
+      await stake(b.env, staker, acct, 400n * UNIT);
+      pos = await (b.env.program.account as any).stakePosition.fetch(positionPda);
+      assert.equal(pos.unstakeRequestedAt.toString(), "0", "topping up cancels the request");
+
+      // Even far past the old cooldown, the spent request cannot be ridden.
+      await warpBy(b.env.context, UNSTAKE_COOLDOWN + 1);
       await expectFailure(
         b.env.program.methods
-          .emergencyExit()
-          .accountsPartial({
-            owner: staker.publicKey,
-            config: b.env.configPda,
-            pool: b.env.poolPda,
-            position: stakePda(staker.publicKey, b.env.programId),
-            vault: b.env.vaultPda,
-            solVault: b.env.solVaultPda,
-            destination: acct,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY,
-          })
+          .unstake(new BN((1_000n * UNIT).toString()))
+          .accountsPartial(positionAccounts(b.env, staker, acct))
           .signers([staker])
           .rpc(),
-        "NotLocked"
+        "NoUnstakeRequested"
       );
     });
 
-    it("rejects a tier downgrade on top-up", async () => {
-      const b = await bootstrap({ fundExtra: 10_000n * UNIT });
-      const { staker, acct } = await makeStaker(b.env, 200n * UNIT);
-      await stake(b.env, staker, acct, 100n * UNIT, Tier.ThreeMonth);
-      await expectFailure(stake(b.env, staker, acct, 100n * UNIT, Tier.OneMonth), "InvalidTier");
-    });
-
-    it("weights rewards by tier across concurrent stakers", async () => {
+    it("gives a same-transaction stake-then-claim nothing to capture", async () => {
       const b = await bootstrap({ fundExtra: 100_000n * UNIT });
-      const flex = await makeStaker(b.env, 1_000n * UNIT);
-      const locked = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, flex.staker, flex.acct, 1_000n * UNIT, Tier.Flexible); // weight 1000
-      await stake(b.env, locked.staker, locked.acct, 1_000n * UNIT, Tier.TwelveMonth); // weight 5000
+      const early = await makeStaker(b.env, 1_000n * UNIT);
+      await stake(b.env, early.staker, early.acct, 1_000n * UNIT);
 
-      const donor = await makeStaker(b.env, 6_000n * UNIT);
-      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
+      const donor = await makeStaker(b.env, 500n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 500n * UNIT);
 
-      const flexPos = await (b.env.program.account as any).stakePosition.fetch(stakePda(flex.staker.publicKey, b.env.programId));
-      const lockedPos = await (b.env.program.account as any).stakePosition.fetch(
-        stakePda(locked.staker.publicKey, b.env.programId)
-      );
-      // Settlement is lazy, so read the pool accumulator and compute expectations.
-      const pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
-      assert.equal(pool.totalWeight.toString(), (6_000n * UNIT).toString());
-
-      // Flexible: 1/6 of 6000 = 1000, all of it base.
-      // Locked:   5/6 of 6000 = 5000, of which 1000 base and 4000 boost.
-      await b.env.program.methods
-        .claimRewards()
+      // A newcomer bundles stake + claim into one transaction, hoping to
+      // capture a slice of rewards distributed before they arrived. The debt
+      // snapshot taken at stake time prices them at exactly zero, so the
+      // claim has nothing to withdraw and the whole bundle fails.
+      const sniper = await makeStaker(b.env, 10_000n * UNIT);
+      const stakeIx = await b.env.program.methods
+        .stake(new BN((10_000n * UNIT).toString()))
         .accountsPartial({
-          owner: flex.staker.publicKey,
+          owner: sniper.staker.publicKey,
           config: b.env.configPda,
           pool: b.env.poolPda,
-          position: stakePda(flex.staker.publicKey, b.env.programId),
+          position: stakePda(sniper.staker.publicKey, b.env.programId),
           vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: flex.acct,
+          source: sniper.acct,
           tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
+          systemProgram: SystemProgram.programId,
         })
-        .signers([flex.staker])
-        .rpc();
-      assert.equal((await tokenBalance(b.env, flex.acct)).toString(), (1_000n * UNIT).toString());
-
-      await b.env.program.methods
+        .instruction();
+      const claimIx = await b.env.program.methods
         .claimRewards()
-        .accountsPartial({
-          owner: locked.staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(locked.staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: locked.acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([locked.staker])
-        .rpc();
-      assert.equal(
-        (await tokenBalance(b.env, locked.acct)).toString(),
-        (1_000n * UNIT).toString(),
-        "locked staker's immediately-claimable part equals the 1.0x base"
+        .accountsPartial(positionAccounts(b.env, sniper.staker, sniper.acct))
+        .instruction();
+
+      await expectFailure(
+        b.env.provider.sendAndConfirm(new Transaction().add(stakeIx, claimIx), [sniper.staker]),
+        "NothingToWithdraw"
       );
-      const lockedAfter = await (b.env.program.account as any).stakePosition.fetch(
-        stakePda(locked.staker.publicKey, b.env.programId)
-      );
-      assert.equal(lockedAfter.escrowToken.toString(), (4_000n * UNIT).toString(), "the 4x boost above base is escrowed");
+
+      // And the staker who was actually there keeps their exact share.
+      await claimRewards(b.env, early.staker, early.acct);
+      assert.equal((await tokenBalance(b.env, early.acct)).toString(), (500n * UNIT).toString());
     });
 
     it("buffers rewards that arrive with nobody staked, then flushes them", async () => {
@@ -1287,19 +1201,19 @@ describe("buddy-distributor", () => {
       const donor = await makeStaker(b.env, 1_000n * UNIT);
       await notifyTokens(b.env, donor.staker, donor.acct, 1_000n * UNIT);
 
-      let pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      let pool = await fetchPool(b.env);
       assert.equal(pool.pendingTokenRewards.toString(), (1_000n * UNIT).toString(), "buffered, not dropped");
       assert.equal(pool.accTokenPerWeight.toString(), "0");
 
       const { staker, acct } = await makeStaker(b.env, 500n * UNIT);
-      await stake(b.env, staker, acct, 500n * UNIT, Tier.Flexible);
+      await stake(b.env, staker, acct, 500n * UNIT);
 
       await b.env.program.methods
         .flushPending()
         .accountsPartial({ pool: b.env.poolPda })
         .rpc();
 
-      pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      pool = await fetchPool(b.env);
       assert.equal(pool.pendingTokenRewards.toString(), "0");
       assert.isAbove(Number(pool.accTokenPerWeight.toString()), 0);
     });
@@ -1307,7 +1221,7 @@ describe("buddy-distributor", () => {
     it("distributes SOL rewards alongside token rewards", async () => {
       const b = await bootstrap({ fundExtra: 10_000n * UNIT });
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, staker, acct, 1_000n * UNIT, Tier.Flexible);
+      await stake(b.env, staker, acct, 1_000n * UNIT);
 
       const lamports = 2 * LAMPORTS_PER_SOL;
       await b.env.program.methods
@@ -1323,25 +1237,380 @@ describe("buddy-distributor", () => {
         .rpc();
 
       const before = await solBalance(b.env, staker.publicKey);
-      await b.env.program.methods
-        .claimRewards()
-        .accountsPartial({
-          owner: staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([staker])
-        .rpc();
+      await claimRewards(b.env, staker, acct);
       const after = await solBalance(b.env, staker.publicKey);
       assert.isAbove(Number(after - before), lamports * 0.9, "flexible sole staker receives the SOL rewards");
     });
   });
+
+  // -----------------------------------------------------------------------
+  describe("bucket 1: lockups", () => {
+    it("creates an independent entity per lock, weighted 2x/3x/5x by tier", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 3_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.OneMonth, 0);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.ThreeMonth, 1);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.FiveMonth, 2);
+
+      const expectations = [
+        { index: 0, weight: 2_000n * UNIT, duration: LOCK_DURATION[Tier.OneMonth] },
+        { index: 1, weight: 3_000n * UNIT, duration: LOCK_DURATION[Tier.ThreeMonth] },
+        { index: 2, weight: 5_000n * UNIT, duration: LOCK_DURATION[Tier.FiveMonth] },
+      ];
+      for (const e of expectations) {
+        const lockup = await fetchLockup(b.env, staker.publicKey, e.index);
+        assert.equal(lockup.weight.toString(), e.weight.toString(), `lockup #${e.index} weight`);
+        assert.equal(Number(lockup.lockEnd) - Number(lockup.createdAt), e.duration, `lockup #${e.index} duration`);
+        assert.equal(lockup.demoted, false);
+      }
+
+      const pool = await fetchPool(b.env);
+      assert.equal(pool.totalWeight.toString(), (10_000n * UNIT).toString(), "2x + 3x + 5x of 1000 each");
+      assert.equal(pool.totalStaked.toString(), (3_000n * UNIT).toString(), "principal counts unweighted");
+
+      const counter = await (b.env.program.account as any).lockupCounter.fetch(
+        lockupCounterPda(staker.publicKey, b.env.programId)
+      );
+      assert.equal(counter.count.toString(), "3");
+    });
+
+    it("rejects a skipped index, the flexible tier, and a spent index", async () => {
+      const b = await bootstrap({ fundExtra: 10_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+
+      // The counter says the next index is 0; claiming 1 would fragment the sequence.
+      await expectFailure(lockTokens(b.env, staker, acct, 100n * UNIT, Tier.OneMonth, 1), "InvalidLockupIndex");
+
+      // Flexible principal belongs in `stake`; a zero-duration lockup would
+      // dodge the unstake cooldown.
+      await expectFailure(lockTokens(b.env, staker, acct, 100n * UNIT, Tier.Flexible, 0), "InvalidTier");
+
+      // The true index still works after the failed attempts...
+      await lockTokens(b.env, staker, acct, 100n * UNIT, Tier.OneMonth, 0);
+
+      // ...and cannot be spent twice: the PDA already exists. (New slot, or
+      // the byte-identical retry is rejected as a duplicate before running.)
+      await advanceSlot(b.env.context);
+      await expectFailure(lockTokens(b.env, staker, acct, 100n * UNIT, Tier.OneMonth, 0), "already in use");
+
+      const counter = await (b.env.program.account as any).lockupCounter.fetch(
+        lockupCounterPda(staker.publicKey, b.env.programId)
+      );
+      assert.equal(counter.count.toString(), "1", "only the one real lock advanced the counter");
+    });
+
+    it("pays base only through claim_lockup_rewards, escrow intact (sole 5x staker: 500 -> 100 base, 400 escrow)", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.FiveMonth, 0);
+
+      const donor = await makeStaker(b.env, 500n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 500n * UNIT);
+
+      await claimLockupRewards(b.env, staker, 0, acct);
+      assert.equal((await tokenBalance(b.env, acct)).toString(), (100n * UNIT).toString(), "the 1.0x share of a 5x weight");
+      const lockup = await fetchLockup(b.env, staker.publicKey, 0);
+      assert.equal(lockup.escrowToken.toString(), (400n * UNIT).toString(), "the boost stays escrowed");
+      assert.equal(lockup.claimableToken.toString(), "0");
+
+      // Nothing settled remains, so the next claim refuses.
+      await advanceSlot(b.env.context);
+      await expectFailure(claimLockupRewards(b.env, staker, 0, acct), "NothingToWithdraw");
+    });
+
+    it("splits rewards pro-rata across a flexible stake and lockups of different tiers", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const flex = await makeStaker(b.env, 1_000n * UNIT);
+      const locker = await makeStaker(b.env, 2_000n * UNIT);
+      await stake(b.env, flex.staker, flex.acct, 1_000n * UNIT); // weight 1000
+      await lockTokens(b.env, locker.staker, locker.acct, 1_000n * UNIT, Tier.OneMonth, 0); // weight 2000
+      await lockTokens(b.env, locker.staker, locker.acct, 1_000n * UNIT, Tier.ThreeMonth, 1); // weight 3000
+
+      const donor = await makeStaker(b.env, 6_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
+
+      const pool = await fetchPool(b.env);
+      assert.equal(pool.totalWeight.toString(), (6_000n * UNIT).toString());
+
+      await claimRewards(b.env, flex.staker, flex.acct);
+      assert.equal((await tokenBalance(b.env, flex.acct)).toString(), (1_000n * UNIT).toString(), "1/6 of the pot, all of it base");
+
+      await claimLockupRewards(b.env, locker.staker, 0, locker.acct);
+      const oneMonth = await fetchLockup(b.env, locker.staker.publicKey, 0);
+      assert.equal((await tokenBalance(b.env, locker.acct)).toString(), (1_000n * UNIT).toString(), "2x lock accrued 2/6; half is base");
+      assert.equal(oneMonth.escrowToken.toString(), (1_000n * UNIT).toString());
+
+      await claimLockupRewards(b.env, locker.staker, 1, locker.acct);
+      const threeMonth = await fetchLockup(b.env, locker.staker.publicKey, 1);
+      assert.equal((await tokenBalance(b.env, locker.acct)).toString(), (2_000n * UNIT).toString(), "3x lock accrued 3/6; a third is base");
+      assert.equal(threeMonth.escrowToken.toString(), (2_000n * UNIT).toString());
+    });
+
+    it("keeps two lockups of one wallet fully independent", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 2_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.OneMonth, 0);
+      const first = await fetchLockup(b.env, staker.publicKey, 0);
+
+      await warpBy(b.env.context, 10 * DAY);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.OneMonth, 1);
+      const second = await fetchLockup(b.env, staker.publicKey, 1);
+      assert.equal(Number(second.lockEnd) - Number(first.lockEnd), 10 * DAY, "each lock keeps its own clock");
+
+      // 4000 over equal weights: 2000 to each lock, 1000 base + 1000 boost.
+      const donor = await makeStaker(b.env, 4_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 4_000n * UNIT);
+
+      // Exit the first lock early, on day 10 of its 30.
+      const before = await tokenBalance(b.env, acct);
+      await emergencyExitLockup(b.env, staker, 0, acct);
+      const got = (await tokenBalance(b.env, acct)) - before;
+      assert.equal(got.toString(), (1_850n * UNIT).toString(), "850 principal after the 15% slash + 1000 settled base");
+      assert.isNull(
+        await b.env.context.banksClient.getAccount(lockupPda(staker.publicKey, 0, b.env.programId)),
+        "the exited lockup account is closed"
+      );
+
+      // Its forfeit (1000 boost + 150 slash) lands only on the surviving
+      // lock: weight 2000 alone -> +1150 accrued, 575 base and 575 boost.
+      const afterExit = await tokenBalance(b.env, acct);
+      await claimLockupRewards(b.env, staker, 1, acct);
+      const claimed = (await tokenBalance(b.env, acct)) - afterExit;
+      assert.equal(claimed.toString(), (1_575n * UNIT).toString(), "1000 base from the first pot + 575 from the forfeit");
+
+      const survivor = await fetchLockup(b.env, staker.publicKey, 1);
+      assert.equal(survivor.amount.toString(), (1_000n * UNIT).toString(), "the surviving lock's principal is untouched");
+      assert.equal(survivor.escrowToken.toString(), (1_575n * UNIT).toString(), "its escrow took the boost side of both pots");
+
+      const pool = await fetchPool(b.env);
+      assert.equal(pool.totalStaked.toString(), (1_000n * UNIT).toString());
+      assert.equal(pool.totalWeight.toString(), (2_000n * UNIT).toString());
+    });
+
+    it("lets a stranger demote a matured lockup, exactly once, and it earns 1x thereafter", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.OneMonth, 0);
+
+      const donor = await makeStaker(b.env, 1_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 600n * UNIT);
+
+      const stranger = Keypair.generate();
+      await fundSol(b.env, stranger.publicKey, LAMPORTS_PER_SOL);
+
+      // Not matured: the escrow is still being earned.
+      await expectFailure(demoteMatured(b.env, stranger, staker.publicKey, 0), "EscrowNotMatured");
+
+      await warpBy(b.env.context, LOCK_DURATION[Tier.OneMonth] + 1);
+      const poolBefore = await fetchPool(b.env);
+      await demoteMatured(b.env, stranger, staker.publicKey, 0);
+      const poolAfter = await fetchPool(b.env);
+      const lockup = await fetchLockup(b.env, staker.publicKey, 0);
+
+      assert.equal(lockup.demoted, true);
+      assert.equal(lockup.escrowToken.toString(), "0", "the escrow is released...");
+      assert.equal(lockup.claimableToken.toString(), (600n * UNIT).toString(), "...into claimable: 300 base + 300 boost");
+      assert.equal(lockup.weight.toString(), (1_000n * UNIT).toString(), "weight cut back to the amount, 1x");
+      assert.equal(
+        (BigInt(poolBefore.totalWeight.toString()) - BigInt(poolAfter.totalWeight.toString())).toString(),
+        (1_000n * UNIT).toString(),
+        "the pool lost exactly the boost portion of the weight"
+      );
+
+      await advanceSlot(b.env.context);
+      await expectFailure(demoteMatured(b.env, stranger, staker.publicKey, 0), "AlreadyDemoted");
+
+      // Rewards distributed after the demotion accrue at 1x: all base.
+      await notifyTokens(b.env, donor.staker, donor.acct, 400n * UNIT);
+      await claimLockupRewards(b.env, staker, 0, acct);
+      assert.equal((await tokenBalance(b.env, acct)).toString(), (1_000n * UNIT).toString(), "600 released + the full 400 at 1x");
+      const after = await fetchLockup(b.env, staker.publicKey, 0);
+      assert.equal(after.escrowToken.toString(), "0", "no boost accrues after demotion");
+    });
+
+    it("pays principal + base + boost in one unlock_tokens call on a never-demoted matured lockup", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.ThreeMonth, 0);
+
+      const donor = await makeStaker(b.env, 900n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 900n * UNIT);
+
+      // Before maturity the principal is exactly what a lock means: stuck.
+      await expectFailure(unlockTokens(b.env, staker, 0, acct), "StillLocked");
+
+      await warpBy(b.env.context, LOCK_DURATION[Tier.ThreeMonth] + 1);
+
+      // A matured lock has honoured its commitment; the emergency door with
+      // its slash is closed and only the clean exit remains.
+      await expectFailure(emergencyExitLockup(b.env, staker, 0, acct), "StillLocked");
+
+      await unlockTokens(b.env, staker, 0, acct);
+      assert.equal(
+        (await tokenBalance(b.env, acct)).toString(),
+        (1_900n * UNIT).toString(),
+        "1000 principal + 300 base + 600 boost, demoted inline and paid in one call"
+      );
+      assert.isNull(
+        await b.env.context.banksClient.getAccount(lockupPda(staker.publicKey, 0, b.env.programId)),
+        "the lockup account is closed"
+      );
+
+      const pool = await fetchPool(b.env);
+      assert.equal(pool.totalWeight.toString(), "0");
+      assert.equal(pool.totalStaked.toString(), "0");
+    });
+
+    it("forfeits the whole boost escrow even when rewards are claimed first (the claim-then-exit attack)", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const attacker = await makeStaker(b.env, 1_000n * UNIT);
+      const loyal = await makeStaker(b.env, 1_000n * UNIT);
+
+      await lockTokens(b.env, attacker.staker, attacker.acct, 1_000n * UNIT, Tier.FiveMonth, 0); // weight 5000
+      await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT); // weight 1000
+
+      const donor = await makeStaker(b.env, 6_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
+
+      // The attacker drains everything claimable first: exactly the 1.0x base.
+      await claimLockupRewards(b.env, attacker.staker, 0, attacker.acct);
+      assert.equal((await tokenBalance(b.env, attacker.acct)).toString(), (1_000n * UNIT).toString());
+
+      const lockBefore = await fetchLockup(b.env, attacker.staker.publicKey, 0);
+      assert.equal(lockBefore.escrowToken.toString(), (4_000n * UNIT).toString(), "the 4x above base is escrowed");
+
+      const poolBefore = await fetchPool(b.env);
+      await emergencyExitLockup(b.env, attacker.staker, 0, attacker.acct);
+
+      const finalBalance = await tokenBalance(b.env, attacker.acct);
+      const expectedPrincipal = (1_000n * UNIT * (10_000n - EMERGENCY_EXIT_SLASH_BPS)) / 10_000n;
+      assert.equal(
+        (finalBalance - 1_000n * UNIT).toString(),
+        expectedPrincipal.toString(),
+        "principal minus the slash, and not one unit of the escrow"
+      );
+
+      const poolAfter = await fetchPool(b.env);
+      const redistributed =
+        BigInt(poolAfter.lifetimeTokenRewards.toString()) - BigInt(poolBefore.lifetimeTokenRewards.toString());
+      const expectedRedistribution = 4_000n * UNIT + (1_000n * UNIT * EMERGENCY_EXIT_SLASH_BPS) / 10_000n;
+      assert.equal(
+        redistributed.toString(),
+        expectedRedistribution.toString(),
+        "forfeited boost plus the slash both flow back to bucket 1"
+      );
+
+      // And only to the staker who stayed: their 1000 from the original pot
+      // plus the entire 4150 forfeit, to the unit.
+      await claimRewards(b.env, loyal.staker, loyal.acct);
+      assert.equal(
+        (await tokenBalance(b.env, loyal.acct)).toString(),
+        (1_000n * UNIT + expectedRedistribution).toString()
+      );
+    });
+
+    it("buffers the forfeit to pending when the exiting lockup was the only staker", async () => {
+      const b = await bootstrap({ fundExtra: 10_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.ThreeMonth, 0);
+
+      await emergencyExitLockup(b.env, staker, 0, acct);
+      assert.equal((await tokenBalance(b.env, acct)).toString(), (850n * UNIT).toString(), "85% of principal back");
+
+      const pool = await fetchPool(b.env);
+      assert.equal(pool.totalWeight.toString(), "0");
+      assert.equal(
+        pool.pendingTokenRewards.toString(),
+        (150n * UNIT).toString(),
+        "the slash waits for the next staker instead of dividing by zero weight"
+      );
+      assert.equal(pool.accTokenPerWeight.toString(), "0");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  describe("recover_foreign_token: stray token accounts", () => {
+    // Donations in a mint the program cannot price on-chain forward to the
+    // team multisig (config.dev_wallet), which converts and donates back.
+    const recover = (b: Bootstrapped, source: PublicKey, destination: PublicKey) =>
+      b.env.program.methods
+        .recoverForeignToken()
+        .accountsPartial({
+          cranker: b.env.payer.publicKey,
+          config: b.env.configPda,
+          solVault: b.env.solVaultPda,
+          source,
+          destination,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([b.env.payer])
+        .rpc();
+
+    it("forwards a stray foreign-mint account to the dev wallet and pays the cranker its rent", async () => {
+      const b = await bootstrap();
+      const foreignMint = await createMint(b.env);
+      const source = await createTokenAccount(b.env, b.env.solVaultPda, foreignMint);
+      await mintTo(b.env, source, 250n * UNIT, foreignMint);
+      const destination = await createTokenAccount(b.env, b.devWallet.publicKey, foreignMint);
+
+      const cranker = Keypair.generate();
+      await fundSol(b.env, cranker.publicKey, LAMPORTS_PER_SOL);
+      const before = await solBalance(b.env, cranker.publicKey);
+
+      await b.env.program.methods
+        .recoverForeignToken()
+        .accountsPartial({
+          cranker: cranker.publicKey,
+          config: b.env.configPda,
+          solVault: b.env.solVaultPda,
+          source,
+          destination,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([cranker])
+        .rpc();
+
+      assert.equal((await tokenBalance(b.env, destination)).toString(), (250n * UNIT).toString(), "the full balance forwarded");
+      assert.isNull(await b.env.context.banksClient.getAccount(source), "the stray account is closed");
+
+      const rent = await b.env.context.banksClient.getRent();
+      const accountRent = rent.minimumBalance(BigInt(ACCOUNT_SIZE));
+      const after = await solBalance(b.env, cranker.publicKey);
+      assert.equal((after - before).toString(), accountRent.toString(), "the cranker keeps the closed account's rent");
+    });
+
+    it("refuses to recover the reward mint or wSOL", async () => {
+      const b = await bootstrap();
+
+      // The reward vault's mint IS staker funds.
+      const rewardSource = await createTokenAccount(b.env, b.env.solVaultPda);
+      const rewardDest = await createTokenAccount(b.env, b.devWallet.publicKey);
+      await expectFailure(recover(b, rewardSource, rewardDest), "InvalidRecoverySource");
+
+      // wSOL already has a route to stakers via unwrap_wsol.
+      const wsolSource = await createWrappedSolAccount(b.env, b.env.solVaultPda, 1_000_000n);
+      const wsolDest = await createWrappedSolAccount(b.env, b.devWallet.publicKey, 0n);
+      await expectFailure(recover(b, wsolSource, wsolDest), "InvalidRecoverySource");
+    });
+
+    it("refuses a source the program's PDAs do not own, or a destination that is not the dev wallet's", async () => {
+      const b = await bootstrap();
+      const foreignMint = await createMint(b.env);
+
+      // A third party's account is never recoverable, whatever its mint.
+      const strangerOwned = await createTokenAccount(b.env, Keypair.generate().publicKey, foreignMint);
+      await mintTo(b.env, strangerOwned, 5n * UNIT, foreignMint);
+      const goodDest = await createTokenAccount(b.env, b.devWallet.publicKey, foreignMint);
+      await expectFailure(recover(b, strangerOwned, goodDest), "InvalidRecoverySource");
+
+      // Nor may the proceeds land anywhere but the disclosed dev wallet.
+      const goodSource = await createTokenAccount(b.env, b.env.solVaultPda, foreignMint);
+      await mintTo(b.env, goodSource, 5n * UNIT, foreignMint);
+      const badDest = await createTokenAccount(b.env, Keypair.generate().publicKey, foreignMint);
+      await expectFailure(recover(b, goodSource, badDest), "ConstraintRaw");
+    });
+  });
+
   // -----------------------------------------------------------------------
   describe("sync: funds that arrive from outside", () => {
     // Value can be credited to an account without this program's involvement:
@@ -1374,17 +1643,17 @@ describe("buddy-distributor", () => {
     it("ignores lamports sent directly, until someone syncs them", async () => {
       const b = await bootstrap({ fundExtra: 10_000n * UNIT });
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, staker, acct, 1_000n * UNIT, Tier.Flexible);
+      await stake(b.env, staker, acct, 1_000n * UNIT);
 
       const gift = 3 * LAMPORTS_PER_SOL;
       await airdropTo(b.env, b.env.solVaultPda, gift);
 
-      let pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      let pool = await fetchPool(b.env);
       assert.equal(pool.lifetimeSolRewards.toString(), "0", "not credited on arrival");
 
       await syncSol(b);
 
-      pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      pool = await fetchPool(b.env);
       assert.equal(
         pool.lifetimeSolRewards.toString(),
         gift.toString(),
@@ -1393,21 +1662,7 @@ describe("buddy-distributor", () => {
 
       // And it is genuinely payable, not just booked.
       const before = await solBalance(b.env, staker.publicKey);
-      await b.env.program.methods
-        .claimRewards()
-        .accountsPartial({
-          owner: staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([staker])
-        .rpc();
+      await claimRewards(b.env, staker, acct);
       assert.isAbove(Number((await solBalance(b.env, staker.publicKey)) - before), gift * 0.9);
     });
 
@@ -1426,7 +1681,7 @@ describe("buddy-distributor", () => {
     it("ignores tokens sent directly, until someone syncs them", async () => {
       const b = await bootstrap({ fundExtra: 10_000n * UNIT });
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, staker, acct, 1_000n * UNIT, Tier.Flexible);
+      await stake(b.env, staker, acct, 1_000n * UNIT);
 
       // fundExtra was deposited through fund_vault, so it is already reserved.
       await expectFailure(syncToken(b), "NothingToWithdraw");
@@ -1434,7 +1689,7 @@ describe("buddy-distributor", () => {
       const gift = 500n * UNIT;
       await mintTo(b.env, b.env.vaultPda, gift);
 
-      let pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      let pool = await fetchPool(b.env);
       assert.equal(pool.lifetimeTokenRewards.toString(), "0");
 
       // The failed sync above is byte-identical to this one and still landed,
@@ -1443,7 +1698,7 @@ describe("buddy-distributor", () => {
       await advanceSlot(b.env.context);
       await syncToken(b);
 
-      pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      pool = await fetchPool(b.env);
       assert.equal(pool.lifetimeTokenRewards.toString(), gift.toString());
     });
 
@@ -1452,7 +1707,7 @@ describe("buddy-distributor", () => {
       await airdropTo(b.env, b.env.solVaultPda, 2 * LAMPORTS_PER_SOL);
       await syncSol(b);
 
-      const pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      const pool = await fetchPool(b.env);
       assert.equal(
         pool.pendingSolRewards.toString(),
         (2 * LAMPORTS_PER_SOL).toString(),
@@ -1466,7 +1721,7 @@ describe("buddy-distributor", () => {
       // the vault could receive fees it was structurally unable to distribute.
       const b = await bootstrap({ fundExtra: 10_000n * UNIT });
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, staker, acct, 1_000n * UNIT, Tier.Flexible);
+      await stake(b.env, staker, acct, 1_000n * UNIT);
 
       const wrapped = BigInt(4 * LAMPORTS_PER_SOL);
       const wsol = await createWrappedSolAccount(b.env, b.env.solVaultPda, wrapped);
@@ -1483,7 +1738,7 @@ describe("buddy-distributor", () => {
         })
         .rpc();
 
-      const pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      const pool = await fetchPool(b.env);
       assert.isAtLeast(
         Number(pool.lifetimeSolRewards.toString()),
         Number(wrapped),
@@ -1517,32 +1772,19 @@ describe("buddy-distributor", () => {
     });
 
     it("keeps the counters untouched when a forfeit is only reclassified", async () => {
-      // emergency_exit moves value between owners without moving it out of the
-      // vault. If that touched the counters, a later sync would double-count.
+      // emergency_exit_lockup moves value between owners without moving it out
+      // of the vault. If that touched the counters, a later sync would
+      // double-count.
       const b = await bootstrap({ fundExtra: 100_000n * UNIT });
       const quitter = await makeStaker(b.env, 1_000n * UNIT);
       const loyal = await makeStaker(b.env, 1_000n * UNIT);
-      await stake(b.env, quitter.staker, quitter.acct, 1_000n * UNIT, Tier.TwelveMonth);
-      await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT, Tier.Flexible);
+      await lockTokens(b.env, quitter.staker, quitter.acct, 1_000n * UNIT, Tier.FiveMonth, 0);
+      await stake(b.env, loyal.staker, loyal.acct, 1_000n * UNIT);
 
       const donor = await makeStaker(b.env, 6_000n * UNIT);
       await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
 
-      await b.env.program.methods
-        .emergencyExit()
-        .accountsPartial({
-          owner: quitter.staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(quitter.staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: quitter.acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([quitter.staker])
-        .rpc();
+      await emergencyExitLockup(b.env, quitter.staker, 0, quitter.acct);
 
       // The slash and forfeited boost stayed in the vault and are already
       // reserved, so there is nothing for a sync to find.
@@ -1551,30 +1793,30 @@ describe("buddy-distributor", () => {
 
     it("holds the invariant: vault balances never fall below what is reserved", async () => {
       const b = await bootstrap({ fundExtra: 50_000n * UNIT });
-      const { staker, acct } = await makeStaker(b.env, 2_000n * UNIT);
-      await stake(b.env, staker, acct, 2_000n * UNIT, Tier.ThreeMonth);
+      const flex = await makeStaker(b.env, 1_000n * UNIT);
+      await stake(b.env, flex.staker, flex.acct, 1_000n * UNIT);
+      const locker = await makeStaker(b.env, 3_000n * UNIT);
+      await lockTokens(b.env, locker.staker, locker.acct, 2_000n * UNIT, Tier.ThreeMonth, 0);
+      await lockTokens(b.env, locker.staker, locker.acct, 1_000n * UNIT, Tier.OneMonth, 1);
 
       const donor = await makeStaker(b.env, 3_000n * UNIT);
       await notifyTokens(b.env, donor.staker, donor.acct, 3_000n * UNIT);
+      await airdropTo(b.env, b.env.solVaultPda, 2 * LAMPORTS_PER_SOL);
+      await syncSol(b);
       await claimOldHolder(b, 0);
 
-      await b.env.program.methods
-        .claimRewards()
-        .accountsPartial({
-          owner: staker.publicKey,
-          config: b.env.configPda,
-          pool: b.env.poolPda,
-          position: stakePda(staker.publicKey, b.env.programId),
-          vault: b.env.vaultPda,
-          solVault: b.env.solVaultPda,
-          destination: acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([staker])
-        .rpc();
+      await claimLockupRewards(b.env, locker.staker, 0, locker.acct);
+      await claimRewards(b.env, flex.staker, flex.acct);
 
-      const pool = await (b.env.program.account as any).stakePool.fetch(b.env.poolPda);
+      // Mature the short lock, demote it, then unlock it entirely.
+      await warpBy(b.env.context, LOCK_DURATION[Tier.OneMonth] + 1);
+      await demoteMatured(b.env, b.env.payer, locker.staker.publicKey, 1);
+      await unlockTokens(b.env, locker.staker, 1, locker.acct);
+
+      // And break the long lock early, day 30 of its 90.
+      await emergencyExitLockup(b.env, locker.staker, 0, locker.acct);
+
+      const pool = await fetchPool(b.env);
       const vaultTokens = await tokenBalance(b.env, b.env.vaultPda);
       const vaultLamports = await solBalance(b.env, b.env.solVaultPda);
 

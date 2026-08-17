@@ -282,3 +282,105 @@ pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
     msg!("unwrap_wsol: released and credited {} lamports", released);
     Ok(())
 }
+
+#[derive(Accounts)]
+pub struct RecoverForeignToken<'info> {
+    /// Receives the closed token account's rent, which is what makes running
+    /// the crank worth the transaction fee.
+    #[account(mut)]
+    pub cranker: Signer<'info>,
+
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
+    pub sol_vault: Account<'info, SolVault>,
+
+    /// A token account in a foreign mint held by one of the program's PDAs.
+    /// The reward mint is excluded because that vault *is* staker funds, and
+    /// wSOL is excluded because `unwrap_wsol` already credits it to the pool.
+    /// The owner check (SOL vault or config, an OR) lives in the handler.
+    #[account(
+        mut,
+        constraint = source.mint != config.reward_mint @ DistributorError::InvalidRecoverySource,
+        constraint = source.mint != WSOL_MINT @ DistributorError::InvalidRecoverySource,
+    )]
+    pub source: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = destination.mint == source.mint,
+        constraint = destination.owner == config.dev_wallet,
+    )]
+    pub destination: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+/// Forward tokens of a foreign mint to the team multisig, and close the stray
+/// account. Permissionless.
+///
+/// Donations in anything but the reward token, SOL, or wSOL cannot be priced
+/// on-chain, so they cannot be credited to the staking accumulator directly.
+/// They forward to the team multisig (`config.dev_wallet`) instead, which
+/// converts and donates the proceeds back: a disclosed, permissionless path
+/// that keeps an immutable program from stranding such funds forever.
+pub fn recover_foreign_token(ctx: Context<RecoverForeignToken>) -> Result<()> {
+    let source_owner = ctx.accounts.source.owner;
+    let is_sol_vault = source_owner == ctx.accounts.sol_vault.key();
+    let is_config = source_owner == ctx.accounts.config.key();
+    // Anchor constraints cannot express an OR across two accounts, so the
+    // owner gate lives here: only accounts held by the program's own PDAs are
+    // recoverable, never an arbitrary third party's.
+    require!(
+        is_sol_vault || is_config,
+        DistributorError::InvalidRecoverySource
+    );
+
+    let sol_vault_bump = [ctx.accounts.config.sol_vault_bump];
+    let config_bump = [ctx.accounts.config.bump];
+    let sol_vault_seeds: &[&[u8]] = &[SOL_VAULT_SEED, &sol_vault_bump];
+    let config_seeds: &[&[u8]] = &[CONFIG_SEED, &config_bump];
+    let signer_sol_vault = [sol_vault_seeds];
+    let signer_config = [config_seeds];
+    let (signer, authority): (&[&[&[u8]]], AccountInfo) = if is_sol_vault {
+        (&signer_sol_vault, ctx.accounts.sol_vault.to_account_info())
+    } else {
+        (&signer_config, ctx.accounts.config.to_account_info())
+    };
+
+    // A zero balance still leaves a stray account worth closing; only the
+    // transfer is skipped.
+    let amount = ctx.accounts.source.amount;
+    if amount > 0 {
+        anchor_spl::token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.source.to_account_info(),
+                    to: ctx.accounts.destination.to_account_info(),
+                    authority: authority.clone(),
+                },
+                signer,
+            ),
+            amount,
+        )?;
+    }
+
+    anchor_spl::token::close_account(CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        anchor_spl::token::CloseAccount {
+            account: ctx.accounts.source.to_account_info(),
+            destination: ctx.accounts.cranker.to_account_info(),
+            authority,
+        },
+        signer,
+    ))?;
+
+    msg!(
+        "recover_foreign_token: mint={} amount={} forwarded to dev wallet",
+        ctx.accounts.source.mint,
+        amount
+    );
+    Ok(())
+}

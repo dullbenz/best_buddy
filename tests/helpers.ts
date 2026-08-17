@@ -32,6 +32,8 @@ export const VAULT_SEED = Buffer.from("vault");
 export const SOL_VAULT_SEED = Buffer.from("sol_vault");
 export const POOL_SEED = Buffer.from("pool");
 export const STAKE_SEED = Buffer.from("stake");
+export const LOCKUP_SEED = Buffer.from("lockup");
+export const LOCKUP_COUNT_SEED = Buffer.from("lockup_count");
 export const OLD_CLAIM_SEED = Buffer.from("old_claim");
 export const INFLUENCER_CLAIM_SEED = Buffer.from("inf_claim");
 export const STREAM_SEED = Buffer.from("stream");
@@ -43,8 +45,18 @@ export const Tier = {
   Flexible: 0,
   OneMonth: 1,
   ThreeMonth: 2,
-  TwelveMonth: 3,
+  FiveMonth: 3,
 } as const;
+
+/** Mirrors UNSTAKE_COOLDOWN in constants.rs (the real, non-fast-clock value). */
+export const UNSTAKE_COOLDOWN = DAY;
+
+/** Mirrors LOCK_* in constants.rs (real values; fast-clock never ships). */
+export const LOCK_DURATION: Record<number, number> = {
+  [Tier.OneMonth]: 30 * DAY,
+  [Tier.ThreeMonth]: 90 * DAY,
+  [Tier.FiveMonth]: 150 * DAY,
+};
 
 export interface Env {
   context: ProgramTestContext;
@@ -66,6 +78,25 @@ export function pda(seeds: Buffer[], programId: PublicKey): PublicKey {
 
 export function stakePda(owner: PublicKey, programId: PublicKey): PublicKey {
   return pda([STAKE_SEED, owner.toBuffer()], programId);
+}
+
+/** One lockup account per lock: ["lockup", owner, index as u64 LE]. */
+export function lockupPda(
+  owner: PublicKey,
+  index: bigint | number,
+  programId: PublicKey,
+): PublicKey {
+  const le = Buffer.alloc(8);
+  le.writeBigUInt64LE(BigInt(index));
+  return pda([LOCKUP_SEED, owner.toBuffer(), le], programId);
+}
+
+/** Per-owner counter naming the next lockup index. */
+export function lockupCounterPda(
+  owner: PublicKey,
+  programId: PublicKey,
+): PublicKey {
+  return pda([LOCKUP_COUNT_SEED, owner.toBuffer()], programId);
 }
 
 export function communityStreamPda(kind: number, programId: PublicKey): PublicKey {
@@ -182,6 +213,7 @@ export async function createMint(env: Env, decimals = 6): Promise<PublicKey> {
 export async function createTokenAccount(
   env: Env,
   owner: PublicKey,
+  mint: PublicKey = env.mint,
 ): Promise<PublicKey> {
   const account = Keypair.generate();
   const rent = await env.context.banksClient.getRent();
@@ -195,7 +227,7 @@ export async function createTokenAccount(
       lamports,
       programId: TOKEN_PROGRAM_ID,
     }),
-    createInitializeAccount3Instruction(account.publicKey, env.mint, owner),
+    createInitializeAccount3Instruction(account.publicKey, mint, owner),
   );
   await env.provider.sendAndConfirm(tx, [env.payer, account]);
   return account.publicKey;
@@ -205,10 +237,11 @@ export async function mintTo(
   env: Env,
   destination: PublicKey,
   amount: bigint | number,
+  mint: PublicKey = env.mint,
 ): Promise<void> {
   const tx = new Transaction().add(
     createMintToInstruction(
-      env.mint,
+      mint,
       destination,
       env.payer.publicKey,
       BigInt(amount),

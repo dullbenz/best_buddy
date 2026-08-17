@@ -11,8 +11,8 @@ use anchor_spl::token::{Token, TokenAccount, Transfer};
 /// rent-exempt floor is never spendable.
 ///
 /// This is the single exit for lamports, which is why `reserved_sol` is
-/// decremented here rather than at each of the four call sites: one place to
-/// get right, and no way to add a fifth exit that forgets.
+/// decremented here rather than at each call site: one place to get right, and
+/// no way to add another exit that forgets.
 pub(crate) fn pay_sol_from_vault<'info>(
     sol_vault: &Account<'info, SolVault>,
     recipient: &AccountInfo<'info>,
@@ -79,6 +79,11 @@ pub(crate) fn pay_token_from_vault<'info>(
     )
 }
 
+// ---------------------------------------------------------------------------
+// Flexible staking: one position per wallet, 1.0x, exit gated only by the
+// unstake cooldown. Anything with a lock lives in `Lockup` accounts below.
+// ---------------------------------------------------------------------------
+
 #[derive(Accounts)]
 pub struct Stake<'info> {
     #[account(mut)]
@@ -113,9 +118,8 @@ pub struct Stake<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
+pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
     require!(amount > 0, DistributorError::ZeroAmount);
-    let tier = Tier::from_u8(tier_raw)?;
     let now = Clock::get()?.unix_timestamp;
 
     let pool = &mut ctx.accounts.pool;
@@ -125,7 +129,7 @@ pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
     if is_new {
         position.owner = ctx.accounts.owner.key();
         position.amount = 0;
-        position.tier = tier;
+        position.tier = Tier::Flexible;
         position.weight = 0;
         position.lock_end = 0;
         position.unstake_requested_at = 0;
@@ -140,34 +144,11 @@ pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
     } else {
         // Settle at the *old* weight before anything about the position changes.
         position.settle(pool)?;
-        // A top-up may keep the current tier or move up to a longer lock, but it
-        // may never move down; that would let someone buy the 5.0x rate and
-        // then shorten the commitment it was paying for.
-        require!(
-            tier.multiplier_bps() >= position.tier.multiplier_bps(),
-            DistributorError::InvalidTier
-        );
     }
 
-    let tier_changed = position.tier != tier;
-    position.tier = tier;
-
-    if tier.is_locked_tier() {
-        let fresh_lock = now
-            .checked_add(tier.lock_duration())
-            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-        // Upgrading restarts the clock at the new duration. A same-tier top-up
-        // never shortens or extends the existing lock on principal already down.
-        position.lock_end = if tier_changed || is_new {
-            fresh_lock
-        } else {
-            position.lock_end.max(now)
-        };
-    } else {
-        position.lock_end = 0;
-    }
-
-    // Re-staking cancels any pending unstake request.
+    // Topping up cancels any pending unstake request: the cooldown separates a
+    // withdrawal from the rewards it would capture, and a deposit restarts
+    // that clock.
     position.unstake_requested_at = 0;
 
     let old_weight = position.weight;
@@ -175,7 +156,9 @@ pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
         .amount
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-    let new_weight = StakePosition::compute_weight(new_amount, tier)?;
+    // Flexible weight is the amount itself (1.0x), which is what guarantees
+    // `settle` can never route anything into this position's escrow.
+    let new_weight = new_amount as u128;
 
     position.amount = new_amount;
     position.weight = new_weight;
@@ -208,12 +191,10 @@ pub fn stake(ctx: Context<Stake>, amount: u64, tier_raw: u8) -> Result<()> {
     )?;
 
     msg!(
-        "stake: owner={} amount={} tier={:?} weight={} lock_end={}",
+        "stake: owner={} amount={} weight={}",
         position.owner,
         amount,
-        tier,
-        new_weight,
-        position.lock_end
+        new_weight
     );
     Ok(())
 }
@@ -231,11 +212,10 @@ pub struct RequestUnstake<'info> {
     pub position: Account<'info, StakePosition>,
 }
 
-/// Start the flexible-tier cooldown. Locked tiers do not use this: their gate
-/// is maturity, not a timer the staker starts.
+/// Start the unstake cooldown. Lockups do not use this: their gate is
+/// maturity, not a timer the staker starts.
 pub fn request_unstake(ctx: Context<RequestUnstake>) -> Result<()> {
     let position = &mut ctx.accounts.position;
-    require!(!position.tier.is_locked_tier(), DistributorError::NotLocked);
     position.unstake_requested_at = Clock::get()?.unix_timestamp;
     msg!("unstake requested at {}", position.unstake_requested_at);
     Ok(())
@@ -273,9 +253,8 @@ pub struct Unstake<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-/// Withdraw principal after the lock matures (locked tiers) or after the
-/// cooldown elapses (flexible). Fully exiting also sweeps out settled base
-/// rewards and the matured boost escrow in the same transaction.
+/// Withdraw principal after the cooldown elapses, partially or in full. A full
+/// exit also sweeps out settled rewards in the same transaction.
 pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
     require!(amount > 0, DistributorError::ZeroAmount);
     let now = Clock::get()?.unix_timestamp;
@@ -284,18 +263,14 @@ pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
     let position = &mut ctx.accounts.position;
     require!(amount <= position.amount, DistributorError::ZeroAmount);
 
-    if position.tier.is_locked_tier() {
-        require!(now >= position.lock_end, DistributorError::StillLocked);
-    } else {
-        require!(
-            position.unstake_requested_at != 0,
-            DistributorError::NoUnstakeRequested
-        );
-        require!(
-            now >= position.unstake_requested_at + UNSTAKE_COOLDOWN,
-            DistributorError::CooldownActive
-        );
-    }
+    require!(
+        position.unstake_requested_at != 0,
+        DistributorError::NoUnstakeRequested
+    );
+    require!(
+        now >= position.unstake_requested_at + UNSTAKE_COOLDOWN,
+        DistributorError::CooldownActive
+    );
 
     position.settle(pool)?;
 
@@ -304,7 +279,7 @@ pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
         .amount
         .checked_sub(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-    let new_weight = StakePosition::compute_weight(remaining, position.tier)?;
+    let new_weight = remaining as u128;
 
     position.amount = remaining;
     position.weight = new_weight;
@@ -319,8 +294,10 @@ pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
         .checked_sub(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    // A full exit is by definition at or past maturity, so the boost escrow is
-    // released alongside the principal rather than stranded in the account.
+    // A full exit sweeps settled rewards out alongside the principal rather
+    // than leaving them stranded in an emptied account. Escrow is structurally
+    // zero on a flexible position; it is included so a nonzero balance could
+    // never be left behind under any history.
     let mut token_out = amount;
     let mut sol_out = 0u64;
     if remaining == 0 {
@@ -367,132 +344,6 @@ pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
 }
 
 #[derive(Accounts)]
-pub struct EmergencyExit<'info> {
-    #[account(mut)]
-    pub owner: Signer<'info>,
-
-    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
-    pub config: Account<'info, Config>,
-
-    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
-    pub pool: Account<'info, StakePool>,
-
-    #[account(
-        mut,
-        seeds = [STAKE_SEED, owner.key().as_ref()],
-        bump = position.bump,
-        has_one = owner @ DistributorError::Unauthorized,
-        close = owner,
-    )]
-    pub position: Account<'info, StakePosition>,
-
-    #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
-
-    #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
-    pub sol_vault: Account<'info, SolVault>,
-
-    #[account(mut, constraint = destination.mint == config.reward_mint)]
-    pub destination: Account<'info, TokenAccount>,
-
-    pub token_program: Program<'info, Token>,
-    pub rent: Sysvar<'info, Rent>,
-}
-
-/// Break a lock early.
-///
-/// The staker keeps their settled base rewards. That is the part a flexible
-/// staker would have earned anyway, and it was always immediately claimable.
-/// They forfeit the boost escrow (the portion the multiplier bought, which they
-/// did not finish earning) plus 15% of principal. Both forfeitures are
-/// redistributed to the stakers who stayed, which is why the exiting position's
-/// weight is removed from the pool *before* the redistribution happens.
-pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {
-    let now = Clock::get()?.unix_timestamp;
-    let pool = &mut ctx.accounts.pool;
-    let position = &mut ctx.accounts.position;
-
-    require!(
-        position.tier.is_locked_tier(),
-        DistributorError::NotLocked
-    );
-    require!(now < position.lock_end, DistributorError::StillLocked);
-
-    position.settle(pool)?;
-
-    let principal = position.amount;
-    let slash = (principal as u128)
-        .checked_mul(EMERGENCY_EXIT_SLASH_BPS as u128)
-        .and_then(|v| v.checked_div(BPS_DENOMINATOR as u128))
-        .ok_or_else(|| error!(DistributorError::MathOverflow))? as u64;
-    let principal_out = principal
-        .checked_sub(slash)
-        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-
-    let forfeited_token = position.escrow_token;
-    let forfeited_sol = position.escrow_sol;
-    let base_token = position.claimable_token;
-    let base_sol = position.claimable_sol;
-
-    // Remove this position from the pool first so the forfeit is shared only
-    // among the stakers who remain.
-    pool.total_weight = pool
-        .total_weight
-        .checked_sub(position.weight)
-        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-    pool.total_staked = pool
-        .total_staked
-        .checked_sub(principal)
-        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-
-    position.amount = 0;
-    position.weight = 0;
-    position.claimable_token = 0;
-    position.claimable_sol = 0;
-    position.escrow_token = 0;
-    position.escrow_sol = 0;
-
-    // The slash and the forfeited boost stay physically in the vaults; they
-    // are only reclassified from "this staker's" to "everyone else's". The
-    // reserved counters therefore stay exactly where they are.
-    let redistributed_token = forfeited_token
-        .checked_add(slash)
-        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-    pool.add_token_rewards(redistributed_token)?;
-    pool.add_sol_rewards(forfeited_sol)?;
-
-    let token_out = principal_out
-        .checked_add(base_token)
-        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-
-    pay_token_from_vault(
-        &ctx.accounts.vault,
-        &ctx.accounts.destination,
-        &ctx.accounts.config,
-        &ctx.accounts.token_program,
-        pool,
-        token_out,
-    )?;
-
-    pay_sol_from_vault(
-        &ctx.accounts.sol_vault,
-        &ctx.accounts.owner.to_account_info(),
-        pool,
-        base_sol,
-        &ctx.accounts.rent,
-    )?;
-
-    msg!(
-        "emergency_exit: principal={} slash={} forfeited_boost_token={} forfeited_boost_sol={}",
-        principal,
-        slash,
-        forfeited_token,
-        forfeited_sol
-    );
-    Ok(())
-}
-
-#[derive(Accounts)]
 pub struct ClaimRewards<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -524,9 +375,8 @@ pub struct ClaimRewards<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-/// Withdraw settled base rewards. Available to every tier at any time: this is
-/// the check-in loop, and locking it away would defeat the point of the pool.
-/// The boost portion is deliberately untouched here.
+/// Withdraw a flexible position's settled rewards, at any time. This is the
+/// check-in loop, and locking it away would defeat the point of the pool.
 pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
     let position = &mut ctx.accounts.position;
@@ -562,8 +412,178 @@ pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Lockups: one account per lock, so committing new principal can never touch
+// the terms of principal already down. The multiplier's extra earnings sit in
+// escrow until maturity; after maturity anyone may demote the lockup to 1.0x,
+// because the commitment the boost was paying for is over.
+// ---------------------------------------------------------------------------
+
+/// Release a matured lockup's escrow and cut its weight back to 1.0x. The
+/// caller must have settled first, so everything the multiplier earned during
+/// the lock is already in the escrow being released here.
+fn release_boost_and_demote(lockup: &mut Lockup, pool: &mut StakePool) -> Result<()> {
+    lockup.claimable_token = lockup
+        .claimable_token
+        .checked_add(lockup.escrow_token)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    lockup.claimable_sol = lockup
+        .claimable_sol
+        .checked_add(lockup.escrow_sol)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    lockup.escrow_token = 0;
+    lockup.escrow_sol = 0;
+
+    let boost_weight = lockup
+        .weight
+        .checked_sub(lockup.amount as u128)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    pool.total_weight = pool
+        .total_weight
+        .checked_sub(boost_weight)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    lockup.weight = lockup.amount as u128;
+    lockup.demoted = true;
+    Ok(())
+}
+
 #[derive(Accounts)]
-pub struct WithdrawBoostEscrow<'info> {
+#[instruction(amount: u64, tier: u8, index: u64)]
+pub struct LockTokens<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = 8 + LockupCounter::INIT_SPACE,
+        seeds = [LOCKUP_COUNT_SEED, owner.key().as_ref()],
+        bump
+    )]
+    pub counter: Account<'info, LockupCounter>,
+
+    #[account(
+        init,
+        payer = owner,
+        space = 8 + Lockup::INIT_SPACE,
+        seeds = [LOCKUP_SEED, owner.key().as_ref(), index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub lockup: Account<'info, Lockup>,
+
+    #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
+    pub vault: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = source.mint == config.reward_mint,
+        constraint = source.owner == owner.key(),
+    )]
+    pub source: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+/// Open a new lockup at a locked tier.
+///
+/// `index` names the lockup PDA being created and must equal the counter's
+/// current count. The counter is the authority on the next index, but Anchor
+/// resolves the lockup's seeds before this handler can read (or initialize)
+/// the counter, so the client supplies the index and it is pinned here; a
+/// stale or skipped value fails instead of fragmenting the sequence.
+pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, tier: u8, index: u64) -> Result<()> {
+    require!(amount > 0, DistributorError::ZeroAmount);
+    let tier = Tier::from_u8(tier)?;
+    // Flexible principal belongs in `stake`. A zero-duration lockup would be a
+    // flexible position that skips the unstake cooldown.
+    require!(tier.is_locked_tier(), DistributorError::InvalidTier);
+    let now = Clock::get()?.unix_timestamp;
+
+    let counter = &mut ctx.accounts.counter;
+    if counter.owner == Pubkey::default() {
+        counter.owner = ctx.accounts.owner.key();
+        counter.bump = ctx.bumps.counter;
+    }
+    require!(
+        index == counter.count,
+        DistributorError::InvalidLockupIndex
+    );
+    counter.count = counter
+        .count
+        .checked_add(1)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    let pool = &mut ctx.accounts.pool;
+    let lockup = &mut ctx.accounts.lockup;
+
+    let weight = compute_weight(amount, tier)?;
+    let lock_end = now
+        .checked_add(tier.lock_duration())
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    lockup.owner = ctx.accounts.owner.key();
+    lockup.index = index;
+    lockup.amount = amount;
+    lockup.tier = tier;
+    lockup.weight = weight;
+    lockup.lock_end = lock_end;
+    lockup.demoted = false;
+    lockup.token_debt = pool.acc_token_per_weight;
+    lockup.sol_debt = pool.acc_sol_per_weight;
+    lockup.claimable_token = 0;
+    lockup.claimable_sol = 0;
+    lockup.escrow_token = 0;
+    lockup.escrow_sol = 0;
+    lockup.created_at = now;
+    lockup.bump = ctx.bumps.lockup;
+
+    pool.total_weight = pool
+        .total_weight
+        .checked_add(weight)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    pool.total_staked = pool
+        .total_staked
+        .checked_add(amount)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    // Locked principal is tokens physically entering the vault.
+    pool.reserved_token = pool
+        .reserved_token
+        .checked_add(amount)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    anchor_spl::token::transfer(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.source.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+                authority: ctx.accounts.owner.to_account_info(),
+            },
+        ),
+        amount,
+    )?;
+
+    msg!(
+        "lock_tokens: owner={} index={} amount={} tier={:?} weight={} lock_end={}",
+        lockup.owner,
+        index,
+        amount,
+        tier,
+        weight,
+        lock_end
+    );
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct ClaimLockupRewards<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
@@ -575,11 +595,11 @@ pub struct WithdrawBoostEscrow<'info> {
 
     #[account(
         mut,
-        seeds = [STAKE_SEED, owner.key().as_ref()],
-        bump = position.bump,
+        seeds = [LOCKUP_SEED, owner.key().as_ref(), lockup.index.to_le_bytes().as_ref()],
+        bump = lockup.bump,
         has_one = owner @ DistributorError::Unauthorized,
     )]
-    pub position: Account<'info, StakePosition>,
+    pub lockup: Account<'info, Lockup>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
     pub vault: Account<'info, TokenAccount>,
@@ -594,25 +614,21 @@ pub struct WithdrawBoostEscrow<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-/// Release the boost portion once the lock has matured. Before maturity this
-/// always fails; that is precisely what makes the multiplier conditional on
-/// honouring the lock rather than a free upgrade.
-pub fn withdraw_boost_escrow(ctx: Context<WithdrawBoostEscrow>) -> Result<()> {
-    let now = Clock::get()?.unix_timestamp;
+/// Withdraw a lockup's settled base rewards, at any time. The escrowed boost
+/// is deliberately untouched here: it is only reachable through maturity.
+pub fn claim_lockup_rewards(ctx: Context<ClaimLockupRewards>) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
-    let position = &mut ctx.accounts.position;
+    let lockup = &mut ctx.accounts.lockup;
+    lockup.settle(pool)?;
 
-    require!(position.is_matured(now), DistributorError::EscrowNotMatured);
-    position.settle(pool)?;
-
-    let token_out = position.escrow_token;
-    let sol_out = position.escrow_sol;
+    let token_out = lockup.claimable_token;
+    let sol_out = lockup.claimable_sol;
     require!(
         token_out > 0 || sol_out > 0,
         DistributorError::NothingToWithdraw
     );
-    position.escrow_token = 0;
-    position.escrow_sol = 0;
+    lockup.claimable_token = 0;
+    lockup.claimable_sol = 0;
 
     pay_token_from_vault(
         &ctx.accounts.vault,
@@ -631,6 +647,263 @@ pub fn withdraw_boost_escrow(ctx: Context<WithdrawBoostEscrow>) -> Result<()> {
         &ctx.accounts.rent,
     )?;
 
-    msg!("withdraw_boost_escrow: token={} sol={}", token_out, sol_out);
+    msg!("claim_lockup_rewards: token={} sol={}", token_out, sol_out);
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct DemoteMatured<'info> {
+    /// Any signer. Nothing is paid out and nothing belongs to the cranker, so
+    /// no funds ever depend on who runs this.
+    pub cranker: Signer<'info>,
+
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
+    #[account(
+        mut,
+        seeds = [LOCKUP_SEED, lockup.owner.as_ref(), lockup.index.to_le_bytes().as_ref()],
+        bump = lockup.bump,
+    )]
+    pub lockup: Account<'info, Lockup>,
+}
+
+/// Cut a matured lockup back to base weight. Permissionless: the owner has no
+/// incentive to run this (it only reduces their share), so anyone may. Until
+/// someone does, a matured lockup keeps earning at its multiplier, which is
+/// paying for a commitment that has already ended, at every other staker's
+/// expense.
+pub fn demote_matured(ctx: Context<DemoteMatured>) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp;
+    let pool = &mut ctx.accounts.pool;
+    let lockup = &mut ctx.accounts.lockup;
+
+    require!(now >= lockup.lock_end, DistributorError::EscrowNotMatured);
+    require!(!lockup.demoted, DistributorError::AlreadyDemoted);
+
+    // Settle at the boosted weight first: everything earned up to this moment
+    // was earned under the lock and belongs to the owner.
+    lockup.settle(pool)?;
+    release_boost_and_demote(lockup, pool)?;
+
+    msg!(
+        "demote_matured: owner={} index={} weight={}",
+        lockup.owner,
+        lockup.index,
+        lockup.weight
+    );
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct UnlockTokens<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
+    #[account(
+        mut,
+        seeds = [LOCKUP_SEED, owner.key().as_ref(), lockup.index.to_le_bytes().as_ref()],
+        bump = lockup.bump,
+        has_one = owner @ DistributorError::Unauthorized,
+        close = owner,
+    )]
+    pub lockup: Account<'info, Lockup>,
+
+    #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
+    pub vault: Account<'info, TokenAccount>,
+
+    #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
+    pub sol_vault: Account<'info, SolVault>,
+
+    #[account(mut, constraint = destination.mint == config.reward_mint)]
+    pub destination: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+/// Close a matured lockup: principal, base rewards and the escrowed boost all
+/// pay out together, and the account's rent returns to the owner.
+pub fn unlock_tokens(ctx: Context<UnlockTokens>) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp;
+    let pool = &mut ctx.accounts.pool;
+    let lockup = &mut ctx.accounts.lockup;
+
+    require!(now >= lockup.lock_end, DistributorError::StillLocked);
+
+    // Settle at whatever weight is current: boosted if no crank demoted this
+    // lockup yet, base if one already did.
+    lockup.settle(pool)?;
+    if !lockup.demoted {
+        release_boost_and_demote(lockup, pool)?;
+    }
+
+    let principal = lockup.amount;
+    let token_out = principal
+        .checked_add(lockup.claimable_token)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    let sol_out = lockup.claimable_sol;
+
+    // Post-demotion `weight == amount`, so this removes exactly the base
+    // weight that remained.
+    pool.total_weight = pool
+        .total_weight
+        .checked_sub(lockup.weight)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    pool.total_staked = pool
+        .total_staked
+        .checked_sub(principal)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        pool,
+        token_out,
+    )?;
+
+    pay_sol_from_vault(
+        &ctx.accounts.sol_vault,
+        &ctx.accounts.owner.to_account_info(),
+        pool,
+        sol_out,
+        &ctx.accounts.rent,
+    )?;
+
+    msg!(
+        "unlock_tokens: principal={} tokens_out={} sol_out={}",
+        principal,
+        token_out,
+        sol_out
+    );
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct EmergencyExitLockup<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
+    #[account(
+        mut,
+        seeds = [LOCKUP_SEED, owner.key().as_ref(), lockup.index.to_le_bytes().as_ref()],
+        bump = lockup.bump,
+        has_one = owner @ DistributorError::Unauthorized,
+        close = owner,
+    )]
+    pub lockup: Account<'info, Lockup>,
+
+    #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
+    pub vault: Account<'info, TokenAccount>,
+
+    #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
+    pub sol_vault: Account<'info, SolVault>,
+
+    #[account(mut, constraint = destination.mint == config.reward_mint)]
+    pub destination: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+/// Break a lockup early.
+///
+/// The staker keeps their settled base rewards. That is the part a flexible
+/// staker would have earned anyway, and it was always immediately claimable.
+/// They forfeit the boost escrow (the portion the multiplier bought, which
+/// they did not finish earning) plus 15% of principal. Both forfeitures are
+/// redistributed to the stakers who stayed, which is why the exiting lockup's
+/// weight is removed from the pool *before* the redistribution happens.
+///
+/// Only before maturity: a matured lockup has honoured its commitment and
+/// exits through `unlock_tokens` with nothing to forfeit.
+pub fn emergency_exit_lockup(ctx: Context<EmergencyExitLockup>) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp;
+    let pool = &mut ctx.accounts.pool;
+    let lockup = &mut ctx.accounts.lockup;
+
+    require!(now < lockup.lock_end, DistributorError::StillLocked);
+
+    lockup.settle(pool)?;
+
+    let principal = lockup.amount;
+    let slash = (principal as u128)
+        .checked_mul(EMERGENCY_EXIT_SLASH_BPS as u128)
+        .and_then(|v| v.checked_div(BPS_DENOMINATOR as u128))
+        .ok_or_else(|| error!(DistributorError::MathOverflow))? as u64;
+    let principal_out = principal
+        .checked_sub(slash)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    let forfeited_token = lockup.escrow_token;
+    let forfeited_sol = lockup.escrow_sol;
+    let base_token = lockup.claimable_token;
+    let base_sol = lockup.claimable_sol;
+
+    // Remove this lockup from the pool first so the forfeit is shared only
+    // among the stakers who remain.
+    pool.total_weight = pool
+        .total_weight
+        .checked_sub(lockup.weight)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    pool.total_staked = pool
+        .total_staked
+        .checked_sub(principal)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    // The slash and the forfeited boost stay physically in the vaults; they
+    // are only reclassified from "this staker's" to "everyone else's". The
+    // reserved counters therefore stay exactly where they are.
+    let redistributed_token = forfeited_token
+        .checked_add(slash)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+    pool.add_token_rewards(redistributed_token)?;
+    pool.add_sol_rewards(forfeited_sol)?;
+
+    let token_out = principal_out
+        .checked_add(base_token)
+        .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+
+    pay_token_from_vault(
+        &ctx.accounts.vault,
+        &ctx.accounts.destination,
+        &ctx.accounts.config,
+        &ctx.accounts.token_program,
+        pool,
+        token_out,
+    )?;
+
+    pay_sol_from_vault(
+        &ctx.accounts.sol_vault,
+        &ctx.accounts.owner.to_account_info(),
+        pool,
+        base_sol,
+        &ctx.accounts.rent,
+    )?;
+
+    msg!(
+        "emergency_exit_lockup: principal={} slash={} forfeited_boost_token={} forfeited_boost_sol={}",
+        principal,
+        slash,
+        forfeited_token,
+        forfeited_sol
+    );
     Ok(())
 }

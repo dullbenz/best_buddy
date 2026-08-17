@@ -1,5 +1,5 @@
 {
-  "address": "GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca",
+  "address": "ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY",
   "metadata": {
     "name": "buddy_distributor",
     "version": "0.1.0",
@@ -115,6 +115,149 @@
           }
         }
       ]
+    },
+    {
+      "name": "claim_lockup_rewards",
+      "docs": [
+        "Withdraw a lockup's settled base rewards. The escrowed boost stays",
+        "until maturity."
+      ],
+      "discriminator": [
+        168,
+        10,
+        64,
+        199,
+        44,
+        132,
+        72,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "lockup"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "claim_old_holder",
@@ -345,7 +488,7 @@
     {
       "name": "claim_rewards",
       "docs": [
-        "Withdraw settled base rewards. Always available, every tier."
+        "Withdraw a flexible position's settled rewards. Always available."
       ],
       "discriminator": [
         4,
@@ -547,16 +690,112 @@
       "args": []
     },
     {
-      "name": "emergency_exit",
+      "name": "demote_matured",
+      "docs": [
+        "Cut a matured lockup back to 1.0x and release its escrowed boost to",
+        "the claimable balance. Permissionless."
+      ],
       "discriminator": [
-        164,
-        174,
-        48,
-        163,
-        191,
-        65,
-        91,
-        245
+        226,
+        49,
+        34,
+        236,
+        39,
+        64,
+        2,
+        60
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "docs": [
+            "Any signer. Nothing is paid out and nothing belongs to the cranker, so",
+            "no funds ever depend on who runs this."
+          ],
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lockup.owner",
+                "account": "Lockup"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "emergency_exit_lockup",
+      "docs": [
+        "Break a lockup early, forfeiting the boost escrow and 15% of principal",
+        "to the stakers who stayed."
+      ],
+      "discriminator": [
+        193,
+        74,
+        99,
+        21,
+        113,
+        220,
+        3,
+        92
       ],
       "accounts": [
         {
@@ -564,7 +803,7 @@
           "writable": true,
           "signer": true,
           "relations": [
-            "position"
+            "lockup"
           ]
         },
         {
@@ -603,23 +842,29 @@
           }
         },
         {
-          "name": "position",
+          "name": "lockup",
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  115,
-                  116,
-                  97,
+                  108,
+                  111,
+                  99,
                   107,
-                  101
+                  117,
+                  112
                 ]
               },
               {
                 "kind": "account",
                 "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
               }
             ]
           }
@@ -1022,6 +1267,161 @@
       "args": []
     },
     {
+      "name": "lock_tokens",
+      "discriminator": [
+        136,
+        11,
+        32,
+        232,
+        161,
+        117,
+        54,
+        211
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "counter",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "tier",
+          "type": "u8"
+        },
+        {
+          "name": "index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "notify_sol_rewards",
       "discriminator": [
         79,
@@ -1194,6 +1594,92 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "recover_foreign_token",
+      "docs": [
+        "Forward donations in a foreign mint to the team multisig, which",
+        "converts and donates them back. Permissionless."
+      ],
+      "discriminator": [
+        118,
+        235,
+        109,
+        61,
+        12,
+        117,
+        44,
+        123
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "docs": [
+            "Receives the closed token account's rent, which is what makes running",
+            "the crank worth the transaction fee."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "docs": [
+            "A token account in a foreign mint held by one of the program's PDAs.",
+            "The reward mint is excluded because that vault *is* staker funds, and",
+            "wSOL is excluded because `unwrap_wsol` already credits it to the pool.",
+            "The owner check (SOL vault or config, an OR) lives in the handler."
+          ],
+          "writable": true
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
     },
     {
       "name": "release_community_stream",
@@ -1395,10 +1881,6 @@
         {
           "name": "amount",
           "type": "u64"
-        },
-        {
-          "name": "tier",
-          "type": "u8"
         }
       ]
     },
@@ -1815,6 +2297,148 @@
       "args": []
     },
     {
+      "name": "unlock_tokens",
+      "docs": [
+        "Close a matured lockup: principal, base rewards and boost together."
+      ],
+      "discriminator": [
+        233,
+        35,
+        95,
+        159,
+        37,
+        185,
+        47,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "lockup"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "unstake",
       "discriminator": [
         90,
@@ -2044,142 +2668,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "withdraw_boost_escrow",
-      "docs": [
-        "Withdraw the boost portion. Only at lock maturity."
-      ],
-      "discriminator": [
-        74,
-        73,
-        148,
-        183,
-        1,
-        71,
-        11,
-        154
-      ],
-      "accounts": [
-        {
-          "name": "owner",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "position"
-          ]
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "position",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  116,
-                  97,
-                  107,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "owner"
-              }
-            ]
-          }
-        },
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "sol_vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  111,
-                  108,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "destination",
-          "writable": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [
@@ -2220,6 +2708,32 @@
         250,
         204,
         130
+      ]
+    },
+    {
+      "name": "Lockup",
+      "discriminator": [
+        1,
+        45,
+        32,
+        32,
+        57,
+        81,
+        88,
+        67
+      ]
+    },
+    {
+      "name": "LockupCounter",
+      "discriminator": [
+        103,
+        206,
+        9,
+        57,
+        85,
+        219,
+        106,
+        159
       ]
     },
     {
@@ -2405,6 +2919,21 @@
       "code": 6025,
       "name": "InvalidCliff",
       "msg": "Dev cliff must be between zero and the stream duration"
+    },
+    {
+      "code": 6026,
+      "name": "AlreadyDemoted",
+      "msg": "Lockup already demoted to base weight"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidLockupIndex",
+      "msg": "Lockup index does not match the owner's counter"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidRecoverySource",
+      "msg": "Source is not a foreign-token account owned by a program vault"
     }
   ],
   "types": [
@@ -2721,6 +3250,133 @@
       }
     },
     {
+      "name": "Lockup",
+      "docs": [
+        "One locked stake. A wallet may hold any number of these, each with its own",
+        "tier, maturity and index, so committing new principal can never touch the",
+        "terms of principal already locked.",
+        "",
+        "The base/boost split lives here. Rewards accrue on `weight` (amount x tier",
+        "multiplier), but only the portion attributable to `amount x 1.0` is",
+        "immediately claimable. The remainder, the part the multiplier bought, is",
+        "escrowed until the lock matures, and is forfeited on early exit. Without",
+        "this, a staker could take the 5.0x rate, claim continuously, and leave after",
+        "a few weeks having honoured none of the commitment the multiplier paid for."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "docs": [
+              "Position in the owner's `LockupCounter` sequence; part of the PDA seeds."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "tier",
+            "type": {
+              "defined": {
+                "name": "Tier"
+              }
+            }
+          },
+          {
+            "name": "weight",
+            "type": "u128"
+          },
+          {
+            "name": "lock_end",
+            "type": "i64"
+          },
+          {
+            "name": "demoted",
+            "docs": [
+              "Set once maturity has released the escrow and cut `weight` back to",
+              "`amount`. After maturity the commitment is over, and letting the",
+              "multiplier keep accruing would pay for a lock no longer being honoured;",
+              "anyone may crank `demote_matured` to stop it."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "token_debt",
+            "docs": [
+              "Accumulator checkpoints: rewards already accounted for."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "sol_debt",
+            "type": "u128"
+          },
+          {
+            "name": "claimable_token",
+            "docs": [
+              "Settled base rewards, withdrawable at any time."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "claimable_sol",
+            "type": "u64"
+          },
+          {
+            "name": "escrow_token",
+            "docs": [
+              "Settled boost rewards, withdrawable only at lock maturity."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "escrow_sol",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LockupCounter",
+      "docs": [
+        "Per-wallet lockup sequence. `count` only ever increases, so a closed",
+        "lockup's PDA can never be re-created, and every lockup a wallet has ever",
+        "opened keeps a unique, enumerable address."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "count",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "SolVault",
       "docs": [
         "Holds SOL rewards for stakers.",
@@ -2848,14 +3504,13 @@
     {
       "name": "StakePosition",
       "docs": [
-        "One staker's position.",
+        "One staker's flexible position, one per wallet.",
         "",
-        "The base/boost split lives here. Rewards accrue on `weight` (amount x tier",
-        "multiplier), but only the portion attributable to `amount x 1.0` is",
-        "immediately claimable. The remainder, the part the multiplier bought, is",
-        "escrowed until the lock matures, and is forfeited on early exit. Without",
-        "this, a staker could take the 5.0x rate, claim continuously, and leave after",
-        "a few weeks having honoured none of the commitment the multiplier paid for."
+        "Flexible-only: `tier` is kept for account layout but is always `Flexible`,",
+        "so `weight == amount` and the boost half of `settle` is structurally zero;",
+        "the escrow fields never leave zero. Locked stakes live in `Lockup` accounts",
+        "instead, one per lock, because a single mutable tier here would let a",
+        "top-up rewrite the terms of principal that was already committed."
       ],
       "type": {
         "kind": "struct",
@@ -2870,6 +3525,9 @@
           },
           {
             "name": "tier",
+            "docs": [
+              "Always `Flexible`; kept for layout."
+            ],
             "type": {
               "defined": {
                 "name": "Tier"
@@ -2883,14 +3541,15 @@
           {
             "name": "lock_end",
             "docs": [
-              "Timestamp at which a locked tier matures. Zero for flexible."
+              "Always zero; kept for layout. Flexible positions gate on the unstake",
+              "cooldown, not a maturity date."
             ],
             "type": "i64"
           },
           {
             "name": "unstake_requested_at",
             "docs": [
-              "Timestamp of an unstake request for a flexible position; zero if none."
+              "Timestamp of an unstake request; zero if none."
             ],
             "type": "i64"
           },
@@ -2919,7 +3578,8 @@
           {
             "name": "escrow_token",
             "docs": [
-              "Settled boost rewards, withdrawable only at lock maturity."
+              "Structurally zero (`weight == amount` means the boost split is empty);",
+              "kept for layout."
             ],
             "type": "u64"
           },
@@ -2997,7 +3657,7 @@
             "name": "ThreeMonth"
           },
           {
-            "name": "TwelveMonth"
+            "name": "FiveMonth"
           }
         ]
       }

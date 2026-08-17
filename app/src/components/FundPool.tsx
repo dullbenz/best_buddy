@@ -23,7 +23,7 @@ import {
   transferCreatorFeesToPumpIx,
   sharingConfigPda,
 } from "../pumpfun";
-import { useDistributor } from "../useDistributor";
+import { useAllMaturedLockups, useDistributor } from "../useDistributor";
 import { useProgram } from "../useProgram";
 
 /**
@@ -40,6 +40,11 @@ export function FundPool() {
   const { connection } = useConnection();
   const program = useProgram();
   const { config, untrackedSol, loading, error, refresh } = useDistributor();
+  const {
+    lockups: maturedLockups,
+    loading: maturedLoading,
+    refresh: refreshMatured,
+  } = useAllMaturedLockups();
 
   const [pending, setPending] = useState<PendingFees | null>(null);
   const [communityStreams, setCommunityStreams] = useState<
@@ -198,6 +203,50 @@ export function FundPool() {
       setStatus(`Released. ${sig}`);
       refresh();
       load();
+    } catch (e: any) {
+      setStatus(`Failed: ${e?.message ?? String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Flip matured lock-ups back to 1x weight, a batch per transaction.
+   *
+   * Same shape as the sweeps: the contract gates on the lock-up's clock, not
+   * the caller, and nothing is paid to whoever clicks.
+   */
+  async function demoteMatured() {
+    if (!program || !publicKey || maturedLockups.length === 0) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const cfg = pda([SEEDS.config]);
+      const pool = pda([SEEDS.pool]);
+      let done = 0;
+      let lastSig = "";
+      // ~8 demotes fit a transaction comfortably; more risks the size limit.
+      for (let i = 0; i < maturedLockups.length; i += 8) {
+        const tx = new Transaction();
+        for (const l of maturedLockups.slice(i, i + 8)) {
+          tx.add(
+            await program.methods
+              .demoteMatured()
+              .accountsPartial({
+                cranker: publicKey,
+                config: cfg,
+                pool,
+                lockup: l.pubkey,
+              })
+              .instruction()
+          );
+          done += 1;
+        }
+        lastSig = await program.provider.sendAndConfirm!(tx);
+      }
+      setStatus(`Demoted ${done} lock-up${done === 1 ? "" : "s"}. ${lastSig}`);
+      refresh();
+      refreshMatured();
     } catch (e: any) {
       setStatus(`Failed: ${e?.message ?? String(e)}`);
     } finally {
@@ -414,6 +463,45 @@ export function FundPool() {
             </div>
           </div>
         ))}
+      </section>
+
+      <section className="card">
+        <h2>Demote matured lock-ups</h2>
+        <p className="muted">
+          A matured lock-up keeps its boosted weight until anyone flips it back
+          to 1x, so every staker's share is diluted by absentees until someone
+          presses this. The contract checks each lock-up's clock, never the
+          caller, and pays the clicker nothing.
+        </p>
+        <div className="file-row">
+          <div className="file-meta">
+            <span className="file-name">Matured, still at boosted weight</span>
+            <span className="file-desc">
+              {maturedLoading
+                ? "reading the chain…"
+                : maturedLockups.length === 0
+                  ? "none right now; every matured lock-up is already at 1x"
+                  : `${maturedLockups.length} lock-up${
+                      maturedLockups.length === 1 ? "" : "s"
+                    } ready to demote, batched up to 8 per transaction`}
+            </span>
+          </div>
+          <div className="file-actions">
+            {maturedLockups.length === 0 ? (
+              <span className="pill pill-done">all demoted</span>
+            ) : (
+              <button
+                className="primary"
+                disabled={busy || !publicKey}
+                title="Anyone can run this"
+                onClick={demoteMatured}
+              >
+                Demote {maturedLockups.length} lock-up
+                {maturedLockups.length === 1 ? "" : "s"}
+              </button>
+            )}
+          </div>
+        </div>
       </section>
 
       {communityStreams.length > 0 && (

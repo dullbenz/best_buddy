@@ -40,7 +40,7 @@ This file is your contract's identity. It lives in `target/`, a build folder
 that `anchor clean` wipes without asking. Put a copy in a password manager or
 an encrypted drive. Never in Git, never in Google Drive, never in a chat.
 
-Current program ID: `GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca`
+Current program ID: `ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY`
 
 > **This is a devnet identity, not the launch one.** The roots a claim is
 > checked against can only be set at `initialize`, and only once, so putting
@@ -59,13 +59,13 @@ Current program ID: `GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca`
 cd /Users/dullbenz/Projects/Personal/best_buddy && npm test
 ```
 
-Expect **40 passing**. Then:
+Expect **47 passing**. Then:
 
 ```bash
 cargo test -p buddy-distributor --lib
 ```
 
-Expect **7 passed**. If either fails, stop and fix it before anything else.
+Expect **14 passed**. If either fails, stop and fix it before anything else.
 
 > **The toolchain snag.** `avm`'s `anchor` wrapper silently re-pins Solana to
 > 2.1.0, whose cargo can't parse some of our dependencies. If a build fails with
@@ -135,7 +135,7 @@ Set these in **Settings → Secrets and variables → Actions**:
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | the service-account JSON |
 | Variable | `FIREBASE_PROJECT_ID` | your Firebase project ID |
 | Variable | `VITE_RPC_URL` | your Helius RPC URL |
-| Variable | `VITE_PROGRAM_ID` | `GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca` |
+| Variable | `VITE_PROGRAM_ID` | `ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY` |
 | Secret | `STAGING_PASSWORD` | the staging basic-auth password |
 | Variable | `STAGING_RPC_URL` | a devnet RPC endpoint |
 
@@ -193,8 +193,8 @@ sequence. Four lines prove the guarantees rather than assert them:
 ```
 ✓ further funding is rejected (ConfigLocked) — the lock holds
 ✓ the same wallet cannot claim twice
-✓ held back N as boost, locked until maturity
-✓ the boost cannot be withdrawn before the lock matures
+✓ held back N as boost, locked until maturity (per lock-up)
+✓ a lock-up cannot be demoted before it matures
 ```
 
 Full guide, including how to re-run it: [docs/DEVNET-REHEARSAL.md](docs/DEVNET-REHEARSAL.md).
@@ -212,7 +212,7 @@ Full guide, including how to re-run it: [docs/DEVNET-REHEARSAL.md](docs/DEVNET-R
 Locally:
 
 ```bash
-cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca npm run dev
+cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY npm run dev
 ```
 
 Or push to `develop` and use `staging.mybestbuddy.fun`, which is the same build
@@ -523,7 +523,7 @@ becomes the eighth check on the Verify page.
 **Point of no return. Do the checks first.**
 
 ```bash
-solana program show GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca
+solana program show ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY
 ```
 
 Confirm, one by one:
@@ -543,11 +543,11 @@ Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
 
 ```bash
-solana program set-upgrade-authority GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca --final
+solana program set-upgrade-authority ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY --final
 ```
 
 ```bash
-solana program show GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca
+solana program show ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY
 ```
 
 `Authority` must read **`none`**. Save that transaction signature — it leads the

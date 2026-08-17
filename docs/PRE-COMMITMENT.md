@@ -164,10 +164,17 @@ Stake the token to register; rewards accrue continuously and pro-rata.
 
 | Tier | Multiplier | Lock | Early exit |
 |---|---|---|---|
-| Flexible | 1.0x | none, 3-day unstake cooldown | n/a |
-| 1 month | 1.5x | 30 days | forfeits boost + 15% |
-| 3 months | 2.0x | 90 days | forfeits boost + 15% |
-| 12 months | 5.0x | 365 days | forfeits boost + 15% |
+| Flexible | 1.0x | none, 24-hour unstake cooldown | n/a |
+| 1 month | 2.0x | 30 days | forfeits boost + 15% |
+| 3 months | 3.0x | 90 days | forfeits boost + 15% |
+| 5 months | 5.0x | 150 days | forfeits boost + 15% |
+
+Every locked stake is its own lock-up with its own maturity clock — locking
+twice creates two independent positions, withdrawn separately. The multiplier
+applies while a lock-up runs; at maturity its boost is released and it earns at
+1.0x until withdrawn. The flexible cooldown exists so that visibly accrued
+fees cannot be flash-captured by someone staking moments before the payout and
+leaving moments after.
 
 **Base rewards are claimable at any time, in every tier.** The portion your
 multiplier earns above 1.0x — the "boost" — is held in escrow until your lock

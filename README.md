@@ -98,7 +98,7 @@ step 2.6.
 
 ### Base/boost split
 
-Staking tiers multiply your rewards (up to 5.0x for a 12-month lock), but only
+Staking tiers multiply your rewards (up to 5.0x for a 5-month lock), but only
 the base `amount × 1.0` portion is claimable while the lock runs. The rest is
 escrowed until maturity and forfeited on early exit.
 

@@ -164,7 +164,7 @@ export function HowItWorks() {
         <h2>Staking, and why the multiplier is held back</h2>
         <p>
           Staking registers you for everything the ecosystem earns. Longer locks
-          earn more, up to 5× for twelve months.
+          earn more, up to 5× for five months.
         </p>
         <p>
           <strong>Your base rewards are claimable at any time, in every tier.</strong>{" "}

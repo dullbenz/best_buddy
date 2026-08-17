@@ -151,7 +151,24 @@ export interface Ctx {
 
 export async function makeCtx(): Promise<Ctx> {
   const rpc = process.env.RPC_URL ?? "https://api.devnet.solana.com";
-  const connection = new Connection(rpc, "confirmed");
+  // A keyed endpoint (e.g. the staging Helius devnet key) is origin-locked;
+  // a script can present the allowed Origin explicitly and use it, dodging
+  // the public endpoint's rate limits. Set RPC_ORIGIN alongside RPC_URL.
+  const origin = process.env.RPC_ORIGIN;
+  // httpHeaders apply to HTTP only; the derived websocket cannot present an
+  // Origin and a keyed endpoint answers its upgrade with 401, which silently
+  // stalls every confirmTransaction. Subscriptions carry no key-worthy load,
+  // so point them at the public endpoint whenever an Origin is in play.
+  const wsEndpoint = origin
+    ? /devnet/.test(rpc)
+      ? "wss://api.devnet.solana.com/"
+      : "wss://api.mainnet-beta.solana.com/"
+    : undefined;
+  const connection = new Connection(rpc, {
+    commitment: "confirmed",
+    ...(origin ? { httpHeaders: { Origin: origin } } : {}),
+    ...(wsEndpoint ? { wsEndpoint } : {}),
+  });
   const payer = loadKeypair(process.env.KEYPAIR ?? "~/.config/solana/id.json");
   const provider = new AnchorProvider(connection, new Wallet(payer), {
     commitment: "confirmed",
@@ -309,4 +326,46 @@ export async function waitSeconds(label: string, seconds: number): Promise<void>
   process.stdout.write("\n");
 }
 
-export { BN, Keypair, PublicKey, SystemProgram, Transaction, TOKEN_PROGRAM_ID, LAMPORTS_PER_SOL, getAssociatedTokenAddressSync };
+/**
+ * Every throwaway wallet the campaign creates, so their leftover SOL can be
+ * swept back to the payer when a run ends. Two aborted runs once leaked over
+ * half a SOL into wallets whose keys died with the process; tracking at the
+ * harness re-export means no campaign call site can forget to register one.
+ */
+const SPAWNED: Keypair[] = [];
+class TrackedKeypair extends Keypair {
+  static generate(): Keypair {
+    const k = Keypair.generate();
+    SPAWNED.push(k);
+    return k;
+  }
+}
+
+/** Return every tracked wallet's balance (minus the fee) to the payer. */
+export async function defundSpawned(ctx: Ctx): Promise<void> {
+  let swept = 0;
+  for (const w of SPAWNED) {
+    try {
+      const balance = await ctx.connection.getBalance(w.publicKey);
+      if (balance <= 10_000) continue;
+      const tx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: w.publicKey,
+          toPubkey: ctx.payer.publicKey,
+          lamports: balance - 5_000,
+        })
+      );
+      tx.feePayer = w.publicKey;
+      const { blockhash } = await ctx.connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.sign(w);
+      await ctx.connection.sendRawTransaction(tx.serialize());
+      swept += balance - 5_000;
+    } catch {
+      /* a wallet that cannot pay its own fee is not worth sweeping */
+    }
+  }
+  console.log(`   defund: returned ~${swept / LAMPORTS_PER_SOL} SOL from ${SPAWNED.length} wallets`);
+}
+
+export { BN, TrackedKeypair as Keypair, PublicKey, SystemProgram, Transaction, TOKEN_PROGRAM_ID, LAMPORTS_PER_SOL, getAssociatedTokenAddressSync };
