@@ -4,11 +4,18 @@
 resolution = true
 skip-lint = false
 
+# The launch identity. Anchor asserts at run time that a deployed program's
+# address equals its declare_id!, so every entry here and the declare_id in
+# lib.rs must name the same program. The retired devnet deployment lived at
+# 5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp.
 [programs.localnet]
-buddy_distributor = "5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp"
+buddy_distributor = "6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM"
 
 [programs.devnet]
-buddy_distributor = "5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp"
+buddy_distributor = "6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM"
+
+[programs.mainnet]
+buddy_distributor = "6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM"
 
 [registry]
 url = "https://api.apr.dev"

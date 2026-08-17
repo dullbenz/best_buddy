@@ -31,7 +31,7 @@ pub mod utils;
 
 use instructions::*;
 
-declare_id!("5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp");
+declare_id!("6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM");
 
 // NOTE: builds emit one warning here, because anchor-lang 0.31.1 calls the
 // deprecated `AccountInfo::realloc` inside this macro's expansion. It is left
