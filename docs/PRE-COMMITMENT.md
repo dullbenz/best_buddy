@@ -115,8 +115,14 @@ In 2014, someone signed a message on the Bitcoin blockchain that became this
 story. That spend revealed their public key:
 
 ```
-<0480ba01...4779>
+0480ba015ac8c00c8a0c6f4913d8a63364272a5472148ac19159932e36ffdffd2355a7358601b556af702d4ae5641e7d59bbda795894121d8bbc8412ae70744779
 ```
+
+That key `RIPEMD160(SHA256(...))`-hashes to
+`1GPXXpxtzyzLj2iqqcTFYW2TFC8rWqu92e` — the Bitcoin address that broadcast the
+2014 message, transaction
+`95156dbb48e957754a1fff53ccb9604ee5592dfdd2f117aa37baf635261ef93a` (block
+299825). Anyone can re-derive that and confirm the key is not a substitution.
 
 An allocation is reserved for whoever controls the corresponding private key,
 claimable until **2030-12-31 23:59:59 UTC**.
@@ -138,14 +144,14 @@ If nobody ever claims, the allocation goes to the community after the deadline.
 
 ## Bucket 4b — the team
 
-The team's allocation streams linearly over 12 months behind a `<30>`-day cliff.
+The team's allocation streams linearly over 12 months behind a 30-day cliff.
 
 **No team wallet holds tokens after deployment.** Every token the team will
 ever receive from this allocation exists only inside the distributor contract
 and comes out at a fixed rate that nobody — including the team — can
 accelerate.
 
-What does vest is paid to a **team multisig** (`<vault address>`), not to any
+What does vest is paid to a **team multisig** (`4aiePQdVpVLZu1chUvrgP35eDvKdQhhTxUiRRkt2LjRM`), not to any
 individual: moving anything the team earns requires more than one member to
 sign, so no single person can run off with it, and no single person's absence
 can freeze it.
@@ -270,9 +276,9 @@ asked to do that once.
 - Program: `<PROGRAM_ID>`
 - Config account: `<CONFIG_PDA>`
 - Token vault: `<VAULT_PDA>`
-- Source code: `<repo link>`
+- Source code: https://github.com/dullbenz/best_buddy
 - Devnet campaign report: [docs/E2E-DEVNET-CAMPAIGN.md](./E2E-DEVNET-CAMPAIGN.md)
-- Live dashboard: `<link>`
+- Live dashboard: https://mybestbuddy.fun
 
 ---
 
