@@ -111,7 +111,7 @@ export const ClaimTables = memo(function ClaimTables({
           autoComplete="off"
           placeholder={
             which === "influencers"
-              ? "Search by handle or wallet address"
+              ? "Search by username or wallet address"
               : "Search by wallet address"
           }
           value={query}
@@ -144,7 +144,7 @@ export const ClaimTables = memo(function ClaimTables({
         <table className="ledger">
           <thead>
             <tr>
-              {which === "influencers" ? <th>Handle</th> : null}
+              {which === "influencers" ? <th>pump.fun username</th> : null}
               <th>Wallet</th>
               {which === "legacy" ? (
                 <th className="num">
@@ -162,7 +162,7 @@ export const ClaimTables = memo(function ClaimTables({
               return (
                 <tr key={r.address} className={mine ? "is-mine" : undefined}>
                   {which === "influencers" ? (
-                    <td>{r.handle ?? <span className="muted">n/a</span>}</td>
+                    <td>{r.handle ?? <span className="muted">—</span>}</td>
                   ) : null}
                   <td>
                     <a
@@ -200,7 +200,12 @@ export const ClaimTables = memo(function ClaimTables({
                   {which === "influencers" ? (
                     <td className="num">
                       {r.streamTotal === null || r.withdrawn === null ? (
-                        <span className="muted">n/a</span>
+                        // No stream exists until they claim, so there is
+                        // genuinely nothing to report yet — say that, rather
+                        // than an "n/a" that reads like a data error.
+                        <span className="muted" title="Opens once they claim and their 30-day stream starts">
+                          —
+                        </span>
                       ) : (
                         <>
                           {fmtTokens(r.withdrawn, true)}
