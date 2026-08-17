@@ -19,6 +19,14 @@ export interface UpgradeAuthorityState {
   immutable: boolean | null;
   /** Base58 authority, or null when immutable / not yet loaded. */
   authority: string | null;
+  /**
+   * Whether the program account exists at all. Before launch day it does not,
+   * and that state must never be conflated with immutability: a missing
+   * program has no authority to burn, and reporting it as "none — nobody can
+   * change the contract" would be the site making its strongest promise about
+   * a program that is not there yet.
+   */
+  deployed: boolean | null;
   loading: boolean;
   error: string | null;
 }
@@ -41,6 +49,7 @@ function useUpgradeAuthoritySource(): UpgradeAuthorityState {
   const [state, setState] = useState<UpgradeAuthorityState>({
     immutable: null,
     authority: null,
+    deployed: null,
     loading: true,
     error: null,
   });
@@ -54,22 +63,47 @@ function useUpgradeAuthoritySource(): UpgradeAuthorityState {
           [PROGRAM_ID.toBuffer()],
           BPF_UPGRADEABLE_LOADER
         );
-        const info = await connection.getAccountInfo(programData);
+        // Both accounts in one read. The program account has to be checked
+        // first: a missing ProgramData account only implies a non-upgradeable
+        // loader when the program itself exists. Before launch neither account
+        // exists, and that state is "not deployed", never "immutable".
+        const [programInfo, dataInfo] = await connection.getMultipleAccountsInfo([
+          PROGRAM_ID,
+          programData,
+        ]);
         if (cancelled) return;
 
-        if (!info) {
-          // No ProgramData account at all means the program was deployed with a
-          // non-upgradeable loader: also immutable, just by a different route.
-          setState({ immutable: true, authority: null, loading: false, error: null });
+        if (!programInfo) {
+          setState({
+            immutable: null,
+            authority: null,
+            deployed: false,
+            loading: false,
+            error: null,
+          });
           return;
         }
 
-        const hasAuthority = info.data[12] === 1;
+        if (!dataInfo) {
+          // Program exists but has no ProgramData account: deployed with a
+          // non-upgradeable loader, immutable by a different route.
+          setState({
+            immutable: true,
+            authority: null,
+            deployed: true,
+            loading: false,
+            error: null,
+          });
+          return;
+        }
+
+        const hasAuthority = dataInfo.data[12] === 1;
         setState({
           immutable: !hasAuthority,
           authority: hasAuthority
-            ? new PublicKey(info.data.subarray(13, 45)).toBase58()
+            ? new PublicKey(dataInfo.data.subarray(13, 45)).toBase58()
             : null,
+          deployed: true,
           loading: false,
           error: null,
         });
@@ -78,6 +112,7 @@ function useUpgradeAuthoritySource(): UpgradeAuthorityState {
           setState({
             immutable: null,
             authority: null,
+            deployed: null,
             loading: false,
             error: e?.message ?? String(e),
           });

@@ -72,6 +72,11 @@ export function Landing({
   // this page, and that is not a caution, it is the thing at stake.
   const authorityCell = upgrade.loading
     ? { v: "reading…", t: "unknown" as const, note: "checking the chain" }
+    : upgrade.deployed === false
+    ? // Pre-launch there is no program and therefore no authority to have
+      // burned. Saying "none" here would be the site making its strongest
+      // promise about a program that does not exist yet.
+      { v: "not deployed", t: "unknown" as const, note: "the contract is not on mainnet yet" }
     : upgrade.error || upgrade.immutable === null
     ? { v: "unread", t: "unknown" as const, note: "could not reach the chain" }
     : upgrade.immutable
@@ -616,6 +621,8 @@ export function Landing({
           answer={
             upgrade.loading
               ? "Checking…"
+              : upgrade.deployed === false
+              ? "Not deployed yet — nothing to check until launch"
               : upgrade.error || upgrade.immutable === null
               ? "Couldn't read it, check yourself"
               : upgrade.immutable
@@ -623,7 +630,7 @@ export function Landing({
               : "Not yet, happens at launch"
           }
           tone={
-            upgrade.loading || upgrade.error || upgrade.immutable === null
+            upgrade.loading || upgrade.deployed === false || upgrade.error || upgrade.immutable === null
               ? "unknown"
               : upgrade.immutable
               ? "good"
