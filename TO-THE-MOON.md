@@ -283,7 +283,7 @@ safety net you have. Budget for it, publish the report, and fix what it finds.
 ### 2.2 Build the receipts dossier
 
 Fill in [docs/RECEIPTS.md](docs/RECEIPTS.md): Solscan links to every dump,
-Wayback captures of the dead socials, dated screenshots.
+Wayback captures of the creator's abandoned socials, dated screenshots.
 
 **Do this now, while the links still work.** A deleted tweet you didn't archive
 is worth nothing later. This is both your defence if the old dev objects and the
@@ -298,7 +298,7 @@ Fill these into [docs/PRE-COMMITMENT.md](docs/PRE-COMMITMENT.md):
 
 | Decision | Guidance |
 |---|---|
-| Launch-buy size | Money you can lose entirely. Old token liquidity is ~$26k, so low tens of SOL is proportionate; larger mostly buys your own slippage. This is pump.fun's "dev-buy" field, sent in the same transaction as creation (§4.3). |
+| Launch-buy size | Money you can lose entirely. Size it against the legacy market's live liquidity, checked on DexScreener on launch day — it is an active market and the figure moves, so never work from a stale number. A buy far beyond that depth mostly buys your own slippage. This is pump.fun's "dev-buy" field, sent in the same transaction as creation (§4.3). |
 | **Distributor total** | **The number of tokens the launch buy actually acquires, all of which goes into the contract through `fund_vault`.** The rehearsal fixture uses 200M as a stand-in; the real figure is only known after the buy executes, and every allocation below is a slice of it. Decide the percentages now, compute the base-unit amounts on launch day, publish both. |
 | Bucket split | **Decided: 15 / 50 / 10 / 25** across Legacy Buddy holders, influencers, 2014 signer, the team. The four `*_ALLOC` amounts passed to `initialize` must sum to exactly the distributor total. |
 | Team cliff | 30 days is the default (`DEV_CLIFF_DAYS`, frozen at init). |

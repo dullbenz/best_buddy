@@ -32,9 +32,11 @@ export function HowItWorks() {
           memecoin a decade later. That is a genuinely good story, the kind
           that does not need inventing and cannot be copied. It had a real
           origin, a real date, and a real key behind it. What it never had was
-          anyone willing to keep showing up for it. It did not fail because the
-          premise was weak; it failed because the person holding it left, and
-          left in a way that made it impossible for anyone else to pick up.
+          a creator willing to keep showing up for it. The community did — it
+          stayed active and kept pushing long after he left. But it has been
+          pushing uphill, because the one person with the creator's powers and
+          the creator's fee stream is not behind it, and nobody else can pick
+          those up.
         </p>
         <p>
           That is the entire premise of this project: take the story that
@@ -281,8 +283,8 @@ function LegacyToken() {
         <div className="file-meta">
           <span className="mono file-name">{LEGACY_TOKEN.mint}</span>
           <span className="file-desc">
-            The abandoned Buddy mint. This is the token the snapshot was taken
-            from, not the one this site distributes.
+            The legacy Buddy mint, still trading today. This is the token the
+            snapshot was taken from, not the one this site distributes.
           </span>
         </div>
       </div>

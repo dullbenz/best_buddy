@@ -150,7 +150,7 @@ function TokenCard({
 }
 
 /**
- * The handover: the story moving from the abandoned token to this one.
+ * The handover: the story moving from the legacy token to this one.
  *
  * This is the hero's claim, "same story, but built to last", drawn rather
  * than asserted. The legacy card is deliberately shown *first and intact*,

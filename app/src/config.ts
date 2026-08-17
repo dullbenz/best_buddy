@@ -98,7 +98,7 @@ export const solscanToken = (mint: string) =>
   `https://solscan.io/token/${mint}${clusterQuery}`;
 
 /**
- * The abandoned token this project exists because of.
+ * The legacy token this project exists because of.
  *
  * Always mainnet, whatever cluster this build points at. It is a real thing
  * that really happened, and the links have to lead to the actual history.
@@ -118,7 +118,7 @@ export const LEGACY_TOKEN = {
     },
     {
       label: "DexScreener",
-      note: "the price chart, including the collapse",
+      note: "the price chart, including the dump and the community's fight back",
       url: "https://dexscreener.com/solana/7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump",
     },
   ],

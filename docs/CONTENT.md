@@ -32,9 +32,10 @@ Timings are for a spoken take. Keep it plain; the story does the work.
 
 **[0:04–0:12] The problem** — *on screen: Solscan, the dev's sell transactions*
 
-> Thousands of people were left holding it. And here's the part that made it
-> worse — every trade after that still paid him fees. There was no way to take
-> it over without funding the person who did it.
+> And the community stayed anyway. People kept holding it, kept trading it,
+> kept pushing. But here's what made it an uphill fight — every trade still
+> paid him fees. There was no way to take it over without funding the person
+> who walked.
 
 **[0:12–0:20] Turn** — *on screen: the new token page*
 
@@ -73,9 +74,10 @@ Timings are for a spoken take. Keep it plain; the story does the work.
 ## TikTok — 30 second cut
 
 > In 2014 someone signed a message on Bitcoin. It became a memecoin. Then the
-> dev dumped it and walked away — and every trade after still paid him.
+> dev dumped it and walked away — and every trade after still paid him. The
+> community kept it going anyway, uphill the whole way.
 >
-> So the community rebuilt it. Legacy holders can claim, paid instantly, no lockup.
+> So they rebuilt it. Legacy holders can claim, paid instantly, no lockup.
 > Anything unclaimed goes to the community, not to us. And the team's own tokens
 > are locked in the contract for a year.
 >
@@ -96,13 +98,16 @@ In 2014, someone signed a message onto the Bitcoin blockchain.
 That message became a memecoin. Then its creator dumped on everyone who
 believed in it and walked away — while still collecting fees on every trade.
 
-The community rebuilt it. Here's how, and how to verify all of it. 🧵
+The community never left. It kept the coin alive, and now it has rebuilt it.
+Here's how, and how to verify all of it. 🧵
 
 **2/**
-The problem with taking over the old token: fees still routed to him. Any
-community effort would have funded the person who caused the damage.
+The problem with taking over the old token: fees still routed to him, and the
+creator's powers left with him. The community kept pushing, but every push
+paid the person who caused the damage.
 
-So: new token, same story, rules enforced by a contract instead of promises.
+So: new token, same story, rules enforced by a contract nobody can walk away
+with.
 
 **3/**
 Four buckets.

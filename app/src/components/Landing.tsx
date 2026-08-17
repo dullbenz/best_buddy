@@ -282,8 +282,10 @@ export function Landing({
         </h2>
         <p className="l-lede">
           <span className="accented italicized">$BUDDY</span> is the rebirth of an existing
-          memecoin by the same ticker. The last one was dumped and abandoned by the dev
-          They sold everything into the community.
+          memecoin by the same ticker. The last one's dev sold everything into the
+          community he built and walked away. The community stayed and kept pushing
+          anyway — uphill, because the one person with the creator's powers and the
+          creator's fee stream was no longer behind it.
           This is the rebirth, and the only real
           difference is this: the promises are written in code (smart contracts) that no one can
           edit later, instead of posts that can be deleted.
@@ -374,7 +376,7 @@ export function Landing({
           <IndexRow
             when="Then"
             title="Its creator sold his entire holding and walked away."
-            body="The price collapsed. Worse, every trade people made afterwards still paid them a fee."
+            body="The community stayed and kept it trading anyway — pushing uphill, because the creator's powers left with him, and every trade people made still paid him a fee."
           />
           <IndexRow
             when="Now"
@@ -664,7 +666,7 @@ export function Landing({
           }
           plain={
             <>
-              This is exactly how the last coin died. Here the team's tokens
+              This is exactly what the last coin's dev did. Here the team's tokens
               are not initially in a wallet they control. They sit in the contract and
               come out a little each day for twelve months, after a waiting
               period at the start. Nobody can speed that up, including them.

@@ -123,7 +123,8 @@ fix what it finds before mainnet.
 ### 0.7 Collect the receipts
 
 Fill in `docs/RECEIPTS.md` with Solscan links to the old dev's dumps, Wayback
-Machine captures of the abandoned socials, and dated community screenshots.
+Machine captures of the creator's abandoned socials, and dated community
+screenshots.
 This is your defence if the old dev complains, and it is the evidence behind
 every wallet you exclude from the snapshot. Do it now, while the links are
 live.
@@ -267,9 +268,10 @@ pump.fun's create flow includes an initial buy (their "dev-buy" field) — use
 it. Buying later means paying a higher price on the bonding curve and looking
 like an outside sniper.
 
-Size it as money you can lose entirely. As a sanity anchor, the old token's
-liquidity is around $26k, so a launch buy in the low tens of SOL is
-proportionate; much larger mostly buys your own slippage.
+Size it as money you can lose entirely. As a sanity anchor, check the legacy
+market's live liquidity on DexScreener on launch day — it is an active market
+and the figure moves, so do not size from a stale number. A buy far beyond
+that depth mostly buys your own slippage.
 
 **Whatever this buy acquires is the distributor total.** All of it goes into
 the contract in §2.4, split 15 / 50 / 10 / 25 across legacy holders,

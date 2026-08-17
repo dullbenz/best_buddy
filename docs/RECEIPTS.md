@@ -32,7 +32,9 @@ Summary: `<total sold>` tokens, roughly `<$>` at the time, over `<n>` days.
 
 ## 3. Abandonment
 
-Evidence that the project was left to rot — not merely that the price fell.
+Evidence that the creator walked away — not a claim about the price. The
+community kept showing up; he did not, and his silence is what this section
+documents.
 
 | Date | What | Evidence |
 |---|---|---|

@@ -13,9 +13,11 @@ abandoned by its creator, who sold into the community he built and continued
 collecting creator fees from a project he had walked away from. The evidence is
 in [RECEIPTS.md](./RECEIPTS.md) — transaction by transaction.
 
-A community takeover of the old token would still have routed fees to him. So
-this is a new token, run by rules in a contract instead of promises from a
-person.
+The community stayed anyway. The market kept trading and holders kept pushing —
+uphill, because the one person with the creator's powers and the creator's fee
+stream was not behind them, and a community takeover of the old token would
+still have routed fees to him. So this is a new token, run by rules in a
+contract nobody can walk away with.
 
 The mechanism below is designed on one assumption: **nobody should have to trust
 us.** Every number here is enforced by a program whose source is public, whose

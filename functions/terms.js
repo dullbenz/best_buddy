@@ -75,22 +75,33 @@ exports.terms = onRequest(
       // a specific wallet accepted the terms must not be shown a minute-old
       // answer and conclude the entry is missing. The CDN was doing exactly
       // that in testing.
-      res.json({
-        terms: TERMS,
-        termsSha256: TERMS_SHA256,
-        howToVerify:
-          "For each entry, ed25519-verify `signature` (base58, 64 bytes) over the UTF-8 bytes of `terms`, using `address` (base58, 32 bytes) as the public key. No trust in this server is required. Cross-check completeness against the on-chain influencer claim receipts.",
-        count: snap.size,
-        acceptances: snap.docs.map((d) => {
-          const v = d.data();
-          return {
-            address: d.id,
-            signature: v.signature,
-            termsSha256: v.termsSha256,
-            signedAt: v.signedAt?.toDate?.()?.toISOString() ?? null,
-          };
-        }),
-      });
+      //
+      // Pretty-printed rather than compact: humans land on this endpoint from
+      // the site's public-register links, and the register is meant to be read
+      // in a browser tab as much as parsed by a script.
+      res.set("Content-Type", "application/json; charset=utf-8");
+      res.send(
+        JSON.stringify(
+          {
+            terms: TERMS,
+            termsSha256: TERMS_SHA256,
+            howToVerify:
+              "For each entry, ed25519-verify `signature` (base58, 64 bytes) over the UTF-8 bytes of `terms`, using `address` (base58, 32 bytes) as the public key. No trust in this server is required. Cross-check completeness against the on-chain influencer claim receipts.",
+            count: snap.size,
+            acceptances: snap.docs.map((d) => {
+              const v = d.data();
+              return {
+                address: d.id,
+                signature: v.signature,
+                termsSha256: v.termsSha256,
+                signedAt: v.signedAt?.toDate?.()?.toISOString() ?? null,
+              };
+            }),
+          },
+          null,
+          2
+        )
+      );
       return;
     }
 
