@@ -420,6 +420,38 @@ export function FundPool() {
             </button>
           </div>
         )}
+
+        <div className="note">
+          <strong>Exactly what you would be signing.</strong> One transaction,
+          at most four instructions, skipping any with nothing to do:
+          <ol>
+            <li>
+              Sweeps AMM-side fees back into the bonding-curve vault, if the
+              coin has graduated (<code>transfer_creator_fees_to_pump_v2</code>).
+            </li>
+            <li>
+              Pays out to the frozen shareholder list: 90% the community vault,
+              10% the team's multisig (<code>distribute_creator_fees_v2</code>).
+            </li>
+            <li>
+              Unwraps any wrapped SOL our vault received (
+              <code>unwrap_wsol</code>). For a SOL-paired coin with this
+              sharing config, pump.fun pays native lamports, so this step
+              usually finds nothing to do. The button tolerates that and
+              simply leaves it out.
+            </li>
+            <li>
+              Credits it all to stakers (<code>sync_sol_rewards</code>).
+            </li>
+          </ol>
+          <span className="muted">
+            Steps 1 and 2 are pump.fun's own instructions, and their
+            documentation states each is permissionless. Steps 3 and 4 are
+            ours, and are open to anyone by design. If this interface ever
+            breaks because pump.fun changed something, only this page needs
+            replacing. The distributor contract does not reference them at all.
+          </span>
+        </div>
       </section>
 
       <section className="card">
@@ -546,33 +578,6 @@ export function FundPool() {
           })}
         </section>
       )}
-
-      <section className="card">
-        <h2>Exactly what you would be signing</h2>
-        <ol className="muted small">
-          <li>
-            Sweeps AMM-side fees back into the bonding-curve vault, if the coin
-            has graduated (<code>transfer_creator_fees_to_pump_v2</code>).
-          </li>
-          <li>
-            Pays out to the frozen shareholder list: 90% the community vault,
-            10% the team's multisig (<code>distribute_creator_fees_v2</code>).
-          </li>
-          <li>
-            Unwraps any wrapped SOL our vault received (<code>unwrap_wsol</code>).
-          </li>
-          <li>
-            Credits it to stakers (<code>sync_sol_rewards</code>).
-          </li>
-        </ol>
-        <p className="muted small">
-          Steps 1 and 2 are pump.fun's own instructions, and their documentation
-          states each is permissionless. Steps 3 and 4 are ours, and are open to
-          anyone by design. If this interface ever breaks because pump.fun
-          changed something, only this page needs replacing. The distributor
-          contract does not reference them at all.
-        </p>
-      </section>
 
       {status && <div className="card status">{status}</div>}
     </div>

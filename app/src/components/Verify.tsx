@@ -218,14 +218,14 @@ export function Verify() {
     command: `RPC_URL=<your-rpc> npx ts-node scripts/verify-snapshot.ts --onchain`,
   });
 
-  // 6: the fee split is frozen and points at the community.
+  // 6: the fee split is out of our hands and points at the community.
   // Creator fees are paid as lamports, so the shareholder to look for is the
   // SOL vault, not the token vault.
   const vaultShare = sharing?.shareholders.find(
     (h) => h.address === solVaultPda
   );
   checks.push({
-    title: "The fee split is frozen, and most of it goes to the community",
+    title: "The fee split is out of our hands, and most of it goes to the community",
     status:
       !sharing || !sharing.exists
         ? "pending"
@@ -240,11 +240,11 @@ export function Verify() {
           vaultShare ? (vaultShare.shareBps / 100).toFixed(0) : "0"
         }% of creator fees go to the community vault. Admin: ${
           sharing.adminRevoked
-            ? "cleared, so the split can no longer be changed"
+            ? "cleared, so we can never change the split"
             : sharing.admin
         }. Status: ${sharing.status}.`,
     why:
-      "pump.fun lets a fee split be set exactly once, after which it revokes the admin and the shares are permanent. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction, so the thing to check is not just the percentage but that the admin really is revoked.",
+      "pump.fun lets a fee split be set exactly once, after which it revokes the admin and no instruction of the creator's can ever touch the shares again. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction, so the thing to check is not just the percentage but that the admin really is revoked. One asterisk, stated plainly: a revoked admin proves we can never change the split, not that nobody can. pump.fun's own fee program retains a reset authority of its own, presumably the machinery behind their CTO fee-redirect process, so this guarantee is about us, not about pump.fun.",
     link: solscanAccount(
       config ? sharingConfigPda(config.rewardMint).toBase58() : ""
     ),

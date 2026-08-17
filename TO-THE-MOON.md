@@ -229,14 +229,25 @@ Run `scripts/deploy-init.ts` without `EXECUTE=1` (command in
 its output carefully now, so that reading it under pressure on launch night is
 routine.
 
-### 1.5 Rehearse the fee path — on mainnet, with a throwaway coin
+### 1.5 Rehearse the fee path — devnet dry-run first, then a mainnet throwaway coin
 
-**This one is not optional, and it cannot be done on devnet.** pump.fun's docs
-show no devnet deployment; every example they publish is a mainnet link.
+**This one is not optional.** pump.fun's programs (`pump`, `pump_amm`,
+`pump_fees`) are live on devnet, so the fee chain gets rehearsed twice: a
+devnet dry-run first, then the mainnet throwaway coin, which remains the
+definitive final rehearsal because devnet is not guaranteed to match mainnet's
+program version or configuration.
 
-Setting the real coin's fee split is a one-shot that can never be corrected
-(§4.6). The only way to know the configuration works is to have already watched
-it work.
+Setting the real coin's fee split is a one-shot we can never correct (§4.6).
+The only way to know the configuration works is to have already watched it
+work.
+
+**The devnet dry-run:** create a coin on devnet pump.fun with a minimal buy,
+`create_fee_sharing_config`, set the 90/10 split onto the devnet SOL vault PDA
+and a devnet team multisig vault, trade a little, then run the crank and sync
+from the Fund pool tab and watch both sides of the split get credited. The
+whole chain, for pocket change.
+
+**Then the mainnet throwaway coin:**
 
 1. Create a junk coin on pump.fun with a minimal buy.
 2. `create_fee_sharing_config`, then set a 90/10 split with a test PDA of the
@@ -247,9 +258,10 @@ it work.
 3. Trade it a little so fees actually accrue.
 4. Run the whole chain from the Fund pool tab and confirm value lands and gets
    credited on both sides of the split.
-5. **Note which form the payout arrived in** — native lamports or wrapped SOL.
-   That tells you whether `unwrap_wsol` is on the critical path, and whether
-   the multisig vault needs a wSOL token account to receive its share.
+5. **Note which form the payout arrived in.** The docs say a SOL-quoted
+   sharing distribution pays native lamports, wSOL unwrapped internally, which
+   leaves `unwrap_wsol` as a safety net rather than a step on the critical
+   path. Confirm it here, where surprises are cheap.
 
 Budget a few tens of dollars. Cheap, against a mistake that would freeze the
 community's fee stream permanently.
@@ -644,6 +656,8 @@ has the numbers; the post is a summary and a link.
 
 **Rehearsal**
 - [ ] Devnet deploy + full rehearsal script clean
+- [ ] Devnet fee-chain dry-run clean: devnet pump.fun coin, sharing config,
+      90/10 split, trade, crank, sync (§1.5)
 - [ ] App clicked through on desktop and phone
 - [ ] `deploy-init.ts` dry run read line by line
 
@@ -694,8 +708,9 @@ has the numbers; the post is a summary and a link.
 - [ ] Team stream created, beneficiary reads as the multisig vault
 - [ ] Every parameter verified against the published doc
 - [ ] Upgrade authority burned; `Authority: none` confirmed
-- [ ] Throwaway-coin rehearsal proved the fee chain end to end, including a
-      Squads vault receiving its share (§1.5)
+- [ ] Fee chain proved end to end twice: the devnet dry-run first, then the
+      mainnet throwaway-coin rehearsal, including a Squads vault receiving
+      its share (§1.5)
 - [ ] Fee split set to 90% SOL vault / 10% team multisig via
       `update_fee_shares_v2` — **one shot**
 - [ ] Sharing config confirmed frozen (admin revoked)
@@ -732,10 +747,11 @@ has the numbers; the post is a summary and a link.
 
 Stated plainly, because you should know where the docs stop being tested:
 
-**Which form pump.fun pays in, post-graduation.** Their docs confirm native
-lamports on the bonding curve and wrapped SOL on the AMM, but not with certainty
-which one a *sharing-config* distribution produces. `unwrap_wsol` exists to
-cover either. §1.5 is where you find out for real.
+**Which form pump.fun pays in, post-graduation.** Their docs now say a
+SOL-quoted sharing distribution pays native lamports either way, wSOL
+unwrapped internally — but a doc is not the deployed program on the day.
+`unwrap_wsol` exists to cover either form regardless. §1.5 is where you find
+out for real.
 
 **The security review.** The 35 tests prove the mechanisms work as designed.
 They do not prove there's no exploit nobody thought of. With an immutable
