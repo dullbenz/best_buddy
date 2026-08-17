@@ -1542,7 +1542,6 @@ a.prov-value {
 }
 
 .tier-pick {
-  margin-top: 12px;
   text-align: center;
   font-size: 12px;
   font-weight: 600;
@@ -1556,6 +1555,12 @@ a.prov-value {
   background: var(--accent);
   border-color: var(--accent);
   color: #1a1206;
+}
+
+/* Pushed to the card base so the Select buttons sit level across cards. */
+.tier-pick {
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 /* ---- Forfeiture reasons, influencer terms, devnet banner ---- */
