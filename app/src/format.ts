@@ -11,9 +11,22 @@ export function toTokens(baseUnits: bigint | string | number): number {
   return Number(value) / 10 ** TOKEN_DECIMALS;
 }
 
+/**
+ * Two significant digits for amounts the 2-decimal formatters would round to
+ * a bare "0". A card reading "0 SOL" next to an armed action button reads as
+ * a bug (or worse, a scam) even when the underlying lamports are real, so a
+ * nonzero amount must never display as exactly zero.
+ */
+const small = new Intl.NumberFormat("en", { maximumSignificantDigits: 2 });
+
+function fmtNonzero(n: number, format: Intl.NumberFormat): string {
+  if (n > 0 && n < 0.01) return small.format(n);
+  return format.format(n);
+}
+
 export function fmtTokens(baseUnits: bigint | string | number, short = false): string {
   const n = toTokens(baseUnits);
-  return short ? compact.format(n) : plain.format(n);
+  return fmtNonzero(n, short ? compact : plain);
 }
 
 /**
@@ -30,7 +43,7 @@ export function fmtAmount(baseUnits: bigint | string | number, short = false): s
 }
 
 export function fmtSol(lamports: bigint | string | number): string {
-  return plain.format(Number(BigInt(lamports.toString())) / 1e9);
+  return fmtNonzero(Number(BigInt(lamports.toString())) / 1e9, plain);
 }
 
 /**
