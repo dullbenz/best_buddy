@@ -2,13 +2,13 @@
  * Real brand marks for the outbound links.
  *
  * The three Solana-side logos are the services' own icon files, downloaded to
- * `public/brands/` rather than hotlinked — hotlinking would leak every
+ * `public/brands/` rather than hotlinked: hotlinking would leak every
  * visitor's IP to three third parties and break the page whenever one of them
  * reorganises their assets. They are used only to label links pointing at
  * those same services, which is what the marks are for.
  *
  * X is drawn inline instead. Its mark is two strokes, so it reproduces exactly,
- * and as a path it inherits `currentColor` — which matters because it is the
+ * and as a path it inherits `currentColor`, which matters because it is the
  * one logo here that is pure monochrome and would otherwise be a black glyph
  * on a near-black header.
  */

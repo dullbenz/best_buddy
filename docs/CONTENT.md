@@ -32,9 +32,10 @@ Timings are for a spoken take. Keep it plain; the story does the work.
 
 **[0:04–0:12] The problem** — *on screen: Solscan, the dev's sell transactions*
 
-> Thousands of people were left holding it. And here's the part that made it
-> worse — every trade after that still paid him fees. There was no way to take
-> it over without funding the person who did it.
+> And the community stayed anyway. People kept holding it, kept trading it,
+> kept pushing. But here's what made it an uphill fight — every trade still
+> paid him fees. There was no way to take it over without funding the person
+> who walked.
 
 **[0:12–0:20] Turn** — *on screen: the new token page*
 
@@ -57,10 +58,10 @@ Timings are for a spoken take. Keep it plain; the story does the work.
 
 **[0:40–0:52] The part that matters** — *on screen: terminal, `Authority: none`*
 
-> And the developer's own tokens? Locked in the contract for twelve months. He
-> can't sell them. He couldn't change that if he wanted to, because the contract
-> was made permanent on day one. Run this command yourself. If it says "none",
-> nobody can ever touch the code again. Not him. Not anyone.
+> And the team's own tokens? Locked in the contract for twelve months. They
+> can't sell them. They couldn't change that if they wanted to, because the
+> contract was made permanent on day one. Run this command yourself. If it says
+> "none", nobody can ever touch the code again. Not them. Not anyone.
 
 **[0:52–1:00] Close** — *on screen: mybestbuddy.fun*
 
@@ -73,10 +74,11 @@ Timings are for a spoken take. Keep it plain; the story does the work.
 ## TikTok — 30 second cut
 
 > In 2014 someone signed a message on Bitcoin. It became a memecoin. Then the
-> dev dumped it and walked away — and every trade after still paid him.
+> dev dumped it and walked away — and every trade after still paid him. The
+> community kept it going anyway, uphill the whole way.
 >
-> So the community rebuilt it. Legacy holders can claim, paid instantly, no lockup.
-> Anything unclaimed goes to the community, not to us. And the dev's own tokens
+> So they rebuilt it. Legacy holders can claim, paid instantly, no lockup.
+> Anything unclaimed goes to the community, not to us. And the team's own tokens
 > are locked in the contract for a year.
 >
 > One command tells you if that's true. `solana program show`, and if it says
@@ -96,13 +98,16 @@ In 2014, someone signed a message onto the Bitcoin blockchain.
 That message became a memecoin. Then its creator dumped on everyone who
 believed in it and walked away — while still collecting fees on every trade.
 
-The community rebuilt it. Here's how, and how to verify all of it. 🧵
+The community never left. It kept the coin alive, and now it has rebuilt it.
+Here's how, and how to verify all of it. 🧵
 
 **2/**
-The problem with taking over the old token: fees still routed to him. Any
-community effort would have funded the person who caused the damage.
+Why a new token and not just the old one? Because the old coin's rules were
+only ever promises. Nothing about it could be locked down, and the creator had
+already dumped and moved on to his next launch.
 
-So: new token, same story, rules enforced by a contract instead of promises.
+So: new token, same story, rules enforced by a contract nobody can walk away
+with — that's the part the old coin could never have.
 
 **3/**
 Four buckets.
@@ -110,7 +115,7 @@ Four buckets.
 • Legacy holders — 30 days to claim, paid instantly, no lockup
 • Influencers — 72 hours, then a 30-day stream
 • The 2014 signer — reserved until 2030
-• The dev — 12-month stream behind a cliff
+• The team — 12-month stream behind a cliff, paid to a multisig
 
 **4/**
 One rule ties them together: anything unclaimed becomes community staking
@@ -131,12 +136,12 @@ needed from us.
 If they turn up before 2030, it's theirs. Including the right to sell it all.
 
 **6/**
-Staking: longer locks earn more, up to 3x.
+Staking: longer locks earn more, up to 5x.
 
 But the multiplier is held in escrow until your lock matures. Base rewards are
 claimable any time; the boost isn't.
 
-Otherwise you could take 3x, collect for three weeks, leave — and dilute
+Otherwise you could take 5x, collect for three weeks, leave — and dilute
 everyone who actually committed.
 
 **7/**
@@ -150,7 +155,7 @@ Most "locked contract" claims never mention this.
 **8/**
 Ours was destroyed on launch day, before the token was announced.
 
-  solana program show <PROGRAM_ID>
+  solana program show 6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM
 
 If `Authority` reads `none`, the code can never change again. Not by me, not by
 anyone, ever.
@@ -159,8 +164,8 @@ Ten seconds to check. Please do.
 
 **9/**
 Cost of that: it can never be patched either. A bug would be permanent.
-That's why there was a devnet rehearsal and an independent review first, and
-why the source is public.
+That's why there was an extensive devnet rehearsal and a full test suite first,
+and why the source is public.
 
 Trade made on purpose. A contract someone can rewrite is a contract you have to
 trust someone about.
@@ -174,11 +179,12 @@ someone moves them. Every instruction in that chain is permissionless.
 So there's a button on the site. Anyone can press it. Including you.
 
 **11/**
-90% of those fees go to the community pool, 10% to me. Set once, on chain,
-through a config that revokes its own admin the moment it's written.
+90% of those fees go to the community pool, 10% to the team — into a multisig,
+so no single one of us can touch even that alone. Set once, on chain, through
+a config that revokes its own admin the moment it's written.
 
-Permanent and checkable, same as the burned upgrade authority. I couldn't
-redirect it later even if I wanted to.
+Permanent and checkable, same as the burned upgrade authority. We couldn't
+redirect it later even if we wanted to.
 
 **12/**
 Everything checkable in one place: mybestbuddy.fun/verify
@@ -206,7 +212,7 @@ bought — only earned by the checks holding up.
 > We're asking people who can read Solana programs to check ours and say
 > publicly what they find — including if it's bad.
 >
-> Program: `<PROGRAM_ID>`
+> Program: `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM`
 > Source: https://github.com/dullbenz/best_buddy
 > Guide: mybestbuddy.fun/verify
 >
@@ -229,7 +235,7 @@ bought — only earned by the checks holding up.
 
 **"How is this different from any other relaunch?"**
 Mostly it isn't — same token standard, same launchpad. The difference is the
-contract can't be changed, the dev can't sell, and every number is checkable.
+contract can't be changed, the team can't sell, and every number is checkable.
 That's it. If those things don't matter to you, this isn't different.
 
 **"Why should I trust you?"**
@@ -237,11 +243,11 @@ You shouldn't. That's the design. Check the upgrade authority, check the vault,
 rebuild the snapshot. The whole point is that trusting me is optional.
 
 **"What if you rug?"**
-The mechanism doesn't allow it: the dev tokens are in a stream, and the code
-can't be changed. What I *can* do is stop showing up — I can't steal the
-contract, but I can go quiet. That risk is real and I'm not going to pretend
-otherwise. The buckets keep working regardless; the sweeps are permissionless
-and anyone can run them.
+The mechanism doesn't allow it: the team's tokens are in a stream paying a
+multisig, and the code can't be changed. What we *can* do is stop showing up —
+we can't steal the contract, but we can go quiet. That risk is real and we're
+not going to pretend otherwise. The buckets keep working regardless; the
+sweeps are permissionless and anyone can run them.
 
 **"Is the old dev going to complain?"**
 Maybe. The receipts are published. Everything in them is public chain data.

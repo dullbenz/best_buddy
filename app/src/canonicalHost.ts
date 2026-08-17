@@ -7,8 +7,8 @@
  * is a gift to anyone building a lookalike, and it splits the "one canonical
  * address" message the launch depends on.
  *
- * So the app bounces itself. Not a block — a determined visitor can disable
- * JavaScript — but it means every ordinary visit, every shared link and every
+ * So the app bounces itself. Not a block (a determined visitor can disable
+ * JavaScript), but it means every ordinary visit, every shared link and every
  * crawler that follows redirects ends up on the custom domain.
  *
  * Host-specific because staging and production have different canonical
@@ -26,8 +26,8 @@ export function enforceCanonicalHost(): void {
   // Already home.
   if (hostname === canonical) return;
 
-  // Only rewrite Firebase's own domains. Anything else — localhost, a preview
-  // channel, a domain someone deliberately pointed here — is left alone, so
+  // Only rewrite Firebase's own domains. Anything else (localhost, a preview
+  // channel, a domain someone deliberately pointed here) is left alone, so
   // this can never trap a visitor in a redirect loop.
   if (!FIREBASE_DEFAULT_DOMAIN.test(hostname)) return;
 

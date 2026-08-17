@@ -38,7 +38,7 @@ export function pathFor(tab: string, section?: string | null): string {
 /**
  * Read the current URL.
  *
- * Unknown paths fall back to home rather than rendering nothing — a stale or
+ * Unknown paths fall back to home rather than rendering nothing: a stale or
  * mistyped link should land somewhere useful, not on a blank page.
  */
 export function parseLocation(known: readonly string[]): Route {

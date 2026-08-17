@@ -1,8 +1,8 @@
 /**
  * Helper for the original 2014 signer.
  *
- * Prints the exact message that must be signed with the Bitcoin key, and — given
- * a base64 signature back from a wallet — converts it into the (header,
+ * Prints the exact message that must be signed with the Bitcoin key. Given a
+ * base64 signature back from a wallet, it converts that into the (header,
  * signature) pair the on-chain instruction expects and checks it locally before
  * anyone spends a transaction fee on it.
  *
@@ -78,7 +78,7 @@ function cmdVerify(address: string, base64Sig: string, pubkeyHex: string) {
   console.log(`expected:  ${expectedXY}`);
 
   if (recoveredXY.toLowerCase() !== expectedXY.toLowerCase()) {
-    console.error("\nMISMATCH — this signature was not produced by that key.");
+    console.error("\nMISMATCH. This signature was not produced by that key.");
     process.exit(1);
   }
 

@@ -10,8 +10,8 @@
  * really produced that signature. Anyone can re-verify the served JSON offline
  * and needs no trust in this server to do it.
  *
- * What a hosted register *cannot* prevent is omission — we could in principle
- * drop a row. That is checkable too: the on-chain influencer ClaimReceipt
+ * What a hosted register *cannot* prevent is omission, since we could in
+ * principle drop a row. That is checkable too: the on-chain influencer ClaimReceipt
  * accounts are the authoritative list of who claimed, so a wallet holding a
  * receipt with no row here is a visible, provable gap. The register is designed
  * to be diffed against the chain rather than believed.
@@ -71,26 +71,37 @@ exports.terms = onRequest(
         .get();
 
       // Deliberately not cached. This is a live register that grows as people
-      // sign, and it is meant to be audited — a reader who is checking whether
+      // sign, and it is meant to be audited. A reader who is checking whether
       // a specific wallet accepted the terms must not be shown a minute-old
       // answer and conclude the entry is missing. The CDN was doing exactly
       // that in testing.
-      res.json({
-        terms: TERMS,
-        termsSha256: TERMS_SHA256,
-        howToVerify:
-          "For each entry, ed25519-verify `signature` (base58, 64 bytes) over the UTF-8 bytes of `terms`, using `address` (base58, 32 bytes) as the public key. No trust in this server is required. Cross-check completeness against the on-chain influencer claim receipts.",
-        count: snap.size,
-        acceptances: snap.docs.map((d) => {
-          const v = d.data();
-          return {
-            address: d.id,
-            signature: v.signature,
-            termsSha256: v.termsSha256,
-            signedAt: v.signedAt?.toDate?.()?.toISOString() ?? null,
-          };
-        }),
-      });
+      //
+      // Pretty-printed rather than compact: humans land on this endpoint from
+      // the site's public-register links, and the register is meant to be read
+      // in a browser tab as much as parsed by a script.
+      res.set("Content-Type", "application/json; charset=utf-8");
+      res.send(
+        JSON.stringify(
+          {
+            terms: TERMS,
+            termsSha256: TERMS_SHA256,
+            howToVerify:
+              "For each entry, ed25519-verify `signature` (base58, 64 bytes) over the UTF-8 bytes of `terms`, using `address` (base58, 32 bytes) as the public key. No trust in this server is required. Cross-check completeness against the on-chain influencer claim receipts.",
+            count: snap.size,
+            acceptances: snap.docs.map((d) => {
+              const v = d.data();
+              return {
+                address: d.id,
+                signature: v.signature,
+                termsSha256: v.termsSha256,
+                signedAt: v.signedAt?.toDate?.()?.toISOString() ?? null,
+              };
+            }),
+          },
+          null,
+          2
+        )
+      );
       return;
     }
 
@@ -117,7 +128,7 @@ exports.terms = onRequest(
 
     if (!ok) {
       // Either the wrong key signed, or the text differs from ours. Both mean
-      // we must not store it — an unverifiable row would poison the register.
+      // we must not store it, because an unverifiable row would poison the register.
       res.status(400).json({ error: "Signature does not verify against the published terms." });
       return;
     }

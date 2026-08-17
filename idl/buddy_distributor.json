@@ -1,5 +1,5 @@
 {
-  "address": "4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V",
+  "address": "6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM",
   "metadata": {
     "name": "buddy_distributor",
     "version": "0.1.0",
@@ -117,6 +117,154 @@
       ]
     },
     {
+      "name": "claim_lockup_rewards",
+      "docs": [
+        "Withdraw a lockup's settled base rewards. The escrowed boost stays",
+        "until maturity."
+      ],
+      "discriminator": [
+        168,
+        10,
+        64,
+        199,
+        44,
+        132,
+        72,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "lockup"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "claim_old_holder",
       "discriminator": [
         113,
@@ -227,8 +375,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "system_program",
@@ -269,7 +422,7 @@
         {
           "name": "payer",
           "docs": [
-            "Anyone may relay the transaction — the signature itself is the",
+            "Anyone may relay the transaction: the signature itself is the",
             "authorisation, and it is bound to `destination_owner`."
           ],
           "writable": true,
@@ -345,7 +498,7 @@
     {
       "name": "claim_rewards",
       "docs": [
-        "Withdraw settled base rewards. Always available, every tier."
+        "Withdraw a flexible position's settled rewards. Always available."
       ],
       "discriminator": [
         4,
@@ -468,8 +621,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -544,24 +702,115 @@
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": [
-        {
-          "name": "cliff_seconds",
-          "type": "i64"
-        }
-      ]
+      "args": []
     },
     {
-      "name": "emergency_exit",
+      "name": "demote_matured",
+      "docs": [
+        "Cut a matured lockup back to 1.0x and release its escrowed boost to",
+        "the claimable balance. Permissionless."
+      ],
       "discriminator": [
-        164,
-        174,
-        48,
-        163,
-        191,
-        65,
-        91,
-        245
+        226,
+        49,
+        34,
+        236,
+        39,
+        64,
+        2,
+        60
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "docs": [
+            "Any signer. Nothing is paid out and nothing belongs to the cranker, so",
+            "no funds ever depend on who runs this."
+          ],
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lockup.owner",
+                "account": "Lockup"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "emergency_exit_lockup",
+      "docs": [
+        "Break a lockup early, forfeiting the boost escrow and 15% of principal",
+        "to the stakers who stayed."
+      ],
+      "discriminator": [
+        193,
+        74,
+        99,
+        21,
+        113,
+        220,
+        3,
+        92
       ],
       "accounts": [
         {
@@ -569,7 +818,7 @@
           "writable": true,
           "signer": true,
           "relations": [
-            "position"
+            "lockup"
           ]
         },
         {
@@ -608,23 +857,29 @@
           }
         },
         {
-          "name": "position",
+          "name": "lockup",
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  115,
-                  116,
-                  97,
+                  108,
+                  111,
+                  99,
                   107,
-                  101
+                  117,
+                  112
                 ]
               },
               {
                 "kind": "account",
                 "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
               }
             ]
           }
@@ -674,8 +929,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -798,8 +1058,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": [
@@ -832,12 +1097,106 @@
           "docs": [
             "The key allowed to fund buckets before the lock. It has no power at all",
             "afterwards, and the window is a single short session, so a plain wallet",
-            "is sufficient — the authority that actually matters long-term is the",
+            "is sufficient; the authority that actually matters long-term is the",
             "program's upgrade authority, which is burned on launch day."
           ]
         },
         {
-          "name": "reward_mint"
+          "name": "program_data",
+          "docs": [
+            "This program's data account, which carries the upgrade authority set at",
+            "deploy. Requiring the payer to be that authority binds `initialize` to",
+            "whoever actually deployed the program, closing the front-run window: the",
+            "config PDA is a singleton with no re-create path, so without this an",
+            "attacker who saw the freshly-deployed program id could seize it with",
+            "their own Merkle roots before the deployer's own `initialize` landed."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  84,
+                  106,
+                  119,
+                  0,
+                  117,
+                  197,
+                  18,
+                  133,
+                  85,
+                  30,
+                  32,
+                  10,
+                  191,
+                  73,
+                  46,
+                  155,
+                  115,
+                  136,
+                  144,
+                  251,
+                  254,
+                  100,
+                  41,
+                  115,
+                  139,
+                  96,
+                  204,
+                  238,
+                  129,
+                  55,
+                  46,
+                  140
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                2,
+                168,
+                246,
+                145,
+                78,
+                136,
+                161,
+                176,
+                226,
+                16,
+                21,
+                62,
+                247,
+                99,
+                174,
+                43,
+                0,
+                194,
+                185,
+                61,
+                22,
+                193,
+                36,
+                210,
+                192,
+                83,
+                122,
+                16,
+                4,
+                128,
+                0,
+                0
+              ]
+            }
+          }
+        },
+        {
+          "name": "reward_mint",
+          "docs": [
+            "The launch mint. `InterfaceAccount` because pump.fun's `create_v2` path",
+            "(live on mainnet) mints Token-2022 coins, and this program must accept",
+            "whichever token program the launch coin was created under."
+          ]
         },
         {
           "name": "config",
@@ -928,8 +1287,7 @@
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -991,6 +1349,22 @@
           }
         },
         {
+          "name": "pool",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "vault",
           "pda": {
             "seeds": [
@@ -1009,6 +1383,166 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "lock_tokens",
+      "discriminator": [
+        136,
+        11,
+        32,
+        232,
+        161,
+        117,
+        54,
+        211
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "counter",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "writable": true
+        },
+        {
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "tier",
+          "type": "u8"
+        },
+        {
+          "name": "index",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "notify_sol_rewards",
@@ -1173,8 +1707,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": [
@@ -1183,6 +1722,143 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "recover_foreign_token",
+      "docs": [
+        "Forward donations in a foreign mint to the team multisig, which",
+        "converts and donates them back. Permissionless."
+      ],
+      "discriminator": [
+        118,
+        235,
+        109,
+        61,
+        12,
+        117,
+        44,
+        123
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "docs": [
+            "Receives the closed token account's rent, which is what makes running",
+            "the crank worth the transaction fee."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "docs": [
+            "A token account in a foreign mint held by one of the program's PDAs.",
+            "The reward mint is excluded because that vault *is* staker funds, and",
+            "wSOL is excluded because `unwrap_wsol` already credits it to the pool.",
+            "The owner check (SOL vault or config, an OR) lives in the handler."
+          ],
+          "writable": true
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "foreign_mint",
+          "docs": [
+            "The stray token's own mint, pinned to `source`; `transfer_checked`",
+            "reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "release_community_stream",
+      "docs": [
+        "Credit whatever a swept bucket's community stream has vested so far to",
+        "the staking pool. Permissionless."
+      ],
+      "discriminator": [
+        126,
+        132,
+        82,
+        251,
+        75,
+        58,
+        20,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "community_stream",
+          "writable": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "request_unstake",
@@ -1327,8 +2003,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "system_program",
@@ -1339,10 +2020,6 @@
         {
           "name": "amount",
           "type": "u64"
-        },
-        {
-          "name": "tier",
-          "type": "u8"
         }
       ]
     },
@@ -1448,8 +2125,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": []
@@ -1469,6 +2151,7 @@
       "accounts": [
         {
           "name": "cranker",
+          "writable": true,
           "signer": true
         },
         {
@@ -1491,21 +2174,12 @@
           }
         },
         {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              }
-            ]
-          }
+          "name": "community_stream",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -1581,6 +2255,7 @@
       "accounts": [
         {
           "name": "cranker",
+          "writable": true,
           "signer": true
         },
         {
@@ -1603,21 +2278,12 @@
           }
         },
         {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              }
-            ]
-          }
+          "name": "community_stream",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -1626,7 +2292,7 @@
       "name": "sync_sol_rewards",
       "docs": [
         "Credit lamports that reached the SOL vault without going through",
-        "`notify_sol_rewards` — pump.fun fee distributions, donations, mistakes."
+        "`notify_sol_rewards`: pump.fun fee distributions, donations, mistakes."
       ],
       "discriminator": [
         17,
@@ -1775,6 +2441,153 @@
       "args": []
     },
     {
+      "name": "unlock_tokens",
+      "docs": [
+        "Close a matured lockup: principal, base rewards and boost together."
+      ],
+      "discriminator": [
+        233,
+        35,
+        95,
+        159,
+        37,
+        185,
+        47,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "lockup"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lockup",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  99,
+                  107,
+                  117,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "lockup.index",
+                "account": "Lockup"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "unstake",
       "discriminator": [
         90,
@@ -1897,8 +2710,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -1996,143 +2814,11 @@
         },
         {
           "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "withdraw_boost_escrow",
-      "docs": [
-        "Withdraw the boost portion. Only at lock maturity."
-      ],
-      "discriminator": [
-        74,
-        73,
-        148,
-        183,
-        1,
-        71,
-        11,
-        154
-      ],
-      "accounts": [
-        {
-          "name": "owner",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "position"
+          "docs": [
+            "wSOL remains a classic SPL Token mint even when the reward mint is",
+            "Token-2022, so the caller passes whichever token program owns",
+            "`wsol_account` — the interface type accepts either."
           ]
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "pool",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "position",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  116,
-                  97,
-                  107,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "owner"
-              }
-            ]
-          }
-        },
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "sol_vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  111,
-                  108,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "destination",
-          "writable": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "rent",
@@ -2157,6 +2843,19 @@
       ]
     },
     {
+      "name": "CommunityStream",
+      "discriminator": [
+        14,
+        104,
+        153,
+        237,
+        78,
+        186,
+        181,
+        161
+      ]
+    },
+    {
       "name": "Config",
       "discriminator": [
         155,
@@ -2167,6 +2866,32 @@
         250,
         204,
         130
+      ]
+    },
+    {
+      "name": "Lockup",
+      "discriminator": [
+        1,
+        45,
+        32,
+        32,
+        57,
+        81,
+        88,
+        67
+      ]
+    },
+    {
+      "name": "LockupCounter",
+      "discriminator": [
+        103,
+        206,
+        9,
+        57,
+        85,
+        219,
+        106,
+        159
       ]
     },
     {
@@ -2347,6 +3072,26 @@
       "code": 6024,
       "name": "InvalidWsolAccount",
       "msg": "Account is not a wrapped-SOL token account owned by the SOL vault"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidCliff",
+      "msg": "Dev cliff must be between zero and the stream duration"
+    },
+    {
+      "code": 6026,
+      "name": "AlreadyDemoted",
+      "msg": "Lockup already demoted to base weight"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidLockupIndex",
+      "msg": "Lockup index does not match the owner's counter"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidRecoverySource",
+      "msg": "Source is not a foreign-token account owned by a program vault"
     }
   ],
   "types": [
@@ -2354,7 +3099,7 @@
       "name": "ClaimReceipt",
       "docs": [
         "One-shot marker proving a wallet already claimed from a Merkle bucket.",
-        "Its existence *is* the double-claim guard — `init` fails if it is present."
+        "Its existence *is* the double-claim guard: `init` fails if it is present."
       ],
       "type": {
         "kind": "struct",
@@ -2379,13 +3124,68 @@
       }
     },
     {
+      "name": "CommunityStream",
+      "docs": [
+        "A swept allocation on its way back to the community, on the claimant's own",
+        "schedule.",
+        "",
+        "The rule this enforces: forfeiting a stream does not turn it into a lump",
+        "sum. An influencer who claimed would have received their tokens across 30",
+        "days, and the 2014 signer across a year, so when they never claim and the",
+        "allocation returns to the stakers, it returns at exactly that pace. Sweeping",
+        "must never pay the community faster than claiming would have paid the",
+        "claimant, or a sweep becomes a jackpot event worth lobbying for.",
+        "",
+        "Pure accounting, like the sweeps themselves: the tokens never move. Anyone",
+        "may crank `release_community_stream` to credit the vested portion to the",
+        "staking accumulator; until someone does, the vested amount simply waits,",
+        "exactly like un-synced creator fees."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "kind",
+            "docs": [
+              "Which sweep created it. See `COMMUNITY_STREAM_INFLUENCERS` /",
+              "`COMMUNITY_STREAM_SIGNER`. Doubles as the PDA seed suffix."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "total",
+            "type": "u64"
+          },
+          {
+            "name": "released",
+            "docs": [
+              "Portion already credited to the staking pool."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "start",
+            "type": "i64"
+          },
+          {
+            "name": "end",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "Config",
       "docs": [
         "Global configuration and the accounting for buckets 2, 3 and 4.",
         "",
         "Everything in here that governs a claim is written once at `initialize` and",
         "frozen by `lock_config`. After the lock, the authority can no longer change",
-        "allocations, roots, deadlines or the signer key — the only remaining admin",
+        "allocations, roots, deadlines or the signer key; the only remaining admin",
         "surface is emergency-free. This is what makes the published pre-commitment",
         "document binding rather than aspirational."
       ],
@@ -2498,6 +3298,19 @@
             "type": "u64"
           },
           {
+            "name": "dev_cliff_seconds",
+            "docs": [
+              "Seconds after `claims_start` before the dev stream releases anything.",
+              "",
+              "Fixed here, at init, rather than passed to `create_dev_stream`. That",
+              "instruction is permissionless by design, so that the team cannot",
+              "withhold their own lockup; if it also took the cliff as an argument,",
+              "the first caller would choose the team's vesting terms, and the whole",
+              "point of the lockup would rest on winning a race."
+            ],
+            "type": "i64"
+          },
+          {
             "name": "dev_stream_created",
             "type": "bool"
           },
@@ -2595,6 +3408,133 @@
       }
     },
     {
+      "name": "Lockup",
+      "docs": [
+        "One locked stake. A wallet may hold any number of these, each with its own",
+        "tier, maturity and index, so committing new principal can never touch the",
+        "terms of principal already locked.",
+        "",
+        "The base/boost split lives here. Rewards accrue on `weight` (amount x tier",
+        "multiplier), but only the portion attributable to `amount x 1.0` is",
+        "immediately claimable. The remainder, the part the multiplier bought, is",
+        "escrowed until the lock matures, and is forfeited on early exit. Without",
+        "this, a staker could take the 5.0x rate, claim continuously, and leave after",
+        "a few weeks having honoured none of the commitment the multiplier paid for."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "docs": [
+              "Position in the owner's `LockupCounter` sequence; part of the PDA seeds."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "tier",
+            "type": {
+              "defined": {
+                "name": "Tier"
+              }
+            }
+          },
+          {
+            "name": "weight",
+            "type": "u128"
+          },
+          {
+            "name": "lock_end",
+            "type": "i64"
+          },
+          {
+            "name": "demoted",
+            "docs": [
+              "Set once maturity has released the escrow and cut `weight` back to",
+              "`amount`. After maturity the commitment is over, and letting the",
+              "multiplier keep accruing would pay for a lock no longer being honoured;",
+              "anyone may crank `demote_matured` to stop it."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "token_debt",
+            "docs": [
+              "Accumulator checkpoints: rewards already accounted for."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "sol_debt",
+            "type": "u128"
+          },
+          {
+            "name": "claimable_token",
+            "docs": [
+              "Settled base rewards, withdrawable at any time."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "claimable_sol",
+            "type": "u64"
+          },
+          {
+            "name": "escrow_token",
+            "docs": [
+              "Settled boost rewards, withdrawable only at lock maturity."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "escrow_sol",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LockupCounter",
+      "docs": [
+        "Per-wallet lockup sequence. `count` only ever increases, so a closed",
+        "lockup's PDA can never be re-created, and every lockup a wallet has ever",
+        "opened keeps a unique, enumerable address."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "count",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "SolVault",
       "docs": [
         "Holds SOL rewards for stakers.",
@@ -2603,8 +3543,8 @@
         "owning program may debit an account's lamports directly, and paying stakers",
         "out of a system-owned PDA would need a CPI on every single claim.",
         "",
-        "Lamports can land here from anywhere — a pump.fun fee distribution, a",
-        "donation — because crediting an account needs no permission. They only",
+        "Lamports can land here from anywhere (a pump.fun fee distribution, a",
+        "donation) because crediting an account needs no permission. They only",
         "become staker rewards once `sync_sol_rewards` accounts for them, which",
         "anyone may call."
       ],
@@ -2621,7 +3561,7 @@
     {
       "name": "StakePool",
       "docs": [
-        "Bucket 1 — the community staking pool.",
+        "Bucket 1: the community staking pool.",
         "",
         "Rewards arrive here from three sources: the share of pump.fun creator fees",
         "directed at this program's vaults, voluntary donations, and every forfeiture",
@@ -2630,7 +3570,7 @@
         "N stakers costs O(1).",
         "",
         "Nothing pushes fees in automatically. Value that arrives from outside sits",
-        "uncredited until someone — anyone — calls `sync_sol_rewards` or",
+        "uncredited until someone (anyone) calls `sync_sol_rewards` or",
         "`sync_token_rewards`, which is what keeps the funding path free of any",
         "privileged operator."
       ],
@@ -2695,16 +3635,16 @@
               "Funds that entered the vaults through this program's own instructions",
               "and are therefore already on the ledger.",
               "",
-              "Anything a vault holds *above* these figures arrived from outside — a",
-              "pump.fun fee distribution, a donation, a mistake — and is uncredited",
+              "Anything a vault holds *above* these figures arrived from outside (a",
+              "pump.fun fee distribution, a donation, a mistake) and is uncredited",
               "until someone calls the matching `sync_*` instruction. Without this",
               "distinction those funds would be stranded permanently, because payouts",
               "only ever release amounts the accumulator knows about and the program is",
               "immutable after launch.",
               "",
               "Maintained strictly at the points where value physically enters or",
-              "leaves a vault. Internal reclassification — a slashed stake becoming",
-              "staker rewards, say — moves nothing and must not touch them."
+              "leaves a vault. Internal reclassification (a slashed stake becoming",
+              "staker rewards, say) moves nothing and must not touch them."
             ],
             "type": "u64"
           },
@@ -2722,14 +3662,13 @@
     {
       "name": "StakePosition",
       "docs": [
-        "One staker's position.",
+        "One staker's flexible position, one per wallet.",
         "",
-        "The base/boost split lives here. Rewards accrue on `weight` (amount x tier",
-        "multiplier), but only the portion attributable to `amount x 1.0` is",
-        "immediately claimable. The remainder — the part the multiplier bought — is",
-        "escrowed until the lock matures, and is forfeited on early exit. Without",
-        "this, a staker could take the 5.0x rate, claim continuously, and leave after",
-        "a few weeks having honoured none of the commitment the multiplier paid for."
+        "Flexible-only: `tier` is kept for account layout but is always `Flexible`,",
+        "so `weight == amount` and the boost half of `settle` is structurally zero;",
+        "the escrow fields never leave zero. Locked stakes live in `Lockup` accounts",
+        "instead, one per lock, because a single mutable tier here would let a",
+        "top-up rewrite the terms of principal that was already committed."
       ],
       "type": {
         "kind": "struct",
@@ -2744,6 +3683,9 @@
           },
           {
             "name": "tier",
+            "docs": [
+              "Always `Flexible`; kept for layout."
+            ],
             "type": {
               "defined": {
                 "name": "Tier"
@@ -2757,21 +3699,22 @@
           {
             "name": "lock_end",
             "docs": [
-              "Timestamp at which a locked tier matures. Zero for flexible."
+              "Always zero; kept for layout. Flexible positions gate on the unstake",
+              "cooldown, not a maturity date."
             ],
             "type": "i64"
           },
           {
             "name": "unstake_requested_at",
             "docs": [
-              "Timestamp of an unstake request for a flexible position; zero if none."
+              "Timestamp of an unstake request; zero if none."
             ],
             "type": "i64"
           },
           {
             "name": "token_debt",
             "docs": [
-              "Accumulator checkpoints — rewards already accounted for."
+              "Accumulator checkpoints: rewards already accounted for."
             ],
             "type": "u128"
           },
@@ -2793,7 +3736,8 @@
           {
             "name": "escrow_token",
             "docs": [
-              "Settled boost rewards, withdrawable only at lock maturity."
+              "Structurally zero (`weight == amount` means the boost split is empty);",
+              "kept for layout."
             ],
             "type": "u64"
           },
@@ -2871,7 +3815,7 @@
             "name": "ThreeMonth"
           },
           {
-            "name": "TwelveMonth"
+            "name": "FiveMonth"
           }
         ]
       }
@@ -2879,9 +3823,36 @@
   ],
   "constants": [
     {
+      "name": "LOCK_FIVE_MONTH",
+      "type": "i64",
+      "value": "12960000"
+    },
+    {
+      "name": "LOCK_ONE_MONTH",
+      "type": "i64",
+      "value": "2592000"
+    },
+    {
+      "name": "LOCK_THREE_MONTH",
+      "type": "i64",
+      "value": "7776000"
+    },
+    {
       "name": "PROGRAM_VERSION",
       "type": "u8",
       "value": "1"
+    },
+    {
+      "name": "UNSTAKE_COOLDOWN",
+      "docs": [
+        "Cooldown a flexible staker must wait between requesting an unstake and",
+        "withdrawing. 24 hours: fee pots accrue in public view, so without a delay a",
+        "large wallet could stake into a visibly fat pot, capture its share the",
+        "moment it is synced, and leave in the same breath. A day makes that capture",
+        "unpriceable in advance without turning flexible into a lock in disguise."
+      ],
+      "type": "i64",
+      "value": "86400"
     }
   ]
 }

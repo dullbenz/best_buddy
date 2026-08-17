@@ -37,7 +37,7 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
           if grep -q "REPLACE_WITH_YOUR" .firebaserc ; then
-            echo "::error::.firebaserc still holds placeholders — set the project id and both hosting site ids."
+            echo "::error::.firebaserc still holds placeholders. Set the project id and both hosting site ids."
             exit 1
           fi
 
@@ -107,7 +107,7 @@ jobs:
 
       # The app builds against the IDL committed at idl/ so deploys stay fast.
       # If a program change lands without regenerating it, the site would ship
-      # an interface that no longer matches the chain — catch that here.
+      # an interface that no longer matches the chain, so catch that here.
       - name: Verify the committed IDL is current
         run: |
           if ! diff -q target/idl/buddy_distributor.json idl/buddy_distributor.json > /dev/null; then
@@ -150,7 +150,7 @@ jobs:
         working-directory: app
         env:
           VITE_RPC_URL: ${{ vars.VITE_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
-          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID || '4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V' }}
+          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID || '6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM' }}
         run: npm run build
 
       - name: Check the published proofs are valid JSON

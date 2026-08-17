@@ -16,12 +16,27 @@ import {
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
-  MINT_SIZE,
+  TOKEN_2022_PROGRAM_ID,
   createInitializeMint2Instruction,
   createInitializeAccount3Instruction,
+  createInitializeMetadataPointerInstruction,
   createMintToInstruction,
+  getMintLen,
+  ExtensionType,
   ACCOUNT_SIZE,
 } from "@solana/spl-token";
+
+/**
+ * The token program the reward mint lives under.
+ *
+ * Token-2022, not classic SPL: pump.fun creates coins through `create_v2`
+ * whenever its global `create_v2_enabled` flag is on — which it is on mainnet —
+ * and `create_v2` mints under Token-2022. The launch coin will therefore be a
+ * Token-2022 mint, and a suite that tested against classic SPL would prove a
+ * configuration the launch never uses. wSOL stays classic; that pairing (2022
+ * reward mint, classic wSOL) is exactly the mainnet reality.
+ */
+export const REWARD_TOKEN_PROGRAM = TOKEN_2022_PROGRAM_ID;
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { startAnchor, ProgramTestContext, Clock } from "solana-bankrun";
@@ -32,6 +47,8 @@ export const VAULT_SEED = Buffer.from("vault");
 export const SOL_VAULT_SEED = Buffer.from("sol_vault");
 export const POOL_SEED = Buffer.from("pool");
 export const STAKE_SEED = Buffer.from("stake");
+export const LOCKUP_SEED = Buffer.from("lockup");
+export const LOCKUP_COUNT_SEED = Buffer.from("lockup_count");
 export const OLD_CLAIM_SEED = Buffer.from("old_claim");
 export const INFLUENCER_CLAIM_SEED = Buffer.from("inf_claim");
 export const STREAM_SEED = Buffer.from("stream");
@@ -43,8 +60,18 @@ export const Tier = {
   Flexible: 0,
   OneMonth: 1,
   ThreeMonth: 2,
-  TwelveMonth: 3,
+  FiveMonth: 3,
 } as const;
+
+/** Mirrors UNSTAKE_COOLDOWN in constants.rs (the real, non-fast-clock value). */
+export const UNSTAKE_COOLDOWN = DAY;
+
+/** Mirrors LOCK_* in constants.rs (real values; fast-clock never ships). */
+export const LOCK_DURATION: Record<number, number> = {
+  [Tier.OneMonth]: 30 * DAY,
+  [Tier.ThreeMonth]: 90 * DAY,
+  [Tier.FiveMonth]: 150 * DAY,
+};
 
 export interface Env {
   context: ProgramTestContext;
@@ -66,6 +93,32 @@ export function pda(seeds: Buffer[], programId: PublicKey): PublicKey {
 
 export function stakePda(owner: PublicKey, programId: PublicKey): PublicKey {
   return pda([STAKE_SEED, owner.toBuffer()], programId);
+}
+
+/** One lockup account per lock: ["lockup", owner, index as u64 LE]. */
+export function lockupPda(
+  owner: PublicKey,
+  index: bigint | number,
+  programId: PublicKey,
+): PublicKey {
+  const le = Buffer.alloc(8);
+  le.writeBigUInt64LE(BigInt(index));
+  return pda([LOCKUP_SEED, owner.toBuffer(), le], programId);
+}
+
+/** Per-owner counter naming the next lockup index. */
+export function lockupCounterPda(
+  owner: PublicKey,
+  programId: PublicKey,
+): PublicKey {
+  return pda([LOCKUP_COUNT_SEED, owner.toBuffer()], programId);
+}
+
+export function communityStreamPda(kind: number, programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("community_stream"), Buffer.from([kind])],
+    programId,
+  )[0];
 }
 
 export function streamPda(owner: PublicKey, programId: PublicKey): PublicKey {
@@ -144,24 +197,40 @@ export async function fundSol(
   await env.provider.sendAndConfirm(tx, [env.payer]);
 }
 
+/**
+ * A Token-2022 mint carrying a metadata-pointer extension, mirroring what
+ * pump.fun's `create_v2` produces (its mints embed on-chain metadata via the
+ * pointer). The extension matters to the tests: it makes the mint
+ * extension-bearing, which is the shape that broke naive `dataSize: 165`
+ * assumptions once already, in scripts/snapshot.ts.
+ */
 export async function createMint(env: Env, decimals = 6): Promise<PublicKey> {
   const mint = Keypair.generate();
+  const space = getMintLen([ExtensionType.MetadataPointer]);
   const rent = await env.context.banksClient.getRent();
-  const lamports = Number(rent.minimumBalance(BigInt(MINT_SIZE)));
+  const lamports = Number(rent.minimumBalance(BigInt(space)));
 
   const tx = new Transaction().add(
     SystemProgram.createAccount({
       fromPubkey: env.payer.publicKey,
       newAccountPubkey: mint.publicKey,
-      space: MINT_SIZE,
+      space,
       lamports,
-      programId: TOKEN_PROGRAM_ID,
+      programId: REWARD_TOKEN_PROGRAM,
     }),
+    // Extensions initialize before the mint itself.
+    createInitializeMetadataPointerInstruction(
+      mint.publicKey,
+      env.payer.publicKey,
+      mint.publicKey, // metadata would live in the mint, as pump.fun's does
+      REWARD_TOKEN_PROGRAM,
+    ),
     createInitializeMint2Instruction(
       mint.publicKey,
       decimals,
       env.payer.publicKey,
       null,
+      REWARD_TOKEN_PROGRAM,
     ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer, mint]);
@@ -175,6 +244,7 @@ export async function createMint(env: Env, decimals = 6): Promise<PublicKey> {
 export async function createTokenAccount(
   env: Env,
   owner: PublicKey,
+  mint: PublicKey = env.mint,
 ): Promise<PublicKey> {
   const account = Keypair.generate();
   const rent = await env.context.banksClient.getRent();
@@ -186,9 +256,14 @@ export async function createTokenAccount(
       newAccountPubkey: account.publicKey,
       space: ACCOUNT_SIZE,
       lamports,
-      programId: TOKEN_PROGRAM_ID,
+      programId: REWARD_TOKEN_PROGRAM,
     }),
-    createInitializeAccount3Instruction(account.publicKey, env.mint, owner),
+    createInitializeAccount3Instruction(
+      account.publicKey,
+      mint,
+      owner,
+      REWARD_TOKEN_PROGRAM,
+    ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer, account]);
   return account.publicKey;
@@ -198,13 +273,16 @@ export async function mintTo(
   env: Env,
   destination: PublicKey,
   amount: bigint | number,
+  mint: PublicKey = env.mint,
 ): Promise<void> {
   const tx = new Transaction().add(
     createMintToInstruction(
-      env.mint,
+      mint,
       destination,
       env.payer.publicKey,
       BigInt(amount),
+      [],
+      REWARD_TOKEN_PROGRAM,
     ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer]);
@@ -283,6 +361,39 @@ export async function solBalance(
   return info ? BigInt(info.lamports) : 0n;
 }
 
+const BPF_LOADER_UPGRADEABLE = new PublicKey(
+  "BPFLoaderUpgradeab1e11111111111111111111111",
+);
+
+/**
+ * Inject the ProgramData account bankrun's `startAnchor` does not create.
+ *
+ * `initialize` now requires its caller to be the program's upgrade authority
+ * (so nobody can front-run the singleton config on a real deploy). bankrun
+ * loads the program without an upgradeable ProgramData account, so we forge one
+ * here with `payer` as the upgrade authority — exactly what `anchor deploy`
+ * produces on devnet/mainnet, where the deployer is that authority. Layout is
+ * the bincode `UpgradeableLoaderState::ProgramData`: u32 variant tag (3), u64
+ * slot, then Option<Pubkey> upgrade authority (1 tag byte + 32).
+ */
+function installProgramData(env: Env, upgradeAuthority: PublicKey) {
+  const [programData] = PublicKey.findProgramAddressSync(
+    [env.programId.toBuffer()],
+    BPF_LOADER_UPGRADEABLE,
+  );
+  const data = Buffer.alloc(45);
+  data.writeUInt32LE(3, 0); // ProgramData variant
+  data.writeBigUInt64LE(0n, 4); // slot
+  data.writeUInt8(1, 12); // Some(...)
+  upgradeAuthority.toBuffer().copy(data, 13);
+  env.context.setAccount(programData, {
+    lamports: 10 * LAMPORTS_PER_SOL,
+    data,
+    owner: BPF_LOADER_UPGRADEABLE,
+    executable: false,
+  });
+}
+
 /** Spin up a fresh bankrun environment with the program loaded. */
 export async function setupEnv(): Promise<Env> {
   const context = await startAnchor(".", [], []);
@@ -310,13 +421,17 @@ export async function setupEnv(): Promise<Env> {
     solVaultPda: pda([SOL_VAULT_SEED], programId),
   };
 
+  // The payer is bankrun's default signer; make it the program's upgrade
+  // authority so `initialize` (which binds to that authority) is callable.
+  installProgramData(env, payer.publicKey);
+
   await fundSol(env, authority.publicKey, 10 * LAMPORTS_PER_SOL);
   env.mint = await createMint(env);
   return env;
 }
 
 // ---------------------------------------------------------------------------
-// Bitcoin message signing — mirrors utils.rs so the on-chain verifier is
+// Bitcoin message signing: mirrors utils.rs so the on-chain verifier is
 // exercised against signatures produced exactly the way a real wallet would.
 // ---------------------------------------------------------------------------
 
@@ -342,7 +457,7 @@ export function signerClaimMessage(destination: PublicKey): string {
 
 export interface BitcoinKey {
   privateKey: Uint8Array;
-  /** Uncompressed X||Y, the 0x04 prefix stripped — the form the program stores. */
+  /** Uncompressed X||Y, the 0x04 prefix stripped (the form the program stores). */
   publicKeyXY: Uint8Array;
 }
 

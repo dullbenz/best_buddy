@@ -4,7 +4,7 @@
  * This is the script community members run to check the team's work. It takes
  * the published allocations, rebuilds the tree from scratch, and confirms the
  * root matches both the manifest and what is actually committed on chain. It
- * deliberately does not trust `proofs.json` — it regenerates every proof.
+ * deliberately does not trust `proofs.json`; it regenerates every proof.
  *
  * Usage:
  *   ts-node scripts/verify-snapshot.ts [--onchain]
@@ -15,7 +15,7 @@ import * as path from "path";
 import { Allocation, MerkleTree, buildTree, hashLeaf } from "./merkle";
 
 const PROGRAM_ID = new PublicKey(
-  process.env.PROGRAM_ID ?? "4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V"
+  process.env.PROGRAM_ID ?? "6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM"
 );
 
 function fail(message: string): never {
@@ -93,7 +93,7 @@ async function main() {
     console.log(`  on-chain root matches: ${onchainRoot}`);
   }
 
-  console.log("\nOK — this snapshot is internally consistent and reproducible.");
+  console.log("\nOK. This snapshot is internally consistent and reproducible.");
 }
 
 main().catch((e) => {

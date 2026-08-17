@@ -7,7 +7,7 @@ import idl from "./idl/buddy_distributor.json";
  * Anchor client for the distributor.
  *
  * Returns a read-only program when no wallet is connected, so the public
- * dashboard renders for visitors who never connect anything — the transparency
+ * dashboard renders for visitors who never connect anything. The transparency
  * view should not require a wallet.
  */
 export function useProgram(): Program<any> | null {

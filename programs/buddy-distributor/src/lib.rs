@@ -1,7 +1,7 @@
 //! # Buddy Distributor
 //!
 //! A four-bucket community distributor for the Buddy relaunch. The token itself
-//! launches on pump.fun as an ordinary fair launch — no custom mint, no LP
+//! launches on pump.fun as an ordinary fair launch: no custom mint, no LP
 //! custody, no admin keys over supply. Everything bespoke lives here instead.
 //!
 //! | Bucket | Who | Window | Payout |
@@ -15,7 +15,7 @@
 //! One rule governs everything: **whatever goes unclaimed ends up in bucket 1.**
 //! Expired influencer allocations, the old-holder remainder, the founder
 //! allocation if the 2014 signer never appears, forfeited boost escrow and
-//! slashed principal from early unstakers — all of it becomes staking rewards
+//! slashed principal from early unstakers: all of it becomes staking rewards
 //! for the community that stayed.
 //!
 //! The new dev holds nothing after deployment. His allocation exists only as a
@@ -31,14 +31,14 @@ pub mod utils;
 
 use instructions::*;
 
-declare_id!("4S2qKjy8Sm8TVxxN5GX3E2aQJHsXk5TTQy7FSA7GCQ2V");
+declare_id!("6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM");
 
-// NOTE: builds emit one warning here — anchor-lang 0.31.1 calls the deprecated
-// `AccountInfo::realloc` inside this macro's expansion. It is left visible on
-// purpose. A module-scoped `#[allow(deprecated)]` does not reach it, because
-// the macro also emits sibling items at crate level; the only thing that
-// silences it is a crate-wide allow, which would also hide genuine deprecations
-// in the actual logic. One known warning beats that trade.
+// NOTE: builds emit one warning here, because anchor-lang 0.31.1 calls the
+// deprecated `AccountInfo::realloc` inside this macro's expansion. It is left
+// visible on purpose. A module-scoped `#[allow(deprecated)]` does not reach it,
+// because the macro also emits sibling items at crate level; the only thing
+// that silences it is a crate-wide allow, which would also hide genuine
+// deprecations in the actual logic. One known warning beats that trade.
 //
 // It is cosmetic: `realloc` still works, and once deployed the bytecode is
 // frozen regardless of what the SDK renames later.
@@ -62,14 +62,14 @@ pub mod buddy_distributor {
         instructions::admin::lock_config(ctx)
     }
 
-    pub fn create_dev_stream(ctx: Context<CreateDevStream>, cliff_seconds: i64) -> Result<()> {
-        instructions::admin::create_dev_stream(ctx, cliff_seconds)
+    pub fn create_dev_stream(ctx: Context<CreateDevStream>) -> Result<()> {
+        instructions::admin::create_dev_stream(ctx)
     }
 
-    // ---- bucket 1: staking ----
+    // ---- bucket 1: flexible staking (1.0x, cooldown-gated exit) ----
 
-    pub fn stake(ctx: Context<Stake>, amount: u64, tier: u8) -> Result<()> {
-        instructions::staking::stake(ctx, amount, tier)
+    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
+        instructions::staking::stake(ctx, amount)
     }
 
     pub fn request_unstake(ctx: Context<RequestUnstake>) -> Result<()> {
@@ -80,18 +80,43 @@ pub mod buddy_distributor {
         instructions::staking::unstake(ctx, amount)
     }
 
-    pub fn emergency_exit(ctx: Context<EmergencyExit>) -> Result<()> {
-        instructions::staking::emergency_exit(ctx)
-    }
-
-    /// Withdraw settled base rewards. Always available, every tier.
+    /// Withdraw a flexible position's settled rewards. Always available.
     pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
         instructions::staking::claim_rewards(ctx)
     }
 
-    /// Withdraw the boost portion. Only at lock maturity.
-    pub fn withdraw_boost_escrow(ctx: Context<WithdrawBoostEscrow>) -> Result<()> {
-        instructions::staking::withdraw_boost_escrow(ctx)
+    // ---- bucket 1: lockups (boosted weight, one account per lock) ----
+
+    pub fn lock_tokens(
+        ctx: Context<LockTokens>,
+        amount: u64,
+        tier: u8,
+        index: u64,
+    ) -> Result<()> {
+        instructions::staking::lock_tokens(ctx, amount, tier, index)
+    }
+
+    /// Withdraw a lockup's settled base rewards. The escrowed boost stays
+    /// until maturity.
+    pub fn claim_lockup_rewards(ctx: Context<ClaimLockupRewards>) -> Result<()> {
+        instructions::staking::claim_lockup_rewards(ctx)
+    }
+
+    /// Cut a matured lockup back to 1.0x and release its escrowed boost to
+    /// the claimable balance. Permissionless.
+    pub fn demote_matured(ctx: Context<DemoteMatured>) -> Result<()> {
+        instructions::staking::demote_matured(ctx)
+    }
+
+    /// Close a matured lockup: principal, base rewards and boost together.
+    pub fn unlock_tokens(ctx: Context<UnlockTokens>) -> Result<()> {
+        instructions::staking::unlock_tokens(ctx)
+    }
+
+    /// Break a lockup early, forfeiting the boost escrow and 15% of principal
+    /// to the stakers who stayed.
+    pub fn emergency_exit_lockup(ctx: Context<EmergencyExitLockup>) -> Result<()> {
+        instructions::staking::emergency_exit_lockup(ctx)
     }
 
     pub fn notify_token_rewards(ctx: Context<NotifyTokenRewards>, amount: u64) -> Result<()> {
@@ -107,7 +132,7 @@ pub mod buddy_distributor {
     }
 
     /// Credit lamports that reached the SOL vault without going through
-    /// `notify_sol_rewards` — pump.fun fee distributions, donations, mistakes.
+    /// `notify_sol_rewards`: pump.fun fee distributions, donations, mistakes.
     pub fn sync_sol_rewards(ctx: Context<SyncSolRewards>) -> Result<()> {
         instructions::rewards::sync_sol_rewards(ctx)
     }
@@ -121,6 +146,12 @@ pub mod buddy_distributor {
     /// pump.fun pays post-graduation creator fees in wSOL.
     pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
         instructions::rewards::unwrap_wsol(ctx)
+    }
+
+    /// Forward donations in a foreign mint to the team multisig, which
+    /// converts and donates them back. Permissionless.
+    pub fn recover_foreign_token(ctx: Context<RecoverForeignToken>) -> Result<()> {
+        instructions::rewards::recover_foreign_token(ctx)
     }
 
     // ---- buckets 2, 3, 4 ----
@@ -160,11 +191,17 @@ pub mod buddy_distributor {
         instructions::sweep::sweep_old_holders(ctx)
     }
 
-    pub fn sweep_influencers(ctx: Context<Sweep>) -> Result<()> {
+    pub fn sweep_influencers(ctx: Context<SweepInfluencersToStream>) -> Result<()> {
         instructions::sweep::sweep_influencers(ctx)
     }
 
-    pub fn sweep_original_signer(ctx: Context<Sweep>) -> Result<()> {
+    pub fn sweep_original_signer(ctx: Context<SweepSignerToStream>) -> Result<()> {
         instructions::sweep::sweep_original_signer(ctx)
+    }
+
+    /// Credit whatever a swept bucket's community stream has vested so far to
+    /// the staking pool. Permissionless.
+    pub fn release_community_stream(ctx: Context<ReleaseCommunityStream>) -> Result<()> {
+        instructions::sweep::release_community_stream(ctx)
     }
 }

@@ -123,7 +123,8 @@ fix what it finds before mainnet.
 ### 0.7 Collect the receipts
 
 Fill in `docs/RECEIPTS.md` with Solscan links to the old dev's dumps, Wayback
-Machine captures of the abandoned socials, and dated community screenshots.
+Machine captures of the creator's abandoned socials, and dated community
+screenshots.
 This is your defence if the old dev complains, and it is the evidence behind
 every wallet you exclude from the snapshot. Do it now, while the links are
 live.
@@ -261,36 +262,88 @@ address, eat the ~4 SOL, and carry on. That escape hatch closes at 2.1b.
 
 Use the same icon and the story. Set socials to the real community channels.
 
-### 2.3 Dev-buy in the same transaction as creation
+### 2.3 The launch buy, in the same transaction as creation
 
-pump.fun's create flow includes an initial buy — use it. Buying later means
-paying a higher price on the bonding curve and looking like an outside sniper.
+pump.fun's create flow includes an initial buy (their "dev-buy" field) — use
+it. Buying later means paying a higher price on the bonding curve and looking
+like an outside sniper.
 
-Size it as money you can lose entirely. As a sanity anchor, the old token's
-liquidity is around $26k, so a dev-buy in the low tens of SOL is proportionate;
-much larger mostly buys your own slippage.
+Size it as money you can lose entirely. As a sanity anchor, check the legacy
+market's live liquidity on DexScreener on launch day — it is an active market
+and the figure moves, so do not size from a stale number. A buy far beyond
+that depth mostly buys your own slippage.
+
+**Whatever this buy acquires is the distributor total.** All of it goes into
+the contract in §2.4, split 15 / 50 / 10 / 25 across legacy holders,
+influencers, the 2014 signer and the team. Compute the four base-unit amounts
+from the real balance the buy produced, not from an estimate, and publish them
+in the pre-commitment document before going further.
 
 ### 2.4 Move the tokens into the distributor
 
 ```bash
-RPC_URL=<rpc> KEYPAIR=<authority.json> REWARD_MINT=<new-mint> DEV_WALLET=<dev-wallet> OLD_ROOT=<hex> INF_ROOT=<hex> OLD_ALLOC=<n> INF_ALLOC=<n> SIGNER_ALLOC=<n> DEV_ALLOC=<n> SIGNER_PUBKEY=0480ba01...4779 SOURCE_TOKEN_ACCOUNT=<your-ata> npx ts-node scripts/deploy-init.ts
+RPC_URL=<rpc> KEYPAIR=<authority.json> REWARD_MINT=<new-mint> DEV_WALLET=<team-multisig-vault> OLD_ROOT=<hex> INF_ROOT=<hex> OLD_ALLOC=<n> INF_ALLOC=<n> SIGNER_ALLOC=<n> DEV_ALLOC=<n> SIGNER_PUBKEY=0480ba01...4779 SOURCE_TOKEN_ACCOUNT=<your-ata> npx ts-node scripts/deploy-init.ts
 ```
+
+`DEV_WALLET` is the team's **Squads vault address** (TO-THE-MOON §2.3a), not
+any member's wallet. It becomes the team stream's beneficiary and is frozen by
+the lock, so verify it against the recorded vault address before `EXECUTE=1`.
 
 That is a **dry run**. It prints the full plan. Read every number against your
 published document, then re-run with `EXECUTE=1` to send the three
 transactions: `initialize`, `fund_vault`, `lock_config`.
 
-> `lock_config` is irreversible. After it, allocations, Merkle roots, deadlines
-> and the signer key can never change — including by you. That is the point.
+> **`initialize` is now bound to the program's upgrade authority.** Only the
+> wallet that deployed the program can run it, which closes the deploy→initialize
+> front-run: the config PDA is a singleton with no re-create path, so otherwise
+> anyone who saw the freshly-deployed program id could seize it with their own
+> Merkle roots before yours landed. Run `deploy-init.ts` with the same deploy
+> keypair, and note this is why the burn must wait until §2.6 — burning the
+> upgrade authority first would make `initialize` impossible.
 
-### 2.5 Create the dev stream
+> `lock_config` is irreversible. After it, allocations, Merkle roots, deadlines
+> and the signer key can never change, including by you. That is the point.
+
+> **Fund only through `fund_vault`.** `lock_config` checks the pool's
+> `reserved_token` counter, which rises only inside `fund_vault`, and not the
+> vault's raw token balance. Tokens sent to the vault address with an ordinary
+> wallet transfer, or donated before launch, do not count towards the
+> committed total and the lock will refuse. That refusal is protecting you:
+> anything the vault holds above `reserved_token` is untracked and belongs to
+> the staking pool the moment anyone calls `sync_token_rewards`, so counting it
+> as bucket backing would promise the same tokens twice. `fund_vault` stops
+> working the instant the config locks, so there is no second chance to top up.
+
+### 2.5 Create the team stream
 
 ```bash
-RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> CLIFF_DAYS=30 npx ts-node scripts/create-dev-stream.ts
+RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> npx ts-node scripts/create-dev-stream.ts
 ```
 
-Anyone can call this; it can only produce the terms fixed at init. Do it
-immediately so the dev wallet is visibly empty from the first block.
+Anyone can call this, and it can only produce the terms fixed at init: the
+beneficiary (the team multisig vault), the allocation, the 12-month duration
+and the cliff all come from the config, which `lock_config` already froze.
+There is no cliff argument, so the caller cannot choose the team's vesting
+schedule by getting here first. Set the cliff with `DEV_CLIFF_DAYS` on
+`deploy-init.ts` in §2.4, where it is still open to inspection against your
+published document.
+
+Run it immediately so it is visible from the first block that no team wallet
+holds anything.
+
+> Withdrawing vested tokens later is a `stream_withdraw` executed through
+> Squads — the vault must sign as beneficiary, and the destination token
+> account must be owned by the vault, so a withdrawal cannot land anywhere
+> but the multisig's own account. The site cannot do this for the team, and
+> that is a feature: it is the multisig threshold doing its job.
+>
+> `scripts/team-withdraw.ts` does the work: with no arguments it reports what
+> has vested and prints the instructions for the Squads transaction builder;
+> `ACTION=propose MULTISIG=<msig> KEYPAIR=<member.json>` creates the proposal
+> on chain and approves it as that member, `ACTION=approve` / `ACTION=execute`
+> finish it from the command line if you prefer that to the app. It refuses
+> to propose against the wrong multisig: the derived vault must equal the
+> stream's beneficiary.
 
 ### 2.5a Set the pump.fun fee split — irreversible, so do it before the burn
 
@@ -299,7 +352,7 @@ you as coin creator; pump.fun approval is not involved.
 
 ```
 create_fee_sharing_config        # shareholders default to [(you, 100%)]
-update_fee_shares_v2             # 90% -> SOL vault PDA, 10% -> dev wallet
+update_fee_shares_v2             # 90% -> SOL vault PDA, 10% -> team multisig vault
 ```
 
 > **`update_fee_shares_v2` runs exactly once.** pump.fun's program revokes its
@@ -326,13 +379,16 @@ solana program show <PROGRAM_ID> && spl-token balance --address <VAULT_PDA>
 
 Then walk the dashboard locally against mainnet and check, line by line:
 
-- the vault holds the full committed total
+- the vault holds the full committed total, and the four allocations are the
+  published 15 / 50 / 10 / 25 of it
 - `locked` reads true
 - both Merkle roots match the published snapshot files
 - both deadlines are the dates you published
-- the dev stream exists, with the right total and cliff
+- the team stream exists, with the right total and cliff, and its beneficiary
+  is the team multisig vault
 - the original-signer key matches the 2014 transaction
-- the fee split reads 90/10 and the sharing-config admin is revoked
+- the fee split reads 90% SOL vault / 10% team multisig and the sharing-config
+  admin is revoked
 
 Anything wrong? Fix it now. You can still redeploy at a new address for ~4 SOL.
 After the next command you cannot.
@@ -410,6 +466,12 @@ each one as a community win.
 - after 30 days: `sweep_old_holders`
 - after 2030-12-31: `sweep_original_signer`
 
+The old-holder sweep credits the pool instantly, because its claims paid
+instantly. The other two open a **community stream** on the schedule their
+claimants would have had — 30 days for influencers, 12 months for the signer —
+and the pool is credited by `release_community_stream`, a permissionless crank
+on the Fund Pool tab. A forfeited stream is never a lump sum for anyone.
+
 ### 4.2 Keep feeding bucket 1
 
 Route fees regularly. The staking pool is the engine — if it stops being fed,
@@ -451,7 +513,7 @@ re-litigate it if it happens.
 |---|---|
 | Program deployment | ~3–5 SOL |
 | Account rent (config, pool, vaults) | < 0.1 SOL |
-| Dev-buy | your call — money you can lose |
+| Launch buy (pump.fun dev-buy) | your call — money you can lose |
 | Security review | varies; budget for it |
 | RPC + hosting | ~$50–200/month |
 
@@ -471,10 +533,16 @@ re-litigate it if it happens.
 - [ ] Snapshot taken from an archival RPC, published, independently verified
 - [ ] Exclusions list includes both AMM pool vaults and the old dev wallets
 - [ ] Influencer list published with amounts
-- [ ] Dev-buy sized as losable money
+- [ ] Launch buy sized as losable money
+- [ ] Distributor total (what the launch buy acquired) published, with the
+      15 / 50 / 10 / 25 split computed from it in base units
+- [ ] Team multisig created at Squads, 2-of-3, vault address recorded;
+      `DEV_WALLET` set to the vault
 - [ ] No public material promises returns, profit, or price
-- [ ] Fee chain proved end to end on a throwaway mainnet coin
-- [ ] Fee split set 90/10 via `update_fee_shares_v2` and confirmed frozen
+- [ ] Fee chain proved end to end on a throwaway mainnet coin, including a
+      Squads vault receiving the 10% share
+- [ ] Fee split set 90% vault / 10% team multisig via `update_fee_shares_v2`
+      and confirmed frozen
 - [ ] VERIFY.md filled in with real addresses and published
 - [ ] Verify and How it works tabs live on the site and read end to end
 - [ ] Independent-verification ask posted where technical people will see it

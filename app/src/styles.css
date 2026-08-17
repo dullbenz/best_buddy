@@ -18,7 +18,7 @@
   --bad: #f0776b;
   --radius: 14px;
 
-  /* Display face for the landing document. System serifs only — this project
+  /* Display face for the landing document. System serifs only: this project
      ships no webfonts and should not start now for one page. */
   --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
     serif;
@@ -87,7 +87,7 @@ header {
 
 /* The wordmark carries the whole brand in one word, so it is set as a mark
    rather than as a heading: heavy grotesque, uppercase, tightened. */
-/* The badge sits beside the wordmark, not instead of it — the site's job is
+/* The badge sits beside the wordmark, not instead of it. The site's job is
    proving the contract, so the mark stays small and gets out of the way. */
 .brand {
   display: flex;
@@ -135,14 +135,62 @@ header {
   gap: 10px;
 }
 
+/* The personal page, docked beside the wallet button it belongs to. Set in
+   the wallet button's own type so the pair reads as one unit, but outlined
+   rather than filled: the solid accent stays reserved for the connect action,
+   and this is a place, not an action. The header's three pills (this, the
+   wallet button, the cluster badge) share one 32px height and the 999px
+   radius, so the row reads as one family rather than three designs. */
+.hub-btn {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-dim);
+  background: var(--panel-2);
+  color: var(--accent);
+  padding: 0 16px;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hub-btn:hover {
+  border-color: var(--accent);
+}
+
+.hub-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #17120a;
+}
+
+@media (max-width: 480px) {
+  .hub-btn {
+    padding: 0 10px;
+  }
+}
+
+/* A quiet divider inside a card, between a position and the form below it. */
+.rule {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0 4px;
+}
+
 /* Replaces the full-width devnet banner. Same warning, carried in the title,
-   but it costs no vertical space and vanishes entirely on mainnet — so what
+   but it costs no vertical space and vanishes entirely on mainnet, so what
    staging looks like is what production looks like. */
 .cluster-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--accent-dim);
   border-radius: 999px;
   background: var(--panel-2);
@@ -165,7 +213,7 @@ header {
 
 @media (max-width: 480px) {
   .cluster-badge {
-    padding: 4px 8px;
+    padding: 0 8px;
     font-size: 9px;
   }
 }
@@ -234,7 +282,7 @@ main {
 }
 
 /* Sections inside a tab, as a segmented control.
-   Deliberately not the same treatment as the main nav — an identical
+   Deliberately not the same treatment as the main nav: an identical
    underlined row nested under another one reads as two competing levels of
    the same thing. Pills in a tray are obviously subordinate. */
 .subtabs {
@@ -457,7 +505,7 @@ main {
   letter-spacing: 0.06em;
 }
 
-/* The chain read failed. Not "unclaimed" — we do not know, and saying we do
+/* The chain read failed. Not "unclaimed": we do not know, and saying we do
    would be inventing a fact about someone else's money. */
 .pill-unknown {
   border: 1px dashed var(--border);
@@ -533,6 +581,76 @@ main {
   flex-wrap: wrap;
   margin-top: 18px;
   margin-bottom: 20px;
+}
+
+/* The two-step signer claim. Numbered because the order matters and the first
+   step happens in a different application entirely. */
+.signer-step {
+  display: flex;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.signer-step > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.signer-step p {
+  margin: 4px 0 10px;
+}
+
+.signer-step-num {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* The text to sign, boxed so it is obvious where it starts and ends:
+   a stray space would produce a signature that verifies against nothing. */
+.signer-message {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.signer-message code {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+  color: var(--text);
+}
+
+.signer-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.signer-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 /* A button that navigates rather than acts, set as the link it behaves like. */
@@ -910,7 +1028,7 @@ footer {
   letter-spacing: -0.01em;
 }
 
-/* An explanation that must not be skimmed past — bordered, not just muted. */
+/* An explanation that must not be skimmed past: bordered, not just muted. */
 .note {
   background: var(--panel-2);
   border-left: 3px solid var(--accent);
@@ -924,6 +1042,18 @@ footer {
 
 .note strong {
   color: var(--text);
+}
+
+/* A numbered list inside a note (the fee crank's "what you would be signing")
+   sits flush with the note's own text rather than at the browser's default
+   indent. */
+.note ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.note ol li + li {
+  margin-top: 4px;
 }
 
 /* A lookup that found nothing, in the same frame as one that found something.
@@ -940,13 +1070,24 @@ footer {
   color: var(--text);
 }
 
-/* A stat worth looking at twice: uncredited funds, an unlocked config. */
+/* A stat worth looking at twice: uncredited funds waiting to be pushed in. */
 .stat-emphasis {
   border: 1px solid var(--accent);
 }
 
 .stat-emphasis .stat-value {
   color: var(--accent);
+}
+
+/* A stat that is not safe yet: rules still editable, tokens not locked.
+   Deliberately a different colour from the one above: "there is something to
+   do here" and "this is not safe yet" must not look the same. */
+.stat-danger {
+  border: 1px solid var(--bad);
+}
+
+.stat-danger .stat-value {
+  color: var(--bad);
 }
 
 /* The 2014 evidence, styled like a receipt so it reads as source material
@@ -1200,7 +1341,7 @@ a.prov-value {
   color: var(--muted);
 }
 
-/* The answer about *your* wallet — the one thing on the card addressed to the
+/* The answer about *your* wallet: the one thing on the card addressed to the
    reader personally, and the only element on it with a full border. Everything
    else in the card is explanation; this is the result. */
 .verdict {
@@ -1264,8 +1405,8 @@ a.prov-value {
   color: var(--good);
 }
 
-/* Owed nothing. Muted rather than red — being absent from a snapshot is an
-   answer, not an error, and colouring it like a failure would read as though
+/* Owed nothing. Muted rather than red, because being absent from a snapshot
+   is an answer, not an error, and colouring it like a failure would read as though
    something had gone wrong with the check. */
 .verdict-miss {
   border-color: var(--muted);
@@ -1273,7 +1414,7 @@ a.prov-value {
 }
 
 /* A standing rule about the bucket, set as a specification footnote. It has to
-   stay legible without competing with the verdict for the same attention —
+   stay legible without competing with the verdict for the same attention:
    two accent boxes in one card and neither one lands. */
 /* `.card .card-foot`, not `.card-foot`: this is a <p>, and `.card p` sets its
    own margin at equal specificity, which silently collapsed the gap to zero
@@ -1419,7 +1560,6 @@ a.prov-value {
 }
 
 .tier-pick {
-  margin-top: 12px;
   text-align: center;
   font-size: 12px;
   font-weight: 600;
@@ -1433,6 +1573,12 @@ a.prov-value {
   background: var(--accent);
   border-color: var(--accent);
   color: #1a1206;
+}
+
+/* Pushed to the card base so the Select buttons sit level across cards. */
+.tier-pick {
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 /* ---- Forfeiture reasons, influencer terms, devnet banner ---- */
@@ -1481,7 +1627,7 @@ a.prov-value {
 /*
  * Laid out like a datasheet: numbered sections on a left rail, serif display
  * headings, monospace micro-labels, hairline rules, square corners. The point
- * is not decoration — a page that looks specified rather than styled is itself
+ * is not decoration: a page that looks specified rather than styled is itself
  * an argument that whoever built the contract was precise about it.
  */
 
@@ -1574,23 +1720,49 @@ a.prov-value {
 }
 
 /* --- spec strip --- */
+/* Rolls, like the ticker beneath it. Seven cells will not sit still on one
+   line without shrinking each to uselessness, and these carry numbers rather
+   than a slogan, so it scrolls slowly and stops when a reader hovers it. */
 .l-spec {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
 
-.l-spec-cell {
+/* 52s, not an arbitrary number: the strip is wider than the ticker below it,
+   and both travel half their own width per cycle, so matching the ticker's
+   perceived speed of ~33px/s means scaling the duration to the width. Equal
+   durations would have made the wider strip visibly faster. */
+.l-spec-run {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 16px 16px 16px 0;
+  width: max-content;
+  animation: l-scroll 52s linear infinite;
 }
 
-@media (min-width: 640px) {
-  .l-spec-cell + .l-spec-cell {
-    border-left: 1px solid var(--border);
-    padding-left: 16px;
+.l-spec-run:hover,
+.l-spec-run:focus-within {
+  animation-play-state: paused;
+}
+
+.l-spec-cell {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-width: 210px;
+  padding: 16px 22px;
+  border-left: 1px solid var(--border);
+}
+
+/* Motion is unwelcome: hold still and let the reader scroll it by hand,
+   rather than hiding four of the seven cells off the right edge. */
+@media (prefers-reduced-motion: reduce) {
+  .l-spec {
+    overflow-x: auto;
+  }
+
+  .l-spec-run {
+    animation: none;
   }
 }
 
@@ -1612,6 +1784,12 @@ a.prov-value {
 
 .l-tone-warn {
   color: var(--accent);
+}
+
+/* Not amber. Amber is "look at this"; this is "this is not safe yet", and the
+   two must not share a colour on a page whose job is telling them apart. */
+.l-tone-bad {
+  color: var(--bad);
 }
 
 .l-tone-check {
@@ -1730,6 +1908,17 @@ a.prov-value {
   .l-index-row {
     grid-template-columns: 132px 1fr;
   }
+}
+
+/* The 2014 message, set as the quotation it is. Italic and in the display
+   face so it reads as the artefact being quoted rather than as more of the
+   surrounding prose. */
+.l-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05em;
+  color: var(--text);
+  quotes: "\201C" "\201D";
 }
 
 .l-index-when {
@@ -1855,18 +2044,46 @@ a.prov-value {
   color: var(--accent);
 }
 
-.l-route p {
+.l-route p,
+.l-route-body {
   margin: 0 0 10px;
   color: var(--muted);
   font-size: 14.5px;
 }
 
-.l-route > p:first-of-type {
+.l-route > p:first-of-type,
+.l-route > .l-route-body {
   flex: 1;
 }
 
-.l-route-primary > p:first-of-type {
+.l-route-primary > p:first-of-type,
+.l-route-primary > .l-route-body {
   color: var(--text);
+}
+
+/* The three ways to be owed something. A reader is scanning for the one that
+   describes them, which a paragraph makes them do word by word. */
+.l-route-cases {
+  margin: 10px 0 12px;
+  padding-left: 18px;
+  list-style: none;
+}
+
+.l-route-cases li {
+  position: relative;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.l-route-cases li::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .l-route-note {
@@ -1913,6 +2130,22 @@ a.prov-value {
   font-size: 18px;
   letter-spacing: -0.015em;
   margin: 0 0 6px;
+}
+
+/* The bucket's slice of the initial distribution, set beside its name in the
+   data type rather than the prose type: it is a figure the pre-commitment
+   document publishes, and it should look like one. */
+.l-alloc-share {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-left: 10px;
+  vertical-align: 2px;
+  white-space: nowrap;
 }
 
 .l-alloc-main p {
@@ -2136,16 +2369,21 @@ a.prov-value {
 .wallet-adapter-button-trigger {
   background: var(--accent) !important;
   color: #17120a !important;
+  border-color: var(--accent) !important;
 }
 
+/* Matched to .hub-btn and .cluster-badge: same 32px height, same 1px border,
+   same 999px pill, so the header row reads as one family. The filled trigger
+   borders in its own accent so the outline disappears into the fill. */
 .wallet-adapter-button {
   font-family: var(--mono) !important;
   font-size: 10.5px !important;
   letter-spacing: 0.14em !important;
   text-transform: uppercase !important;
-  border-radius: 2px !important;
-  height: auto !important;
-  padding: 12px 16px !important;
+  border: 1px solid var(--accent-dim) !important;
+  border-radius: 999px !important;
+  height: 32px !important;
+  padding: 0 16px !important;
   line-height: 1 !important;
 }
 
@@ -2168,11 +2406,16 @@ a.prov-value {
   color: var(--text) !important;
 }
 
+/* The modal's list buttons keep the document shape: the pill treatment above
+   is for the header, not for a stack of full-width rows. */
 .wallet-adapter-modal-list li,
 .wallet-adapter-modal-list .wallet-adapter-button {
   background: var(--panel-2) !important;
   color: var(--text) !important;
+  border: none !important;
   border-radius: 2px !important;
+  height: auto !important;
+  padding: 12px 16px !important;
 }
 
 .wallet-adapter-modal-button-close {
@@ -2322,6 +2565,7 @@ footer .small {
 .l-index-text,
 .l-alloc-main p,
 .l-route p,
+.l-route-body,
 .l-proof-body,
 .l-rule-body {
   line-height: 1.62;
@@ -2333,7 +2577,7 @@ footer .small {
 }
 
 @media (max-width: 520px) {
-  /* Give the diagrams back the padding on a phone — they are the width-hungry
+  /* Give the diagrams back the padding on a phone: they are the width-hungry
      element on the page and the frame matters less than the drawing. */
   .l-figure {
     padding: 14px 12px 14px;
@@ -2352,7 +2596,7 @@ footer .small {
  */
 
 /* The tab row wrapped onto two lines and ate a third of the first screen.
-   One scrollable line instead, with the scrollbar hidden — the active
+   One scrollable line instead, with the scrollbar hidden: the active
    underline plus the cut-off edge is enough affordance. */
 @media (max-width: 700px) {
   nav {
@@ -2394,7 +2638,7 @@ footer .small {
   }
 
   .wallet-adapter-button {
-    padding: 10px 12px !important;
+    padding: 0 12px !important;
     font-size: 9.5px !important;
     letter-spacing: 0.1em !important;
   }
@@ -2494,7 +2738,7 @@ footer .small {
 
 /* A rule separates the marks from the wordmark so they read as a distinct
    group rather than as part of the logotype. */
-/* Sits inline after the tagline. No divider and no borders of its own — this
+/* Sits inline after the tagline. No divider and no borders of its own. This
    is a <nav>, so the element-level `nav` rule that underlines the tab bar has
    to be cancelled explicitly or it draws a stray rule under the icons. */
 .social {
@@ -2524,7 +2768,7 @@ a.social-link:hover {
 /* Dimmed rather than removed. The row keeps its shape through launch, and a
    greyed chart icon answers "is there a chart?" better than an absence does. */
 /* Muted enough to read as inactive, legible enough that the brand is still
-   identifiable — at 0.32 with full grayscale these were nearly invisible on
+   identifiable: at 0.32 with full grayscale these were nearly invisible on
    the dark header, which defeats the point of showing them at all. */
 .social-link.is-pending {
   opacity: 0.5;
@@ -2635,14 +2879,14 @@ a.social-link:hover {
 }
 
 /* The mint, under the ticker. Truncated to first-four/last-four so the card
-   stays a card — the copy button is what hands over the real string. */
-/* The whole row is the copy target, address included — a 12px icon is far too
-   small to be the only way to take the one value on this card. */
+   stays a card; the copy button is what hands over the real string. */
+/* The whole row is the copy target, address included, because a 12px icon is
+   far too small to be the only way to take the one value on this card. */
 .ho-mint {
   display: inline-flex;
   align-items: center;
-  /* The card centres its text, but text-align does not reach flex children —
-     this row has to centre itself or it hangs off the left edge. */
+  /* The card centres its text, but text-align does not reach flex children,
+     so this row has to centre itself or it hangs off the left edge. */
   justify-content: center;
   gap: 5px;
   margin-top: 1px;
@@ -2665,7 +2909,7 @@ a.social-link:hover {
   border-color: var(--border);
 }
 
-/* The pending row is a span, not a button — there is nothing to copy yet. */
+/* The pending row is a span, not a button: there is nothing to copy yet. */
 span.ho-mint {
   font-style: italic;
   opacity: 0.75;
@@ -2769,7 +3013,7 @@ a.ho-link:hover {
 
 /* The travelling highlight.
    Previously a positioned dot, which read as a bead resting on the wire rather
-   than something moving through it — and at the ends it visibly sat outside the
+   than something moving through it, and at the ends it visibly sat outside the
    stroke. This is the stroke: an 18-unit dash on the same path, offset over
    time, so it is geometrically incapable of leaving the line. */
 .ho-rail-flow {
@@ -2893,4 +3137,11 @@ a.ho-link:hover {
 
 .prov-explorers a:hover {
   text-decoration: underline;
+}
+
+/* Body of a folded card section (the signer flow): the .terms styling was
+   built for a summary + <pre>, so arbitrary content ran flush against the
+   card edges. */
+.terms-inner {
+  padding: 6px 14px 14px;
 }

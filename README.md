@@ -18,7 +18,8 @@ claim opens.
         ┌────────────────┬───────────┴────────┬──────────────────┐
         │                │                    │                  │
   Bucket 2         Bucket 3             Bucket 4a          Bucket 4b
-  Legacy Buddy holders      influencers          2014 signer        new dev
+  Legacy Buddy holders      influencers          2014 signer        the team
+  15%              50%                  10%                25%
   30 days          72 hours             until 2030         automatic
   instant          30-day stream        12-mo stream       12-mo + cliff
 ```
@@ -35,6 +36,7 @@ claim opens.
 | `scripts/verify-snapshot.ts` | independent verification anyone can run |
 | `scripts/build-tree.ts` | build the influencer tree from CSV |
 | `scripts/deploy-init.ts` | initialize → fund → lock, with a dry-run default |
+| `scripts/team-withdraw.ts` | withdraw the team stream through the Squads multisig |
 | `scripts/sign-claim.ts` | helper for the 2014 signer's Bitcoin signature |
 | `scripts/devnet-rehearsal.ts` | end-to-end dress run against devnet |
 | `app/` | landing page, claim dApp, dashboard, fee crank, live Verify page and explainer |
@@ -96,7 +98,7 @@ step 2.6.
 
 ### Base/boost split
 
-Staking tiers multiply your rewards (up to 5.0x for a 12-month lock), but only
+Staking tiers multiply your rewards (up to 5.0x for a 5-month lock), but only
 the base `amount × 1.0` portion is claimable while the lock runs. The rest is
 escrowed until maturity and forfeited on early exit.
 

@@ -2,7 +2,7 @@ use crate::constants::*;
 use crate::errors::DistributorError;
 use crate::state::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct InitializeParams {
@@ -30,12 +30,30 @@ pub struct Initialize<'info> {
 
     /// The key allowed to fund buckets before the lock. It has no power at all
     /// afterwards, and the window is a single short session, so a plain wallet
-    /// is sufficient — the authority that actually matters long-term is the
+    /// is sufficient; the authority that actually matters long-term is the
     /// program's upgrade authority, which is burned on launch day.
     /// CHECK: stored as a plain key; never signs after `lock_config`.
     pub authority: UncheckedAccount<'info>,
 
-    pub reward_mint: Account<'info, Mint>,
+    /// This program's data account, which carries the upgrade authority set at
+    /// deploy. Requiring the payer to be that authority binds `initialize` to
+    /// whoever actually deployed the program, closing the front-run window: the
+    /// config PDA is a singleton with no re-create path, so without this an
+    /// attacker who saw the freshly-deployed program id could seize it with
+    /// their own Merkle roots before the deployer's own `initialize` landed.
+    #[account(
+        seeds = [crate::ID.as_ref()],
+        bump,
+        seeds::program = anchor_lang::solana_program::bpf_loader_upgradeable::ID,
+        constraint = program_data.upgrade_authority_address == Some(payer.key())
+            @ DistributorError::Unauthorized,
+    )]
+    pub program_data: Account<'info, ProgramData>,
+
+    /// The launch mint. `InterfaceAccount` because pump.fun's `create_v2` path
+    /// (live on mainnet) mints Token-2022 coins, and this program must accept
+    /// whichever token program the launch coin was created under.
+    pub reward_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
         init,
@@ -63,10 +81,11 @@ pub struct Initialize<'info> {
         payer = payer,
         token::mint = reward_mint,
         token::authority = config,
+        token::token_program = token_program,
         seeds = [VAULT_SEED],
         bump
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     /// Program-owned PDA holding SOL rewards (routed creator fees, donations).
     #[account(
@@ -79,7 +98,7 @@ pub struct Initialize<'info> {
     pub sol_vault: Account<'info, SolVault>,
 
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -92,7 +111,7 @@ pub fn initialize(ctx: Context<Initialize>, params: InitializeParams) -> Result<
     };
 
     // `init` already funds the vault to rent exemption. That floor is never
-    // spendable as rewards — `pay_sol_from_vault` subtracts it before paying.
+    // spendable as rewards: `pay_sol_from_vault` subtracts it before paying.
     ctx.accounts.sol_vault.bump = ctx.bumps.sol_vault;
 
     let config = &mut ctx.accounts.config;
@@ -122,8 +141,20 @@ pub fn initialize(ctx: Context<Initialize>, params: InitializeParams) -> Result<
     config.original_signer_claimed = false;
     config.original_signer_swept = false;
 
+    // Bounded here because this is the only moment the value is still open to
+    // inspection: the published document can be checked against the config
+    // before `lock_config` freezes it. A cliff past the end of the stream
+    // would read as a lockup while actually withholding everything until it
+    // passed, since `vested` returns zero before the cliff regardless of how
+    // much time has elapsed.
+    require!(
+        params.dev_cliff_seconds >= 0 && params.dev_cliff_seconds <= FOUNDER_STREAM_DURATION,
+        DistributorError::InvalidCliff
+    );
+
     config.dev_wallet = params.dev_wallet;
     config.dev_allocation = params.dev_allocation;
+    config.dev_cliff_seconds = params.dev_cliff_seconds;
     config.dev_stream_created = false;
 
     config.bump = ctx.bumps.config;
@@ -173,16 +204,20 @@ pub struct FundVault<'info> {
         seeds = [VAULT_SEED],
         bump = config.vault_bump,
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     /// Needed so the deposit registers in `reserved_token`.
     #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, constraint = source.mint == config.reward_mint)]
-    pub source: Account<'info, TokenAccount>,
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn fund_vault(ctx: Context<FundVault>, amount: u64) -> Result<()> {
@@ -196,16 +231,18 @@ pub fn fund_vault(ctx: Context<FundVault>, amount: u64) -> Result<()> {
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    anchor_spl::token::transfer(
+    anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            anchor_spl::token::Transfer {
+            TransferChecked {
                 from: ctx.accounts.source.to_account_info(),
+                mint: ctx.accounts.reward_mint.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.authority.to_account_info(),
             },
         ),
         amount,
+        ctx.accounts.reward_mint.decimals,
     )?;
     msg!("vault funded with {}", amount);
     Ok(())
@@ -229,11 +266,14 @@ pub struct LockConfig<'info> {
     )]
     pub config: Account<'info, Config>,
 
+    #[account(seeds = [POOL_SEED], bump = pool.bump)]
+    pub pool: Account<'info, StakePool>,
+
     #[account(
         seeds = [VAULT_SEED],
         bump = config.vault_bump,
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 }
 
 pub fn lock_config(ctx: Context<LockConfig>) -> Result<()> {
@@ -247,17 +287,62 @@ pub fn lock_config(ctx: Context<LockConfig>) -> Result<()> {
         .and_then(|v| v.checked_add(config.dev_allocation))
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
+    // Deliberately checks what arrived through `fund_vault`, not what the
+    // vault happens to hold. Before the lock `reserved_token` can rise *only*
+    // inside `fund_vault`: every other instruction that touches it
+    // (`stake`, `lock_tokens`, `notify_*`, `sync_*`, `unwrap_wsol`) asserts the
+    // config is already locked, so none of them can run yet. That is what
+    // makes this a real solvency proof rather than a number anyone could
+    // inflate: staker principal and stray donations cannot pre-satisfy it.
+    //
+    // The distinction decides whether this contract can end up insolvent.
+    // Anything the vault holds beyond `reserved_token` is untracked, and
+    // untracked tokens belong to the staking pool the moment anyone calls
+    // `sync_token_rewards`. Letting them count as bucket backing here would
+    // promise the same tokens to two different people, and this instruction
+    // is the point of no return: `fund_vault` asserts the config is unlocked,
+    // so the moment this succeeds there is no way to add tokens ever again.
     require!(
-        ctx.accounts.vault.amount >= committed,
+        ctx.accounts.pool.reserved_token >= committed,
+        DistributorError::InsufficientBucketBalance
+    );
+
+    // The claim windows are anchored to `claims_start` (fixed at initialize),
+    // but every claim is gated on this lock. If initialize-to-lock ever slips
+    // past a window, locking would freeze a config whose bucket is already
+    // dead on arrival: no one could claim it and the first sweep would divert
+    // the whole allocation to stakers. Refuse to lock a config whose windows
+    // have already closed, while there is still a chance to redeploy. The 2030
+    // signer deadline is decades out and needs no check.
+    let now = Clock::get()?.unix_timestamp;
+    require!(
+        now < config.old_holder_deadline,
+        DistributorError::ClaimWindowClosed
+    );
+    require!(
+        now < config.influencer_deadline,
+        DistributorError::ClaimWindowClosed
+    );
+
+    // Implied by the line above, since the vault can never hold less than is
+    // reserved. Stated anyway, because this is the last instant the promise
+    // can still be refused, and it costs one comparison to say out loud that
+    // the tokens are really there.
+    require!(
+        ctx.accounts.vault.amount >= ctx.accounts.pool.reserved_token,
         DistributorError::InsufficientBucketBalance
     );
 
     config.locked = true;
-    msg!("config locked; {} tokens committed across buckets", committed);
+    msg!(
+        "config locked; {} tokens committed across buckets, {} reserved in the vault",
+        committed,
+        ctx.accounts.pool.reserved_token
+    );
     Ok(())
 }
 
-/// Create the dev's vesting stream. Permissionless on purpose — anyone can
+/// Create the dev's vesting stream. Permissionless on purpose: anyone can
 /// trigger it, and it can only ever produce the exact terms fixed at init.
 /// The dev's tokens never touch a wallet he controls; they exist only inside
 /// this stream.
@@ -285,7 +370,7 @@ pub struct CreateDevStream<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn create_dev_stream(ctx: Context<CreateDevStream>, cliff_seconds: i64) -> Result<()> {
+pub fn create_dev_stream(ctx: Context<CreateDevStream>) -> Result<()> {
     let config = &mut ctx.accounts.config;
     config.assert_locked()?;
     require!(
@@ -300,7 +385,7 @@ pub fn create_dev_stream(ctx: Context<CreateDevStream>, cliff_seconds: i64) -> R
     stream.withdrawn = 0;
     stream.start = start;
     stream.cliff = start
-        .checked_add(cliff_seconds.max(0))
+        .checked_add(config.dev_cliff_seconds)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
     stream.end = start
         .checked_add(FOUNDER_STREAM_DURATION)

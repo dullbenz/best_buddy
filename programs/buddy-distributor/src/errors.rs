@@ -52,4 +52,14 @@ pub enum DistributorError {
     MessageTooLong,
     #[msg("Account is not a wrapped-SOL token account owned by the SOL vault")]
     InvalidWsolAccount,
+
+    #[msg("Dev cliff must be between zero and the stream duration")]
+    InvalidCliff,
+
+    #[msg("Lockup already demoted to base weight")]
+    AlreadyDemoted,
+    #[msg("Lockup index does not match the owner's counter")]
+    InvalidLockupIndex,
+    #[msg("Source is not a foreign-token account owned by a program vault")]
+    InvalidRecoverySource,
 }

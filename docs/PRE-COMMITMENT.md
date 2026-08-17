@@ -13,9 +13,11 @@ abandoned by its creator, who sold into the community he built and continued
 collecting creator fees from a project he had walked away from. The evidence is
 in [RECEIPTS.md](./RECEIPTS.md) — transaction by transaction.
 
-A community takeover of the old token would still have routed fees to him. So
-this is a new token, run by rules in a contract instead of promises from a
-person.
+The community stayed anyway. The market kept trading and holders kept pushing —
+uphill, because the one person with the creator's powers and the creator's fee
+stream was not behind them. So this is a new token, run by rules in a
+contract nobody can walk away with — rules the old coin could never have been
+given.
 
 The mechanism below is designed on one assumption: **nobody should have to trust
 us.** Every number here is enforced by a program whose source is public, whose
@@ -32,22 +34,26 @@ claim opens.
 | 2 | Legacy Buddy holders | 30 days | instantly, no lockup |
 | 3 | Influencers | 72 hours | 30-day stream on claim |
 | 4a | The original 2014 Bitcoin signer | until 2030-12-31 | 12-month stream |
-| 4b | The new dev | automatic | 12-month stream behind a cliff |
+| 4b | The team | automatic | 12-month stream behind a cliff, to a multisig |
 
 **One rule governs all of it: anything unclaimed becomes community staking
 rewards.** Expired influencer allocations, the unclaimed old-holder remainder,
-the founder allocation if the 2014 signer never appears, forfeited boost escrow
+the signer allocation if the 2014 signer never appears, forfeited boost escrow
 and slashed principal from people who break their locks — every last unit ends
 up in bucket 1.
 
 ### Allocations
 
+The distributor total — every token the team's launch buy acquired, sent into
+the contract in its entirety through `fund_vault` — is `<amount>` (`<n>` base
+units). It is split:
+
 | Bucket | Amount | Share |
 |---|---|---|
-| 2 — Legacy Buddy holders | `<amount>` | `<55%>` |
-| 3 — influencers | `<amount>` | `<15%>` |
-| 4a — original signer | `<amount>` | `<20%>` |
-| 4b — new dev | `<amount>` | `<10%>` |
+| 2 — Legacy Buddy holders | `<amount>` | **15%** |
+| 3 — influencers | `<amount>` | **50%** |
+| 4a — original signer | `<amount>` | **10%** |
+| 4b — the team | `<amount>` | **25%** |
 | 1 — staking pool | **0 at launch** | grows forever |
 
 Bucket 1 starting empty is deliberate. It is funded by what the ecosystem
@@ -91,7 +97,12 @@ no allocations that are not on that list.
 
 72 hours to claim. Claiming opens a 30-day linear stream rather than
 transferring at once — the programme is for people who show up and stay, not
-exit liquidity. Anything unclaimed at the deadline goes to the stakers.
+exit liquidity. Anything unclaimed at the deadline goes to the stakers, and it
+streams to them over the same 30 days it would have streamed to the
+influencer. The same rule applies to the 2014 signer's share if it is still
+unclaimed at the end of 2030: it returns to the stakers over 12 months, not as
+a lump sum. Forfeiting a stream never accelerates it — an expiry pays the
+community at exactly the pace a claim would have paid the claimant.
 
 Everyone on that list has been told in writing to disclose that they were
 compensated whenever they post about this token.
@@ -104,8 +115,14 @@ In 2014, someone signed a message on the Bitcoin blockchain that became this
 story. That spend revealed their public key:
 
 ```
-<0480ba01...4779>
+0480ba015ac8c00c8a0c6f4913d8a63364272a5472148ac19159932e36ffdffd2355a7358601b556af702d4ae5641e7d59bbda795894121d8bbc8412ae70744779
 ```
+
+That key `RIPEMD160(SHA256(...))`-hashes to
+`1GPXXpxtzyzLj2iqqcTFYW2TFC8rWqu92e` — the Bitcoin address that broadcast the
+2014 message, transaction
+`95156dbb48e957754a1fff53ccb9604ee5592dfdd2f117aa37baf635261ef93a` (block
+299825). Anyone can re-derive that and confirm the key is not a substitution.
 
 An allocation is reserved for whoever controls the corresponding private key,
 claimable until **2030-12-31 23:59:59 UTC**.
@@ -125,16 +142,22 @@ If nobody ever claims, the allocation goes to the community after the deadline.
 
 ---
 
-## Bucket 4b — the new dev
+## Bucket 4b — the team
 
-The dev's allocation streams linearly over 12 months behind a `<30>`-day cliff.
+The team's allocation streams linearly over 12 months behind a 30-day cliff.
 
-**The dev wallet holds no tokens after deployment.** Every token the dev will
+**No team wallet holds tokens after deployment.** Every token the team will
 ever receive from this allocation exists only inside the distributor contract
-and comes out at a fixed rate that nobody — including the dev — can accelerate.
+and comes out at a fixed rate that nobody — including the team — can
+accelerate.
 
-Ongoing dev income is the retained share of pump.fun creator fees: **10%
-retained, 90% to the community staking pool.**
+What does vest is paid to a **team multisig** (`4aiePQdVpVLZu1chUvrgP35eDvKdQhhTxUiRRkt2LjRM`), not to any
+individual: moving anything the team earns requires more than one member to
+sign, so no single person can run off with it, and no single person's absence
+can freeze it.
+
+Ongoing team income is the retained share of pump.fun creator fees: **10%
+retained — paid to that same multisig — 90% to the community staking pool.**
 
 That split is set once, on chain, through pump.fun's fee-sharing config — which
 revokes its own admin immediately afterwards. It is therefore **permanent and
@@ -149,10 +172,20 @@ Stake the token to register; rewards accrue continuously and pro-rata.
 
 | Tier | Multiplier | Lock | Early exit |
 |---|---|---|---|
-| Flexible | 1.0x | none, 3-day unstake cooldown | n/a |
-| 1 month | 1.5x | 30 days | forfeits boost + 15% |
-| 3 months | 2.0x | 90 days | forfeits boost + 15% |
-| 12 months | 5.0x | 365 days | forfeits boost + 15% |
+| Flexible | 1.0x | none, 24-hour unstake cooldown | n/a |
+| 1 month | 2.0x | 30 days | forfeits boost + 15%, and barred in the first 24h |
+| 3 months | 3.0x | 90 days | forfeits boost + 15%, and barred in the first 24h |
+| 5 months | 5.0x | 150 days | forfeits boost + 15%, and barred in the first 24h |
+
+Every locked stake is its own lock-up with its own maturity clock — locking
+twice creates two independent positions, withdrawn separately. The multiplier
+applies while a lock-up runs; at maturity its boost is released and it earns at
+1.0x until withdrawn. The 24-hour floor is universal: no route pulls staked
+principal back out inside the first day. The flexible tier enforces it through
+the unstake cooldown, and a locked tier's early exit obeys the same floor, so
+visibly accrued fees cannot be flash-captured by someone staking moments before
+the payout and leaving moments after — a one-month lockup can never be used to
+unstake in minutes and sidestep it.
 
 **Base rewards are claimable at any time, in every tier.** The portion your
 multiplier earns above 1.0x — the "boost" — is held in escrow until your lock
@@ -206,7 +239,7 @@ upgrade authority is showing you half the picture.
 So here is ours, and how to check it yourself at any time:
 
 ```
-solana program show <PROGRAM_ID>
+solana program show 6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM
 ```
 
 The `Authority` line is the answer. `none` means the program is immutable and
@@ -228,8 +261,9 @@ We are telling you what this costs, because a project that only tells you the
 upside is selling you something. An immutable program cannot be patched. If
 there is a bug in it, nobody can fix it — not us, not anyone — and it has to
 keep working until the 2030 signer deadline. Our mitigations were a full devnet
-rehearsal and an independent security review (`<link>`), and those were our only
-two shots at it.
+rehearsal — the 85-scenario campaign in
+[docs/E2E-DEVNET-CAMPAIGN.md](./E2E-DEVNET-CAMPAIGN.md) — and the contract's own
+test suite, and the source is public for anyone to read.
 
 We made that trade deliberately. A contract that someone can rewrite is a
 contract you have to trust someone about, and this community has already been
@@ -239,12 +273,12 @@ asked to do that once.
 
 **Verify it yourself:**
 
-- Program: `<PROGRAM_ID>`
+- Program: `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM`
 - Config account: `<CONFIG_PDA>`
 - Token vault: `<VAULT_PDA>`
-- Source code: `<repo link>`
-- Security review: `<link>`
-- Live dashboard: `<link>`
+- Source code: https://github.com/dullbenz/best_buddy
+- Devnet campaign report: [docs/E2E-DEVNET-CAMPAIGN.md](./E2E-DEVNET-CAMPAIGN.md)
+- Live dashboard: https://mybestbuddy.fun
 
 ---
 

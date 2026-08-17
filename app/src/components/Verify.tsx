@@ -48,7 +48,7 @@ interface Check {
  * The "don't trust us" page.
  *
  * Every claim the project makes about itself is restated here as something the
- * reader can confirm — live from chain where we can do it for them, and as a
+ * reader can confirm: live from chain where we can do it for them, and as a
  * copy-pasteable command where they should do it themselves. Anyone technical
  * enough to run the commands can then vouch for the result publicly, which is
  * worth far more than the team asserting it.
@@ -73,7 +73,7 @@ export function Verify() {
 
   // Every distinct host this page has actually talked to, read from the
   // browser's own resource timings rather than asserted by us. It is the same
-  // data the network tab shows, gathered by the page itself — which turns "we
+  // data the network tab shows, gathered by the page itself, which turns "we
   // have no backend" from a promise into something visible on the page making
   // the promise.
   const [origins, setOrigins] = useState<string[]>([]);
@@ -112,11 +112,11 @@ export function Verify() {
   const checks: Check[] = [];
 
   // A verification page must never render a verdict it could not actually
-  // reach. Unreadable chain state is "unknown", never pass and never fail —
+  // reach. Unreadable chain state is "unknown", never pass and never fail:
   // a false VERIFIED here would be worse than showing nothing at all.
-  const UNREADABLE = "Could not read this from the chain — check it yourself below.";
+  const UNREADABLE = "Could not read this from the chain. Check it yourself below.";
 
-  // 1 — immutability, the one that matters most.
+  // 1: immutability, the one that matters most.
   checks.push({
     title: "The program can never be changed",
     status: upgrade.loading || upgrade.error || upgrade.immutable === null
@@ -136,7 +136,7 @@ export function Verify() {
     command: `solana program show ${programId}`,
   });
 
-  // 2 — config frozen.
+  // 2: config frozen.
   checks.push({
     title: "Allocations, deadlines and Merkle roots are frozen",
     status: loading || !config ? "pending" : config.locked ? "pass" : "fail",
@@ -156,13 +156,13 @@ export function Verify() {
     linkLabel: "Decode the config account on Solscan",
   });
 
-  // 3 — the vault covers everything still owed.
+  // 3: the vault covers everything still owed.
   //
   // Deliberately measured against *outstanding* obligations rather than the
   // original committed total: the vault legitimately shrinks as Legacy Buddy holders
   // claim, so comparing to the launch-day total would report a false failure
-  // the moment claims started. This is a lower bound — the vault also holds
-  // stream remainders we cannot enumerate from here — so it must always hold.
+  // the moment claims started. This is a lower bound (the vault also holds
+  // stream remainders we cannot enumerate from here), so it must always hold.
   const outstanding =
     config && pool
       ? BigInt(config.oldHolderAllocation) -
@@ -187,45 +187,45 @@ export function Verify() {
       ? UNREADABLE
       : `Vault holds ${fmtAmount(vaultBalance)}, against ${fmtAmount(outstanding)} in unclaimed allocations plus staked principal.`,
     why:
-      "Unclaimed restitution and everyone's staked tokens have to be physically present, not merely promised. The balance falls as people claim — that is correct — so what matters is that it never falls below what is still owed.",
+      "Unclaimed restitution and everyone's staked tokens have to be physically present, not merely promised. The balance falls as people claim, which is correct, so what matters is that it never falls below what is still owed.",
     command: `spl-token balance --address ${vaultPda}`,
   });
 
-  // 4 — the Token Creator cannot dump.
+  // 4: the team cannot dump.
   checks.push({
-    title: "The Token Creator's tokens are locked in a stream",
+    title: "The team's tokens are locked in a stream",
     status: loading || !config ? "pending" : config.devStreamCreated ? "pass" : "fail",
     detail: loading
       ? "reading the config…"
       : !config
       ? UNREADABLE
       : config.devStreamCreated
-      ? `${fmtAmount(config.devAllocation)} released linearly over 12 months behind a cliff. The Token Creator's wallet holds none of it.`
-      : "The dev stream has not been created yet.",
+      ? `${fmtAmount(config.devAllocation)} released linearly over 12 months behind a cliff. No team wallet holds any of it.`
+      : "The team's stream has not been created yet.",
     why:
-      "The original token failed because its creator could sell whenever he liked. Here the Token Creator's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate.",
+      "The original token failed because its creator could sell whenever he liked. Here the team's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate, into a multisig rather than any one person's wallet.",
   });
 
-  // 5 — reproduce the snapshot.
+  // 5: reproduce the snapshot.
   checks.push({
     id: VERIFY_ANCHORS.snapshotReproducible,
     title: "The Legacy Buddy holder snapshot is reproducible from public data",
     status: "pending",
     detail:
-      "The contract stores one 32-byte fingerprint per list — a Merkle root. The verifier rebuilds that fingerprint from the published CSV and compares it to the one on chain. Change a single digit in the file and the fingerprint no longer matches.",
+      "The contract stores one 32-byte fingerprint per list: a Merkle root. The verifier rebuilds that fingerprint from the published CSV and compares it to the one on chain. Change a single digit in the file and the fingerprint no longer matches.",
     why:
-      "The eligibility list was produced off-chain, because Solana programs cannot enumerate token holders. That is only trustworthy if anyone can regenerate the identical result — which they can, because the input is public chain history. The fingerprint is what makes the published file binding rather than decorative: the contract pays against the root, so a list that does not reproduce it is not the list being paid.",
+      "The eligibility list was produced off-chain, because Solana programs cannot enumerate token holders. That is only trustworthy if anyone can regenerate the identical result, which they can, because the input is public chain history. The fingerprint is what makes the published file binding rather than decorative: the contract pays against the root, so a list that does not reproduce it is not the list being paid.",
     command: `RPC_URL=<your-rpc> npx ts-node scripts/verify-snapshot.ts --onchain`,
   });
 
-  // 6 — the fee split is frozen and points at the community.
+  // 6: the fee split is out of our hands and points at the community.
   // Creator fees are paid as lamports, so the shareholder to look for is the
-  // SOL vault — not the token vault.
+  // SOL vault, not the token vault.
   const vaultShare = sharing?.shareholders.find(
     (h) => h.address === solVaultPda
   );
   checks.push({
-    title: "The fee split is frozen, and most of it goes to the community",
+    title: "The fee split is out of our hands, and most of it goes to the community",
     status:
       !sharing || !sharing.exists
         ? "pending"
@@ -240,18 +240,18 @@ export function Verify() {
           vaultShare ? (vaultShare.shareBps / 100).toFixed(0) : "0"
         }% of creator fees go to the community vault. Admin: ${
           sharing.adminRevoked
-            ? "cleared — the split can no longer be changed"
+            ? "revoked, so we can never change the split"
             : sharing.admin
         }. Status: ${sharing.status}.`,
     why:
-      "pump.fun lets a fee split be set exactly once, after which it revokes the admin and the shares are permanent. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction — so the thing to check is not just the percentage but that the admin really is revoked.",
+      "pump.fun lets a fee split be set exactly once, after which it revokes the admin and no instruction of the creator's can ever touch the shares again. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction, so the thing to check is not just the percentage but that the admin really is revoked. One asterisk, stated plainly: a revoked admin proves we can never change the split, not that nobody can. pump.fun's own fee program retains a reset authority of its own, presumably the machinery behind their CTO fee-redirect process, so this guarantee is about us, not about pump.fun.",
     link: solscanAccount(
       config ? sharingConfigPda(config.rewardMint).toBase58() : ""
     ),
     linkLabel: "Inspect the fee-sharing config on Solscan",
   });
 
-  // 7 — there is nothing between you and the chain.
+  // 7: there is nothing between you and the chain.
   const unexpectedOrigins = origins.filter((h) => h !== RPC_HOST);
   checks.push({
     id: VERIFY_ANCHORS.noBackend,
@@ -262,19 +262,19 @@ export function Verify() {
         ? "Reading this page's own network activity…"
         : `Besides this domain, this page has contacted ${origins.length === 1 ? "one host" : `${origins.length} hosts`}: ${origins.join(", ")}.` +
           (unexpectedOrigins.length === 0
-            ? ` That is the Solana RPC${RPC_IS_KEYED ? "" : " (public endpoint)"} and nothing else — every balance, deadline and allocation on this site was read directly on-chain by your browser.`
+            ? ` That is the Solana RPC${RPC_IS_KEYED ? "" : " (public endpoint)"} and nothing else. Every balance, deadline and allocation on this site was read directly on-chain by your browser.`
             : ` ${unexpectedOrigins.join(", ")} ${unexpectedOrigins.length === 1 ? "is" : "are"} not the RPC and should not be there.`),
     why:
-      "There is no API of ours in the middle. Your browser asks the chain directly and renders the answer, which means we have no opportunity to change a number on the way past — if this page showed you a balance the chain disagrees with, any explorer would catch it instantly. It also means your wallet only ever signs transactions built in front of you, and never sends anything to a server of ours. The list above is measured live by the page itself, and you can confirm it independently in your browser's network tab: open developer tools, reload, and see the same hosts. The one server-side component in this project is the public influencer terms register, which records signatures for transparency and cannot affect who can claim what — a claim is verified on chain against the Merkle root, not against us.",
+      "There is no API of ours in the middle. Your browser asks the chain directly and renders the answer, which means we have no opportunity to change a number on the way past. If this page showed you a balance the chain disagrees with, any explorer would catch it instantly. It also means your wallet only ever signs transactions built in front of you, and never sends anything to a server of ours. The list above is measured live by the page itself, and you can confirm it independently in your browser's network tab: open developer tools, reload, and see the same hosts. The one server-side component in this project is the public influencer terms register, which records signatures for transparency and cannot affect who can claim what: a claim is verified on chain against the Merkle root, not against us.",
   });
 
-  // 8 — source matches what is deployed.
+  // 8: source matches what is deployed.
   checks.push({
     id: VERIFY_ANCHORS.sourceMatchesDeployed,
     title: "The published source matches the deployed bytecode",
     status: "pending",
     detail:
-      "Every line of this project is public — the Solana program, this website, the snapshot scripts and the runbooks. Build the repository yourself and compare the hash to the bytecode on chain.",
+      "Every line of this project is public: the Solana program, this website, the snapshot scripts and the runbooks. Build the repository yourself and compare the hash to the bytecode on chain.",
     why:
       "Open source on its own proves nothing: reading code is only meaningful if that code is what actually got deployed. solana-verify rebuilds the program in a fixed container and compares the resulting hash to the bytecode the chain is executing. If they match, the program you can read is the program that holds the tokens.",
     command: `solana-verify verify-from-repo -um --program-id ${programId} <repo-url>`,
@@ -286,7 +286,7 @@ export function Verify() {
         <h2>Verify this yourself</h2>
         <p className="muted">
           Nothing on this page asks you to believe us. Each item below is a claim
-          this project makes about itself, paired with the way to check it — read
+          this project makes about itself, paired with the way to check it. Read
           live from the chain where we can, and as a command you can run where
           you should do it yourself.
         </p>
@@ -360,7 +360,7 @@ export function Verify() {
           <li>
             <strong>You can diff the bytes yourself.</strong> Build the same
             commit locally and compare the hash of the bundle against the one
-            this site is actually serving. Same input, same output — a
+            this site is actually serving. Same input, same output, so a
             difference means the served file is not the published one.
           </li>
           <li>
@@ -369,7 +369,7 @@ export function Verify() {
             transaction your own wallet shows you before you sign it, and every
             number here is read from the chain and contradicted by any explorer
             if it is wrong. A tampered frontend could lie to you or propose a
-            transaction you should refuse — it could not take anything, and it
+            transaction you should refuse, but it could not take anything, and it
             could not change who is owed what, because that is decided by a
             Merkle root on chain and not by this website.
           </li>
@@ -417,7 +417,7 @@ export function Verify() {
                 ["Staking pool", pda([SEEDS.pool]).toBase58()],
                 [
                   "pump.fun fee config",
-                  config ? sharingConfigPda(config.rewardMint).toBase58() : "—",
+                  config ? sharingConfigPda(config.rewardMint).toBase58() : "n/a",
                 ],
               ].map(([label, address]) => (
                 <tr key={label}>
@@ -457,7 +457,7 @@ export function Verify() {
             </li>
             <li>
               <strong>Broken staking locks.</strong> If somebody picks a locked
-              tier — say 12 months at 5× — and then pulls their tokens out
+              tier, say 5 months at 5×, and then pulls their tokens out
               early, they give up the entire bonus they had accrued plus 15% of
               their stake. That is what "broken lock" means: a commitment ended
               before its term. The penalty is not burned and does not come to

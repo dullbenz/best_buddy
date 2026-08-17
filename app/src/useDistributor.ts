@@ -15,12 +15,22 @@ import { useProgram } from "./useProgram";
 export interface DistributorState {
   config: any;
   pool: any;
+  /**
+   * The program that owns the reward mint — classic SPL Token or Token-2022.
+   *
+   * Read from the mint account itself rather than assumed, because pump.fun
+   * mints through `create_v2` (Token-2022) while its `create_v2_enabled` flag
+   * is on and through `create` (classic) when it is off, and every ATA
+   * derivation and every instruction's `token_program` account must name
+   * whichever one the launch coin actually got. Null until the read lands.
+   */
+  rewardTokenProgram: PublicKey | null;
   vaultBalance: bigint;
   solVaultBalance: bigint;
   /**
    * Lamports the SOL vault must keep to stay rent-exempt. `sync_sol_rewards`
-   * subtracts this before crediting anything, so the UI has to as well —
-   * otherwise the rent deposit reads as undistributed rewards forever.
+   * subtracts this before crediting anything, so the UI has to as well.
+   * Otherwise the rent deposit reads as undistributed rewards forever.
    */
   solVaultRentFloor: bigint;
   /** Vault lamports the reward ledger has not booked yet. Never negative. */
@@ -35,7 +45,7 @@ export interface DistributorState {
  *
  * Fetched once for the whole app rather than once per component. Seven of the
  * eight tabs want this same data, and each used to mount its own copy of the
- * hook and re-read the chain from scratch — so simply clicking through the
+ * hook and re-read the chain from scratch, so simply clicking through the
  * tabs cost around seventy RPC calls for numbers that never differed between
  * them, and the public devnet endpoint started answering 429.
  *
@@ -49,6 +59,7 @@ function useDistributorSource(): DistributorState {
   const { connection } = useConnection();
   const [config, setConfig] = useState<any>(null);
   const [pool, setPool] = useState<any>(null);
+  const [rewardTokenProgram, setRewardTokenProgram] = useState<PublicKey | null>(null);
   const [vaultBalance, setVaultBalance] = useState<bigint>(0n);
   const [solVaultBalance, setSolVaultBalance] = useState<bigint>(0n);
   const [solVaultRentFloor, setSolVaultRentFloor] = useState<bigint>(0n);
@@ -77,14 +88,22 @@ function useDistributorSource(): DistributorState {
           poolPda,
           solVaultPda,
         ]);
-        if (!cfgInfo) throw new Error("config account not found — is the program initialized?");
+        if (!cfgInfo) throw new Error("config account not found. Is the program initialized?");
         if (!poolInfo) throw new Error("stake pool account not found");
 
         const coder = (program.account as any).config.coder.accounts;
         const cfg = coder.decode("config", cfgInfo.data);
         const pl = coder.decode("stakePool", poolInfo.data);
 
-        const vaultInfo = await connection.getTokenAccountBalance(pda([SEEDS.vault]));
+        // One round trip for the vault and the mint together: the vault's
+        // token amount is the u64 at offset 64 (identical layout in both token
+        // programs), and the mint account's owner tells us which token program
+        // every transaction must be built against.
+        const [vaultInfo, mintInfo] = await connection.getMultipleAccountsInfo([
+          pda([SEEDS.vault]),
+          new PublicKey(cfg.rewardMint),
+        ]);
+        if (!mintInfo) throw new Error("reward mint account not found");
 
         // Mirror the program: floor = rent for the vault's own data length.
         const floor = solInfo
@@ -94,7 +113,10 @@ function useDistributorSource(): DistributorState {
         if (cancelled) return;
         setConfig(cfg);
         setPool(pl);
-        setVaultBalance(BigInt(vaultInfo.value.amount));
+        setRewardTokenProgram(mintInfo.owner);
+        setVaultBalance(
+          vaultInfo ? Buffer.from(vaultInfo.data).readBigUInt64LE(64) : 0n
+        );
         setSolVaultBalance(BigInt(solInfo?.lamports ?? 0));
         setSolVaultRentFloor(floor);
         setError(null);
@@ -119,6 +141,7 @@ function useDistributorSource(): DistributorState {
   return {
     config,
     pool,
+    rewardTokenProgram,
     vaultBalance,
     solVaultBalance,
     solVaultRentFloor,
@@ -164,6 +187,27 @@ export function useDistributor(): DistributorState {
   return ctx;
 }
 
+/**
+ * Whether a read error means the account is genuinely absent, as opposed to a
+ * transport failure.
+ *
+ * Anchor's `.fetch()` and `.all()` throw "Account does not exist ..." for a
+ * missing account, but a 429 or a dropped connection throws something else
+ * entirely. The two have to be told apart, because a refresh fired right after
+ * a successful transaction is exactly when the public endpoint rate-limits, and
+ * treating that 429 as "no account" would blank a live position, lock-up or
+ * stream the moment it changed. Missing is normal and resets to empty; anything
+ * else keeps whatever was already on screen.
+ */
+function isAccountMissing(e: unknown): boolean {
+  const msg = String((e as any)?.message ?? e).toLowerCase();
+  return (
+    msg.includes("account does not exist") ||
+    msg.includes("could not find") ||
+    msg.includes("not found")
+  );
+}
+
 export interface StakeInfo {
   position: any | null;
   loading: boolean;
@@ -191,9 +235,15 @@ export function useStakePosition(owner: PublicKey | null): StakeInfo {
           pda([SEEDS.stake, owner.toBuffer()])
         );
         if (!cancelled) setPosition(acct);
-      } catch {
-        // No position yet is the normal case, not an error worth surfacing.
-        if (!cancelled) setPosition(null);
+      } catch (e) {
+        // No position yet is the normal case, not an error worth surfacing. A
+        // transport error is different: keep the last good position rather than
+        // blank it on a 429 right after staking.
+        if (isAccountMissing(e)) {
+          if (!cancelled) setPosition(null);
+        } else {
+          console.debug("useStakePosition: keeping last state after read error", e);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -205,6 +255,121 @@ export function useStakePosition(owner: PublicKey | null): StakeInfo {
   }, [program, owner?.toBase58(), nonce]);
 
   return { position, loading, refresh };
+}
+
+export interface LockupEntry {
+  pubkey: PublicKey;
+  account: any;
+}
+
+export interface LockupsInfo {
+  lockups: LockupEntry[];
+  loading: boolean;
+  refresh: () => void;
+}
+
+/**
+ * Every lock-up this wallet holds, each one a separate account with its own
+ * amount, clock and escrow. `owner` is the first field after the 8-byte
+ * discriminator, so the memcmp filter sits at offset 8.
+ */
+export function useLockups(owner: PublicKey | null): LockupsInfo {
+  const program = useProgram();
+  const [lockups, setLockups] = useState<LockupEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [nonce, setNonce] = useState(0);
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    if (!program || !owner) {
+      setLockups([]);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const all: Array<{ publicKey: PublicKey; account: any }> = await (
+          program.account as any
+        ).lockup.all([{ memcmp: { offset: 8, bytes: owner.toBase58() } }]);
+        const sorted = all
+          .map((l) => ({ pubkey: l.publicKey, account: l.account }))
+          .sort((a, b) => Number(a.account.index) - Number(b.account.index));
+        if (!cancelled) setLockups(sorted);
+      } catch (e) {
+        // No lock-ups is the normal case, not an error worth surfacing. A
+        // transport error is different: keep the last good list rather than
+        // blank it on a 429 right after locking.
+        if (isAccountMissing(e)) {
+          if (!cancelled) setLockups([]);
+        } else {
+          console.debug("useLockups: keeping last state after read error", e);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [program, owner?.toBase58(), nonce]);
+
+  return { lockups, loading, refresh };
+}
+
+/**
+ * Every lock-up, anyone's, that has matured but still carries its boosted
+ * weight. Feeds the demote crank on the Fund pool tab, which is why it scans
+ * all owners rather than one.
+ */
+export function useAllMaturedLockups(): LockupsInfo {
+  const program = useProgram();
+  const [lockups, setLockups] = useState<LockupEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [nonce, setNonce] = useState(0);
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    if (!program) {
+      setLockups([]);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const all: Array<{ publicKey: PublicKey; account: any }> = await (
+          program.account as any
+        ).lockup.all();
+        const now = Math.floor(Date.now() / 1000);
+        // Two minutes of slack against client/cluster clock skew. The demote
+        // crank batches these into one atomic transaction, so a single lock-up
+        // the cluster clock still considers premature reverts the whole batch
+        // with EscrowNotMatured. Only count one as matured once it is clear of
+        // that margin.
+        const SKEW_MARGIN = 120;
+        const due = all
+          .filter(
+            (l) => !l.account.demoted && Number(l.account.lockEnd) + SKEW_MARGIN <= now,
+          )
+          .map((l) => ({ pubkey: l.publicKey, account: l.account }));
+        if (!cancelled) setLockups(due);
+      } catch {
+        if (!cancelled) setLockups([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [program, nonce]);
+
+  return { lockups, loading, refresh };
 }
 
 export function useStream(beneficiary: PublicKey | null) {
@@ -225,8 +390,14 @@ export function useStream(beneficiary: PublicKey | null) {
           pda([SEEDS.stream, beneficiary.toBuffer()])
         );
         if (!cancelled) setStream(acct);
-      } catch {
-        if (!cancelled) setStream(null);
+      } catch (e) {
+        // No stream is the normal case; a transport error keeps the last good
+        // one rather than blanking it on a 429 right after a withdraw.
+        if (isAccountMissing(e)) {
+          if (!cancelled) setStream(null);
+        } else {
+          console.debug("useStream: keeping last state after read error", e);
+        }
       }
     })();
     return () => {
@@ -255,7 +426,7 @@ export interface ClaimReceipts {
  * The proof files say what a wallet is *owed*; they say nothing about whether
  * it has taken it. Without this the claim button stayed live and unchanged
  * after a successful claim, so the only way to find out it had worked was to
- * press it again and read the error — which is the worst possible way to learn
+ * press it again and read the error, which is the worst possible way to learn
  * that your tokens already arrived.
  *
  * The contract records each claim in a receipt PDA and refuses a second one, so

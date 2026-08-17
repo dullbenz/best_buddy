@@ -3,10 +3,10 @@ use crate::errors::DistributorError;
 use crate::state::*;
 use crate::utils::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // ---------------------------------------------------------------------------
-// Bucket 2 — old Buddy holders. 30-day window, instant transfer, no stream.
+// Bucket 2: old Buddy holders. 30-day window, instant transfer, no stream.
 // ---------------------------------------------------------------------------
 
 #[derive(Accounts)]
@@ -34,16 +34,20 @@ pub struct ClaimOldHolder<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = destination.mint == config.reward_mint,
         constraint = destination.owner == claimant.key(),
     )]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
 
@@ -51,7 +55,7 @@ pub struct ClaimOldHolder<'info> {
 ///
 /// Tokens transfer immediately and are the claimant's to do anything with,
 /// including sell. This is restitution for people who were already dumped on
-/// once — attaching a lockup to it would be the wrong instinct.
+/// once. Attaching a lockup to it would be the wrong instinct.
 pub fn claim_old_holder(
     ctx: Context<ClaimOldHolder>,
     amount: u64,
@@ -95,6 +99,7 @@ pub fn claim_old_holder(
     crate::instructions::staking::pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         &mut ctx.accounts.pool,
@@ -110,7 +115,7 @@ pub fn claim_old_holder(
 }
 
 // ---------------------------------------------------------------------------
-// Bucket 3 — influencers. 72-hour window, claim opens a 30-day stream.
+// Bucket 3: influencers. 72-hour window, claim opens a 30-day stream.
 // ---------------------------------------------------------------------------
 
 #[derive(Accounts)]
@@ -144,7 +149,7 @@ pub struct ClaimInfluencer<'info> {
 
 /// Claim an influencer allocation inside the 72-hour window.
 ///
-/// Claiming does not transfer anything — it opens a 30-day linear stream. The
+/// Claiming does not transfer anything; it opens a 30-day linear stream. The
 /// point of the programme is people who show up and stay, so the allocation is
 /// a commitment rather than exit liquidity.
 pub fn claim_influencer(
@@ -208,13 +213,13 @@ pub fn claim_influencer(
 }
 
 // ---------------------------------------------------------------------------
-// Bucket 4a — the original 2014 Bitcoin signer. Open until 2030-12-31.
+// Bucket 4a: the original 2014 Bitcoin signer. Open until 2030-12-31.
 // ---------------------------------------------------------------------------
 
 #[derive(Accounts)]
 #[instruction(destination_owner: Pubkey)]
 pub struct ClaimOriginalSigner<'info> {
-    /// Anyone may relay the transaction — the signature itself is the
+    /// Anyone may relay the transaction: the signature itself is the
     /// authorisation, and it is bound to `destination_owner`.
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -239,7 +244,7 @@ pub struct ClaimOriginalSigner<'info> {
 /// choosing.
 ///
 /// The signed message embeds the destination address, so a signature is
-/// worthless to anyone who intercepts it — it can only ever fund the address
+/// worthless to anyone who intercepts it; it can only ever fund the address
 /// the signer named. Verification uses the on-chain secp256k1 recovery syscall
 /// against the uncompressed public key that the 2014 spend revealed, so no
 /// off-chain attestation or trusted oracle is involved.
@@ -297,7 +302,7 @@ pub fn claim_original_signer(
 }
 
 // ---------------------------------------------------------------------------
-// Stream withdrawals — shared by buckets 3 and 4.
+// Stream withdrawals, shared by buckets 3 and 4.
 // ---------------------------------------------------------------------------
 
 #[derive(Accounts)]
@@ -321,16 +326,20 @@ pub struct StreamWithdraw<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = destination.mint == config.reward_mint,
         constraint = destination.owner == beneficiary.key(),
     )]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn stream_withdraw(ctx: Context<StreamWithdraw>) -> Result<()> {
@@ -348,6 +357,7 @@ pub fn stream_withdraw(ctx: Context<StreamWithdraw>) -> Result<()> {
     crate::instructions::staking::pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         &mut ctx.accounts.pool,

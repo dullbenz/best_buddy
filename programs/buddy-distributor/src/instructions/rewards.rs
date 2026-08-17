@@ -3,7 +3,7 @@ use crate::errors::DistributorError;
 use crate::state::*;
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer as system_transfer, Transfer as SystemTransfer};
-use anchor_spl::token::{Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked};
 
 #[derive(Accounts)]
 pub struct NotifyTokenRewards<'info> {
@@ -17,24 +17,31 @@ pub struct NotifyTokenRewards<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = source.mint == config.reward_mint,
         constraint = source.owner == depositor.key(),
     )]
-    pub source: Account<'info, TokenAccount>,
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 /// Push token rewards into bucket 1 from an account you control.
 ///
-/// Permissionless — anyone can top the pool up. Use this when you hold the
+/// Permissionless: anyone can top the pool up. Use this when you hold the
 /// tokens and want to donate them; use `sync_token_rewards` instead when tokens
 /// have already landed in the vault by some other route.
 pub fn notify_token_rewards(ctx: Context<NotifyTokenRewards>, amount: u64) -> Result<()> {
+    // Rewards only make sense once the pool is live. Gating this on the lock
+    // also keeps `reserved_token` from moving before `lock_config` reads it.
+    ctx.accounts.config.assert_locked()?;
     require!(amount > 0, DistributorError::ZeroAmount);
 
     ctx.accounts.pool.reserved_token = ctx
@@ -44,16 +51,18 @@ pub fn notify_token_rewards(ctx: Context<NotifyTokenRewards>, amount: u64) -> Re
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    anchor_spl::token::transfer(
+    anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Transfer {
+            TransferChecked {
                 from: ctx.accounts.source.to_account_info(),
+                mint: ctx.accounts.reward_mint.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.depositor.to_account_info(),
             },
         ),
         amount,
+        ctx.accounts.reward_mint.decimals,
     )?;
 
     ctx.accounts.pool.add_token_rewards(amount)?;
@@ -83,6 +92,7 @@ pub struct NotifySolRewards<'info> {
 /// The counterpart to `sync_sol_rewards`: this one moves lamports *and* books
 /// them in a single step, which is why it can only credit what it transfers.
 pub fn notify_sol_rewards(ctx: Context<NotifySolRewards>, amount: u64) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     require!(amount > 0, DistributorError::ZeroAmount);
 
     ctx.accounts.pool.reserved_sol = ctx
@@ -133,12 +143,12 @@ pub fn flush_pending(ctx: Context<FlushPending>) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------
-// Sync — turn funds that arrived from outside into staker rewards.
+// Sync: turn funds that arrived from outside into staker rewards.
 //
 // Crediting an account on Solana needs no permission, so value can land in the
 // vaults without this program being involved: a pump.fun fee distribution, a
 // donation to an address published on the Verify page, a mistake. `notify_*`
-// cannot help — it books only what it transfers itself.
+// cannot help; it books only what it transfers itself.
 //
 // Without these instructions such funds would be visible, unowned and
 // permanently frozen, on a contract that can never be patched. With them,
@@ -163,6 +173,7 @@ pub struct SyncSolRewards<'info> {
 
 /// Credit lamports sitting in the SOL vault that nobody has accounted for yet.
 pub fn sync_sol_rewards(ctx: Context<SyncSolRewards>) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     let info = ctx.accounts.sol_vault.to_account_info();
     // The rent-exempt floor keeps the vault alive and is never distributable.
     let floor = ctx.accounts.rent.minimum_balance(info.data_len());
@@ -193,11 +204,12 @@ pub struct SyncTokenRewards<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 }
 
 /// Credit reward-mint tokens sitting in the vault that nobody has accounted for.
 pub fn sync_token_rewards(ctx: Context<SyncTokenRewards>) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     let untracked = ctx
         .accounts
         .vault
@@ -235,9 +247,12 @@ pub struct UnwrapWsol<'info> {
         constraint = wsol_account.mint == WSOL_MINT @ DistributorError::InvalidWsolAccount,
         constraint = wsol_account.owner == sol_vault.key() @ DistributorError::InvalidWsolAccount,
     )]
-    pub wsol_account: Account<'info, TokenAccount>,
+    pub wsol_account: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// wSOL remains a classic SPL Token mint even when the reward mint is
+    /// Token-2022, so the caller passes whichever token program owns
+    /// `wsol_account` — the interface type accepts either.
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -245,20 +260,21 @@ pub struct UnwrapWsol<'info> {
 ///
 /// Once a pump.fun coin graduates to the AMM, creator fees are paid in wrapped
 /// SOL into a token account rather than as native lamports. Without this the
-/// vault could receive fees it was structurally unable to distribute — and
+/// vault could receive fees it was structurally unable to distribute and,
 /// being immutable, would stay that way forever.
 ///
 /// Permissionless, and hard-wired to the wSOL mint so it can never be pointed
 /// at anything else.
 pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     let before = ctx.accounts.sol_vault.to_account_info().lamports();
 
     let sol_vault_bump = ctx.accounts.config.sol_vault_bump;
     let signer: &[&[&[u8]]] = &[&[SOL_VAULT_SEED, &[sol_vault_bump]]];
 
-    anchor_spl::token::close_account(CpiContext::new_with_signer(
+    anchor_spl::token_interface::close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        anchor_spl::token::CloseAccount {
+        anchor_spl::token_interface::CloseAccount {
             account: ctx.accounts.wsol_account.to_account_info(),
             destination: ctx.accounts.sol_vault.to_account_info(),
             authority: ctx.accounts.sol_vault.to_account_info(),
@@ -280,5 +296,114 @@ pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
     pool.add_sol_rewards(released)?;
 
     msg!("unwrap_wsol: released and credited {} lamports", released);
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct RecoverForeignToken<'info> {
+    /// Receives the closed token account's rent, which is what makes running
+    /// the crank worth the transaction fee.
+    #[account(mut)]
+    pub cranker: Signer<'info>,
+
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
+    pub sol_vault: Account<'info, SolVault>,
+
+    /// A token account in a foreign mint held by one of the program's PDAs.
+    /// The reward mint is excluded because that vault *is* staker funds, and
+    /// wSOL is excluded because `unwrap_wsol` already credits it to the pool.
+    /// The owner check (SOL vault or config, an OR) lives in the handler.
+    #[account(
+        mut,
+        constraint = source.mint != config.reward_mint @ DistributorError::InvalidRecoverySource,
+        constraint = source.mint != WSOL_MINT @ DistributorError::InvalidRecoverySource,
+    )]
+    pub source: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = destination.mint == source.mint,
+        constraint = destination.owner == config.dev_wallet,
+    )]
+    pub destination: InterfaceAccount<'info, TokenAccount>,
+
+    /// The stray token's own mint, pinned to `source`; `transfer_checked`
+    /// reads its decimals on chain.
+    #[account(constraint = foreign_mint.key() == source.mint @ DistributorError::InvalidRecoverySource)]
+    pub foreign_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+/// Forward tokens of a foreign mint to the team multisig, and close the stray
+/// account. Permissionless.
+///
+/// Donations in anything but the reward token, SOL, or wSOL cannot be priced
+/// on-chain, so they cannot be credited to the staking accumulator directly.
+/// They forward to the team multisig (`config.dev_wallet`) instead, which
+/// converts and donates the proceeds back: a disclosed, permissionless path
+/// that keeps an immutable program from stranding such funds forever.
+pub fn recover_foreign_token(ctx: Context<RecoverForeignToken>) -> Result<()> {
+    let source_owner = ctx.accounts.source.owner;
+    let is_sol_vault = source_owner == ctx.accounts.sol_vault.key();
+    let is_config = source_owner == ctx.accounts.config.key();
+    // Anchor constraints cannot express an OR across two accounts, so the
+    // owner gate lives here: only accounts held by the program's own PDAs are
+    // recoverable, never an arbitrary third party's.
+    require!(
+        is_sol_vault || is_config,
+        DistributorError::InvalidRecoverySource
+    );
+
+    let sol_vault_bump = [ctx.accounts.config.sol_vault_bump];
+    let config_bump = [ctx.accounts.config.bump];
+    let sol_vault_seeds: &[&[u8]] = &[SOL_VAULT_SEED, &sol_vault_bump];
+    let config_seeds: &[&[u8]] = &[CONFIG_SEED, &config_bump];
+    let signer_sol_vault = [sol_vault_seeds];
+    let signer_config = [config_seeds];
+    let (signer, authority): (&[&[&[u8]]], AccountInfo) = if is_sol_vault {
+        (&signer_sol_vault, ctx.accounts.sol_vault.to_account_info())
+    } else {
+        (&signer_config, ctx.accounts.config.to_account_info())
+    };
+
+    // A zero balance still leaves a stray account worth closing; only the
+    // transfer is skipped.
+    let amount = ctx.accounts.source.amount;
+    if amount > 0 {
+        anchor_spl::token_interface::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.source.to_account_info(),
+                    mint: ctx.accounts.foreign_mint.to_account_info(),
+                    to: ctx.accounts.destination.to_account_info(),
+                    authority: authority.clone(),
+                },
+                signer,
+            ),
+            amount,
+            ctx.accounts.foreign_mint.decimals,
+        )?;
+    }
+
+    anchor_spl::token_interface::close_account(CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        anchor_spl::token_interface::CloseAccount {
+            account: ctx.accounts.source.to_account_info(),
+            destination: ctx.accounts.cranker.to_account_info(),
+            authority,
+        },
+        signer,
+    ))?;
+
+    msg!(
+        "recover_foreign_token: mint={} amount={} forwarded to dev wallet",
+        ctx.accounts.source.mint,
+        amount
+    );
     Ok(())
 }

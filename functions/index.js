@@ -6,7 +6,7 @@
  * the Authorization header first, then serves the built app from its own bundled
  * copy of `app/dist`.
  *
- * Scope check — this protects the *devnet* preview from being stumbled upon,
+ * Scope check: this protects the *devnet* preview from being stumbled upon,
  * indexed, or mistaken for the real thing. It is not a security boundary: basic
  * auth over HTTPS is fine for that job and nothing more. Never put a mainnet
  * secret behind it.
