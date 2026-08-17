@@ -541,8 +541,14 @@ becomes the eighth check on the Verify page.
 
 **Point of no return. Do the checks first.**
 
+> `<MAINNET_PROGRAM_ID>` is the **fresh mainnet id from §0.1**, not the devnet
+> `5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp`. Burning the wrong id does
+> nothing to the mainnet program, and running it against devnet would freeze the
+> test deployment — confirm you are on `mainnet-beta` (`solana config get`) and
+> using the id you deployed today.
+
 ```bash
-solana program show 5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp
+solana program show <MAINNET_PROGRAM_ID>
 ```
 
 Confirm, one by one:
@@ -562,11 +568,11 @@ Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
 
 ```bash
-solana program set-upgrade-authority 5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp --final
+solana program set-upgrade-authority <MAINNET_PROGRAM_ID> --final
 ```
 
 ```bash
-solana program show 5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp
+solana program show <MAINNET_PROGRAM_ID>
 ```
 
 `Authority` must read **`none`**. Save that transaction signature — it leads the
