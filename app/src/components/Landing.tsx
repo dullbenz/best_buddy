@@ -155,8 +155,16 @@ export function Landing({
   const shareOf =
     initialDistribution && initialDistribution > 0n
       ? (alloc: any) => {
+          // Round to the nearest tenth rather than truncate. The allocations
+          // come from integer floor division of the distributor total, so each
+          // sits a few base units under its target; truncation showed 49.9%,
+          // 9.9% and 24.9% for what are 50/10/25 to within a billionth, and
+          // the four splits summed to 99.6% instead of 100%.
           const pct =
-            Number((BigInt(alloc.toString()) * 1000n) / initialDistribution) / 10;
+            Number(
+              (BigInt(alloc.toString()) * 1000n + initialDistribution / 2n) /
+                initialDistribution
+            ) / 10;
           return `${pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)}%`;
         }
       : null;
