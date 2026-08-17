@@ -239,7 +239,7 @@ upgrade authority is showing you half the picture.
 So here is ours, and how to check it yourself at any time:
 
 ```
-solana program show <PROGRAM_ID>
+solana program show 6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM
 ```
 
 The `Authority` line is the answer. `none` means the program is immutable and
@@ -273,7 +273,7 @@ asked to do that once.
 
 **Verify it yourself:**
 
-- Program: `<PROGRAM_ID>`
+- Program: `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM`
 - Config account: `<CONFIG_PDA>`
 - Token vault: `<VAULT_PDA>`
 - Source code: https://github.com/dullbenz/best_buddy

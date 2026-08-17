@@ -19,7 +19,7 @@ team can write about itself.
 
 | What | Address |
 |---|---|
-| Program | `<PROGRAM_ID>` |
+| Program | `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM` |
 | Config | `<CONFIG_PDA>` |
 | Token vault | `<VAULT_PDA>` |
 | SOL vault | `<SOL_VAULT_PDA>` |
@@ -36,7 +36,7 @@ team can write about itself.
 **The single most important check, and the one almost nobody runs.**
 
 ```bash
-solana program show <PROGRAM_ID>
+solana program show 6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM
 ```
 
 The `Authority` line must read **`none`**.
@@ -109,7 +109,7 @@ alter after the fact.
 Reading source proves nothing unless that source is what actually got deployed.
 
 ```bash
-solana-verify verify-from-repo -um --program-id <PROGRAM_ID> https://github.com/dullbenz/best_buddy
+solana-verify verify-from-repo -um --program-id 6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM https://github.com/dullbenz/best_buddy
 ```
 
 ## 6. The team cannot dump

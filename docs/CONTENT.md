@@ -155,7 +155,7 @@ Most "locked contract" claims never mention this.
 **8/**
 Ours was destroyed on launch day, before the token was announced.
 
-  solana program show <PROGRAM_ID>
+  solana program show 6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM
 
 If `Authority` reads `none`, the code can never change again. Not by me, not by
 anyone, ever.
@@ -212,7 +212,7 @@ bought — only earned by the checks holding up.
 > We're asking people who can read Solana programs to check ours and say
 > publicly what they find — including if it's bad.
 >
-> Program: `<PROGRAM_ID>`
+> Program: `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM`
 > Source: https://github.com/dullbenz/best_buddy
 > Guide: mybestbuddy.fun/verify
 >
