@@ -20,12 +20,12 @@ team can write about itself.
 | What | Address |
 |---|---|
 | Program | `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM` |
-| Config | `<CONFIG_PDA>` |
-| Token vault | `<VAULT_PDA>` |
-| SOL vault | `<SOL_VAULT_PDA>` |
-| Staking pool | `<POOL_PDA>` |
-| pump.fun fee config | `<SHARING_CONFIG_PDA>` |
-| Token mint | `<MINT>` |
+| Config | `5FchcWEipuLrsYWs6M634jEiHYudY1LaWc4zZKMGQJbT` |
+| Token vault | `EuLtBocmZxYTG77rqYxjLKSs8okTSCiBXpEYMkUJa5Lz` |
+| SOL vault | `Fd8YBEg6VZ2LPDXVJARD9fEcwjYGhdteNSoEiERfMykB` |
+| Staking pool | `Gaj4qbq8szJqY5G8E6gw6Ky7n13DrktcYbdgED9mxqND` |
+| pump.fun fee config | `HVwUvuA8MQrP8rWQC3uytwaA8NU8XpsDSUtoAveWp6ts` |
+| Token mint | `G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump` |
 | Source | https://github.com/dullbenz/best_buddy |
 | Devnet test campaign | https://github.com/dullbenz/best_buddy/blob/main/docs/E2E-DEVNET-CAMPAIGN.md |
 
@@ -64,7 +64,7 @@ who is asking.
 ## 3. The vault still covers everything it owes
 
 ```bash
-spl-token balance --address <VAULT_PDA>
+spl-token balance --address EuLtBocmZxYTG77rqYxjLKSs8okTSCiBXpEYMkUJa5Lz
 ```
 
 Compare against **what is still outstanding**, not the launch-day total:

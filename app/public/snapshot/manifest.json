@@ -2,9 +2,9 @@
   "oldTokenMint": "7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump",
   "slot": 439869907,
   "takenAt": "2026-08-17T14:48:36.743Z",
-  "bucketTwoAllocation": "30000000000000",
+  "bucketTwoAllocation": "56654399997081",
   "eligibleWallets": 946,
-  "merkleRoot": "abc94638c85e512f0fe636b515a96c7a409702d26ef80bac37941087eb78ef52",
+  "merkleRoot": "254e1d146f8fe847410521bbf76f22eb0c1f0957ba1b6bf3128f1cbe8b044caa",
   "exclusions": [
     {
       "address": "D3us8ZjT9eAZDBYYsowmfcDE87VvPbHRN1YaQckQQwnJ",
