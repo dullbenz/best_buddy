@@ -3,7 +3,7 @@ use crate::errors::DistributorError;
 use crate::state::*;
 use crate::utils::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // ---------------------------------------------------------------------------
 // Bucket 2: old Buddy holders. 30-day window, instant transfer, no stream.
@@ -34,16 +34,20 @@ pub struct ClaimOldHolder<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = destination.mint == config.reward_mint,
         constraint = destination.owner == claimant.key(),
     )]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
 
@@ -95,6 +99,7 @@ pub fn claim_old_holder(
     crate::instructions::staking::pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         &mut ctx.accounts.pool,
@@ -321,16 +326,20 @@ pub struct StreamWithdraw<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = destination.mint == config.reward_mint,
         constraint = destination.owner == beneficiary.key(),
     )]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn stream_withdraw(ctx: Context<StreamWithdraw>) -> Result<()> {
@@ -348,6 +357,7 @@ pub fn stream_withdraw(ctx: Context<StreamWithdraw>) -> Result<()> {
     crate::instructions::staking::pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         &mut ctx.accounts.pool,

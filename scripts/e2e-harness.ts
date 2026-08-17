@@ -18,7 +18,18 @@ import {
   createAssociatedTokenAccountInstruction,
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
+  ExtensionType,
+  getMintLen,
+  createInitializeMetadataPointerInstruction,
 } from "@solana/spl-token";
+
+/**
+ * The token program the campaign's reward mint lives under: Token-2022,
+ * because pump.fun's create_v2 path (enabled on mainnet) mints Token-2022
+ * coins and the rehearsal must match the launch. wSOL stays classic SPL.
+ */
+export const REWARD_TOKEN_PROGRAM = TOKEN_2022_PROGRAM_ID;
 import {
   Connection,
   Keypair,
@@ -219,18 +230,37 @@ export async function fundWallets(
   }
 }
 
+/**
+ * A Token-2022 mint carrying a metadata-pointer extension — the shape
+ * pump.fun's `create_v2` produces (live on mainnet via `create_v2_enabled`).
+ * The campaign must rehearse against the launch coin's real token program, or
+ * it proves a configuration the launch never uses.
+ */
 export async function createMint(ctx: Ctx): Promise<Keypair> {
   const mint = Keypair.generate();
-  const rent = await ctx.connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+  const space = getMintLen([ExtensionType.MetadataPointer]);
+  const rent = await ctx.connection.getMinimumBalanceForRentExemption(space);
   const tx = new Transaction().add(
     SystemProgram.createAccount({
       fromPubkey: ctx.payer.publicKey,
       newAccountPubkey: mint.publicKey,
-      space: MINT_SIZE,
+      space,
       lamports: rent,
-      programId: TOKEN_PROGRAM_ID,
+      programId: REWARD_TOKEN_PROGRAM,
     }),
-    createInitializeMint2Instruction(mint.publicKey, DECIMALS, ctx.payer.publicKey, null)
+    createInitializeMetadataPointerInstruction(
+      mint.publicKey,
+      ctx.payer.publicKey,
+      mint.publicKey,
+      REWARD_TOKEN_PROGRAM
+    ),
+    createInitializeMint2Instruction(
+      mint.publicKey,
+      DECIMALS,
+      ctx.payer.publicKey,
+      null,
+      REWARD_TOKEN_PROGRAM
+    )
   );
   await ctx.provider.sendAndConfirm(tx, [mint]);
   return mint;
@@ -240,7 +270,8 @@ export async function createMint(ctx: Ctx): Promise<Keypair> {
 export async function createTokenAccount(
   ctx: Ctx,
   mint: PublicKey,
-  owner: PublicKey
+  owner: PublicKey,
+  tokenProgram: PublicKey = REWARD_TOKEN_PROGRAM
 ): Promise<PublicKey> {
   const account = Keypair.generate();
   const rent = await ctx.connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
@@ -250,26 +281,34 @@ export async function createTokenAccount(
       newAccountPubkey: account.publicKey,
       space: ACCOUNT_SIZE,
       lamports: rent,
-      programId: TOKEN_PROGRAM_ID,
+      programId: tokenProgram,
     }),
-    createInitializeAccount3Instruction(account.publicKey, mint, owner)
+    createInitializeAccount3Instruction(account.publicKey, mint, owner, tokenProgram)
   );
   await ctx.provider.sendAndConfirm(tx, [account]);
   return account.publicKey;
 }
 
-/** Idempotent ATA creation; returns the address. */
+/** Idempotent ATA creation; returns the address. Pass TOKEN_PROGRAM_ID for
+ * classic-SPL mints (wSOL); the default fits the Token-2022 reward mint. */
 export async function ensureAta(
   ctx: Ctx,
   mint: PublicKey,
   owner: PublicKey,
-  offCurve = false
+  offCurve = false,
+  tokenProgram: PublicKey = REWARD_TOKEN_PROGRAM
 ): Promise<PublicKey> {
-  const ata = getAssociatedTokenAddressSync(mint, owner, offCurve);
+  const ata = getAssociatedTokenAddressSync(mint, owner, offCurve, tokenProgram);
   const info = await ctx.connection.getAccountInfo(ata);
   if (!info) {
     const tx = new Transaction().add(
-      createAssociatedTokenAccountInstruction(ctx.payer.publicKey, ata, owner, mint)
+      createAssociatedTokenAccountInstruction(
+        ctx.payer.publicKey,
+        ata,
+        owner,
+        mint,
+        tokenProgram
+      )
     );
     await ctx.provider.sendAndConfirm(tx);
   }
@@ -283,7 +322,14 @@ export async function mintTo(
   amount: bigint
 ): Promise<void> {
   const tx = new Transaction().add(
-    createMintToInstruction(mint, destination, ctx.payer.publicKey, amount)
+    createMintToInstruction(
+      mint,
+      destination,
+      ctx.payer.publicKey,
+      amount,
+      [],
+      REWARD_TOKEN_PROGRAM
+    )
   );
   await ctx.provider.sendAndConfirm(tx);
 }

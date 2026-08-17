@@ -31,7 +31,9 @@ import {
   SystemProgram,
   Transaction,
   TOKEN_PROGRAM_ID,
+  REWARD_TOKEN_PROGRAM,
   UNIT,
+  DECIMALS,
   createMint,
   createTokenAccount,
   ensureAta,
@@ -183,7 +185,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     rewardMint: mint.publicKey,
     config, pool, vault, solVault,
     systemProgram: SystemProgram.programId,
-    tokenProgram: TOKEN_PROGRAM_ID,
+    tokenProgram: REWARD_TOKEN_PROGRAM,
     rent: new PublicKey("SysvarRent111111111111111111111111111111111"),
   };
 
@@ -235,7 +237,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     await mintTo(ctx, mint.publicKey, strangerAta, 1n * UNIT);
     const res = await expectError(
       program.methods.fundVault(new BN(1)).accountsPartial({
-        authority: donor.publicKey, config, vault, pool, source: strangerAta, tokenProgram: TOKEN_PROGRAM_ID,
+        authority: donor.publicKey, config, vault, pool, source: strangerAta, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).signers([donor]).rpc(),
       ["Unauthorized", "ConstraintHasOne", "Unknown"]
     );
@@ -246,7 +248,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
   await scenario(rep, "S5", "fund_vault rejects a zero amount (ZeroAmount)", async (r) => {
     const res = await expectError(
       program.methods.fundVault(new BN(0)).accountsPartial({
-        authority: payer.publicKey, config, vault, pool, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+        authority: payer.publicKey, config, vault, pool, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).rpc(),
       "ZeroAmount"
     );
@@ -265,9 +267,9 @@ async function runA(ctx: Ctx, rep: Reporter) {
   // ---- S7: direct transfer doesn't count; fund_vault does ----
   await scenario(rep, "S7", "tokens sent outside fund_vault don't satisfy the lock; fund_vault does", async (r) => {
     // Send some tokens straight to the vault (untracked).
-    const { createTransferInstruction } = await import("@solana/spl-token");
+    const { createTransferCheckedInstruction } = await import("@solana/spl-token");
     await provider.sendAndConfirm(new Transaction().add(
-      createTransferInstruction(treasury, vault, payer.publicKey, Number(1000n * UNIT))
+      createTransferCheckedInstruction(treasury, mint.publicKey, vault, payer.publicKey, Number(1000n * UNIT), DECIMALS, [], REWARD_TOKEN_PROGRAM)
     ));
     const stillShort = await expectError(
       program.methods.lockConfig().accountsPartial({ authority: payer.publicKey, config, pool, vault }).rpc(),
@@ -275,7 +277,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     );
     // Now fund the full committed total the accounted way.
     const sig = await program.methods.fundVault(new BN(TOTAL.toString())).accountsPartial({
-      authority: payer.publicKey, config, vault, pool, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+      authority: payer.publicKey, config, vault, pool, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).rpc();
     r.pass(`direct transfer left lock short [${stillShort.observed}]; fund_vault(${TOTAL / UNIT}) tracked it`, sig);
   });
@@ -292,7 +294,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
   await scenario(rep, "S10", "fund_vault rejected after lock (ConfigLocked)", async (r) => {
     const res = await expectError(
       program.methods.fundVault(new BN(1)).accountsPartial({
-        authority: payer.publicKey, config, vault, pool, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+        authority: payer.publicKey, config, vault, pool, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).rpc(),
       "ConfigLocked"
     );
@@ -335,7 +337,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const devAta = await ensureAta(ctx, mint.publicKey, devWallet.publicKey);
     const res = await expectError(
       program.methods.streamWithdraw().accountsPartial({
-        beneficiary: devWallet.publicKey, config, stream: devStreamPda, pool, vault, destination: devAta, tokenProgram: TOKEN_PROGRAM_ID,
+        beneficiary: devWallet.publicKey, config, stream: devStreamPda, pool, vault, destination: devAta, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).signers([devWallet]).rpc(),
       "NothingToWithdraw"
     );
@@ -350,7 +352,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const res = await expectError(
       program.methods.claimOldHolder(new BN(h.amount.toString()), proof).accountsPartial({
         claimant: h.kp.publicKey, config, receipt: pda("old_claim", h.kp.publicKey.toBuffer()),
-        pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([h.kp]).rpc(),
       "ClaimWindowNotOpen"
     );
@@ -368,7 +370,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const proof = oldTree.proofFor(hashLeaf(h.kp.publicKey.toBase58(), h.amount)).map((p) => Array.from(p));
     const sig = await program.methods.claimOldHolder(new BN(h.amount.toString()), proof).accountsPartial({
       claimant: h.kp.publicKey, config, receipt: pda("old_claim", h.kp.publicKey.toBuffer()),
-      pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
     }).signers([h.kp]).rpc();
     const bal = await tokenBalance(ctx, ata);
     if (bal !== h.amount) throw new Error(`got ${bal}, expected ${h.amount}`);
@@ -378,12 +380,12 @@ async function runA(ctx: Ctx, rep: Reporter) {
   // ---- L2: double claim ----
   await scenario(rep, "L2", "the same wallet cannot claim twice", async (r) => {
     const h = holders[0];
-    const ata = getAssociatedTokenAddressSync(mint.publicKey, h.kp.publicKey);
+    const ata = getAssociatedTokenAddressSync(mint.publicKey, h.kp.publicKey, false, REWARD_TOKEN_PROGRAM);
     const proof = oldTree.proofFor(hashLeaf(h.kp.publicKey.toBase58(), h.amount)).map((p) => Array.from(p));
     const res = await expectError(
       program.methods.claimOldHolder(new BN(h.amount.toString()), proof).accountsPartial({
         claimant: h.kp.publicKey, config, receipt: pda("old_claim", h.kp.publicKey.toBuffer()),
-        pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([h.kp]).rpc(),
       ["AccountInUse", "Unknown"]
     );
@@ -398,7 +400,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const res = await expectError(
       program.methods.claimOldHolder(new BN((h.amount + 1n).toString()), proof).accountsPartial({
         claimant: h.kp.publicKey, config, receipt: pda("old_claim", h.kp.publicKey.toBuffer()),
-        pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([h.kp]).rpc(),
       "InvalidMerkleProof"
     );
@@ -413,7 +415,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const res = await expectError(
       program.methods.claimOldHolder(new BN((1n * UNIT).toString()), []).accountsPartial({
         claimant: intruder.publicKey, config, receipt: pda("old_claim", intruder.publicKey.toBuffer()),
-        pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([intruder]).rpc(),
       "InvalidMerkleProof"
     );
@@ -424,7 +426,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
       const pr = oldTree.proofFor(hashLeaf(hh.kp.publicKey.toBase58(), hh.amount)).map((p) => Array.from(p));
       await program.methods.claimOldHolder(new BN(hh.amount.toString()), pr).accountsPartial({
         claimant: hh.kp.publicKey, config, receipt: pda("old_claim", hh.kp.publicKey.toBuffer()),
-        pool, vault, destination: a, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: a, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([hh.kp]).rpc();
     }
   });
@@ -577,19 +579,19 @@ async function runA(ctx: Ctx, rep: Reporter) {
 
   const stakeAccts = (s: Keypair) => ({
     owner: s.publicKey, config, pool, position: posPda(s.publicKey), vault, source: ataFor(s),
-    tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+    rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
   });
   const positionAccts = (s: Keypair) => ({
     owner: s.publicKey, config, pool, position: posPda(s.publicKey), vault, solVault, destination: ataFor(s),
-    tokenProgram: TOKEN_PROGRAM_ID, rent: RENT_SYSVAR,
+    rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, rent: RENT_SYSVAR,
   });
   const lockAccts = (s: Keypair, index: number) => ({
     owner: s.publicKey, config, pool, counter: counterPda(s.publicKey), lockup: lockupPda(s.publicKey, index),
-    vault, source: ataFor(s), tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+    vault, source: ataFor(s), rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
   });
   const lockupAccts = (s: Keypair, index: number) => ({
     owner: s.publicKey, config, pool, lockup: lockupPda(s.publicKey, index), vault, solVault,
-    destination: ataFor(s), tokenProgram: TOKEN_PROGRAM_ID, rent: RENT_SYSVAR,
+    destination: ataFor(s), rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, rent: RENT_SYSVAR,
   });
 
   // ---- N24: rewards with nobody staked buffer instead of vanishing ----
@@ -597,7 +599,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const before = await account.stakePool.fetch(pool);
     if (big(before.totalWeight) !== 0n) throw new Error("expected an empty pool");
     const sig = await program.methods.notifyTokenRewards(new BN((1_000n * UNIT).toString())).accountsPartial({
-      depositor: payer.publicKey, config, pool, vault, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+      depositor: payer.publicKey, config, pool, vault, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).rpc();
     const p = await account.stakePool.fetch(pool);
     if (big(p.pendingTokenRewards) !== 1_000n * UNIT) throw new Error(`pending ${big(p.pendingTokenRewards) / UNIT} != 1000`);
@@ -657,9 +659,9 @@ async function runA(ctx: Ctx, rep: Reporter) {
   // ---- N6: the flash-stake probe the cooldown exists to stop ----
   await scenario(rep, "N6", "flash-stake bundle (stake huge, sync, claim, unstake) is blocked by the cooldown", async (r) => {
     // Bait: park an untracked fee-pot in the vault, visible to anyone watching.
-    const { createTransferInstruction } = await import("@solana/spl-token");
+    const { createTransferCheckedInstruction } = await import("@solana/spl-token");
     await provider.sendAndConfirm(new Transaction().add(
-      createTransferInstruction(treasury, vault, payer.publicKey, Number(5_000n * UNIT))
+      createTransferCheckedInstruction(treasury, mint.publicKey, vault, payer.publicKey, Number(5_000n * UNIT), DECIMALS, [], REWARD_TOKEN_PROGRAM)
     ));
     const balBefore = await tokenBalance(ctx, ataFor(flexB));
     const bundle = new Transaction()
@@ -775,7 +777,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const p0 = await account.stakePool.fetch(pool);
     if (big(p0.totalWeight) !== 200_000n * UNIT) throw new Error(`total weight ${big(p0.totalWeight) / UNIT} != 200000`);
     const sig = await program.methods.notifyTokenRewards(new BN((200_000n * UNIT).toString())).accountsPartial({
-      depositor: payer.publicKey, config, pool, vault, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+      depositor: payer.publicKey, config, pool, vault, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).rpc();
     await program.methods.notifySolRewards(new BN((0.2 * LAMPORTS_PER_SOL).toString())).accountsPartial({
       depositor: payer.publicKey, config, pool, solVault, systemProgram: SystemProgram.programId,
@@ -824,7 +826,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const w = big((await account.stakePool.fetch(pool)).totalWeight);
     if (w !== 240_000n * UNIT) throw new Error(`total weight ${w / UNIT} != 240000`);
     await program.methods.notifyTokenRewards(new BN((24_000n * UNIT).toString())).accountsPartial({
-      depositor: payer.publicKey, config, pool, vault, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+      depositor: payer.publicKey, config, pool, vault, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).rpc();
     // 24000 over 240000 weight: lockup#3 (40000w) accrues 4000 = base 800 + boost 3200.
     const sib0 = await account.lockup.fetch(lockupPda(lockerA.publicKey, 0));
@@ -898,7 +900,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     r.pass(`credited exactly ${credited} lamports`, sig);
   });
   await scenario(rep, "R4", "direct token transfer is invisible until sync_token_rewards", async (r) => {
-    const { createTransferInstruction } = await import("@solana/spl-token");
+    const { createTransferCheckedInstruction } = await import("@solana/spl-token");
     // Drain any pre-existing untracked tokens first (e.g. the 1000 S7 sent
     // straight to the vault) so we measure only our own gift here.
     try {
@@ -908,7 +910,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     }
     const before = BigInt((await account.stakePool.fetch(pool)).lifetimeTokenRewards.toString());
     await provider.sendAndConfirm(new Transaction().add(
-      createTransferInstruction(treasury, vault, payer.publicKey, Number(1_000n * UNIT))
+      createTransferCheckedInstruction(treasury, mint.publicKey, vault, payer.publicKey, Number(1_000n * UNIT), DECIMALS, [], REWARD_TOKEN_PROGRAM)
     ));
     const sig = await program.methods.syncTokenRewards().accountsPartial({ config, pool, vault }).rpc();
     const after = BigInt((await account.stakePool.fetch(pool)).lifetimeTokenRewards.toString());
@@ -941,7 +943,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const NATIVE = new PublicKey("So11111111111111111111111111111111111111112");
     const rentSysvar = new PublicKey("SysvarRent111111111111111111111111111111111");
     // A wSOL token account owned by the donor, not the sol_vault.
-    const strangerWsol = await createTokenAccount(ctx, NATIVE, donor.publicKey);
+    const strangerWsol = await createTokenAccount(ctx, NATIVE, donor.publicKey, TOKEN_PROGRAM_ID);
     const res = await expectError(
       program.methods.unwrapWsol().accountsPartial({
         config, pool, solVault, wsolAccount: strangerWsol, tokenProgram: TOKEN_PROGRAM_ID, rent: rentSysvar,
@@ -954,7 +956,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const donorAta = await ensureAta(ctx, mint.publicKey, donor.publicKey);
     await mintTo(ctx, mint.publicKey, donorAta, 500n * UNIT);
     const sig = await program.methods.notifyTokenRewards(new BN((500n * UNIT).toString())).accountsPartial({
-      depositor: donor.publicKey, config, pool, vault, source: donorAta, tokenProgram: TOKEN_PROGRAM_ID,
+      depositor: donor.publicKey, config, pool, vault, source: donorAta, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).signers([donor]).rpc();
     r.pass(`donor added 500 tokens to the pool`, sig);
   });
@@ -1072,7 +1074,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const pend0 = big(p0.pendingTokenRewards);
     const R = 20_000n * UNIT;
     const sig = await program.methods.notifyTokenRewards(new BN(R.toString())).accountsPartial({
-      depositor: payer.publicKey, config, pool, vault, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+      depositor: payer.publicKey, config, pool, vault, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).rpc();
     const p1 = await account.stakePool.fetch(pool);
     const delta = big(p1.accTokenPerWeight) - big(p0.accTokenPerWeight);
@@ -1205,7 +1207,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const rentLamports = BigInt((await connection.getAccountInfo(source))!.lamports);
     const crankerBefore = BigInt((await connection.getAccountInfo(donor.publicKey))!.lamports);
     const sig = await program.methods.recoverForeignToken().accountsPartial({
-      cranker: donor.publicKey, config, solVault, source, destination, tokenProgram: TOKEN_PROGRAM_ID,
+      cranker: donor.publicKey, config, solVault, source, destination, foreignMint: foreignMint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).signers([donor]).rpc();
     if ((await tokenBalance(ctx, destination)) !== 5_000n * UNIT) throw new Error("foreign tokens did not reach the team wallet");
     if (await connection.getAccountInfo(source)) throw new Error("stray token account not closed");
@@ -1217,16 +1219,16 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const devRewardAta = await ensureAta(ctx, mint.publicKey, devWallet.publicKey);
     const rewardProbe = await expectError(
       program.methods.recoverForeignToken().accountsPartial({
-        cranker: donor.publicKey, config, solVault, source: vault, destination: devRewardAta, tokenProgram: TOKEN_PROGRAM_ID,
+        cranker: donor.publicKey, config, solVault, source: vault, destination: devRewardAta, foreignMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).signers([donor]).rpc(),
       "InvalidRecoverySource"
     );
     const NATIVE = new PublicKey("So11111111111111111111111111111111111111112");
-    const wsolStray = await ensureAta(ctx, NATIVE, solVault, true);
-    const devWsolAta = await ensureAta(ctx, NATIVE, devWallet.publicKey);
+    const wsolStray = await ensureAta(ctx, NATIVE, solVault, true, TOKEN_PROGRAM_ID);
+    const devWsolAta = await ensureAta(ctx, NATIVE, devWallet.publicKey, false, TOKEN_PROGRAM_ID);
     const wsolProbe = await expectError(
       program.methods.recoverForeignToken().accountsPartial({
-        cranker: donor.publicKey, config, solVault, source: wsolStray, destination: devWsolAta, tokenProgram: TOKEN_PROGRAM_ID,
+        cranker: donor.publicKey, config, solVault, source: wsolStray, destination: devWsolAta, foreignMint: NATIVE, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).signers([donor]).rpc(),
       "InvalidRecoverySource"
     );
@@ -1238,7 +1240,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const wrongDest = await ensureAta(ctx, foreignMint.publicKey, donor.publicKey);
     const res = await expectError(
       program.methods.recoverForeignToken().accountsPartial({
-        cranker: donor.publicKey, config, solVault, source, destination: wrongDest, tokenProgram: TOKEN_PROGRAM_ID,
+        cranker: donor.publicKey, config, solVault, source, destination: wrongDest, foreignMint: foreignMint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).signers([donor]).rpc(),
       "ConstraintRaw"
     );
@@ -1255,14 +1257,14 @@ async function runA(ctx: Ctx, rep: Reporter) {
   await scenario(rep, "I4", "influencer stream vests fully and pays the whole amount by the end", async (r) => {
     const ata = await ensureAta(ctx, mint.publicKey, influencers[0].kp.publicKey);
     const sig = await program.methods.streamWithdraw().accountsPartial({
-      beneficiary: influencers[0].kp.publicKey, config, stream: inf0StreamPda, pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID,
+      beneficiary: influencers[0].kp.publicKey, config, stream: inf0StreamPda, pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).signers([influencers[0].kp]).rpc();
     const bal = await tokenBalance(ctx, ata);
     if (bal !== influencers[0].amount) throw new Error(`got ${bal / UNIT}, expected ${influencers[0].amount / UNIT}`);
     r.pass(`full ${bal / UNIT} withdrawn at maturity`, sig);
     const again = await expectError(
       program.methods.streamWithdraw().accountsPartial({
-        beneficiary: influencers[0].kp.publicKey, config, stream: inf0StreamPda, pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID,
+        beneficiary: influencers[0].kp.publicKey, config, stream: inf0StreamPda, pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).signers([influencers[0].kp]).rpc(),
       "NothingToWithdraw"
     );
@@ -1276,7 +1278,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
   await scenario(rep, "G7", "the 2014 signer stream vests and pays in full", async (r) => {
     const ata = await ensureAta(ctx, mint.publicKey, signerDest.publicKey);
     const sig = await program.methods.streamWithdraw().accountsPartial({
-      beneficiary: signerDest.publicKey, config, stream: signerStreamPda, pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID,
+      beneficiary: signerDest.publicKey, config, stream: signerStreamPda, pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).signers([signerDest]).rpc();
     const bal = await tokenBalance(ctx, ata);
     if (bal !== SIGNER_ALLOC) throw new Error(`got ${bal / UNIT}, expected ${SIGNER_ALLOC / UNIT}`);
@@ -1285,7 +1287,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
   await scenario(rep, "T6", "the team stream vests and pays in full by the end", async (r) => {
     const ata = await ensureAta(ctx, mint.publicKey, devWallet.publicKey);
     const sig = await program.methods.streamWithdraw().accountsPartial({
-      beneficiary: devWallet.publicKey, config, stream: devStreamPda, pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID,
+      beneficiary: devWallet.publicKey, config, stream: devStreamPda, pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     }).signers([devWallet]).rpc();
     const bal = await tokenBalance(ctx, ata);
     if (bal !== DEV_ALLOC) throw new Error(`got ${bal / UNIT}, expected ${DEV_ALLOC / UNIT}`);
@@ -1295,7 +1297,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const ata = await ensureAta(ctx, mint.publicKey, devWallet.publicKey);
     const res = await expectError(
       program.methods.streamWithdraw().accountsPartial({
-        beneficiary: donor.publicKey, config, stream: devStreamPda, pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID,
+        beneficiary: donor.publicKey, config, stream: devStreamPda, pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       }).signers([donor]).rpc(),
       ["Unauthorized", "ConstraintSeeds", "Unknown"]
     );
@@ -1370,7 +1372,7 @@ async function runB(ctx: Ctx, rep: Reporter) {
   await scenario(rep, "S2b", "initialize with claims_start = now (0); both windows open", async (r) => {
     const sig = await program.methods.initialize(params).accountsPartial({
       payer: payer.publicKey, authority: payer.publicKey, rewardMint: mint.publicKey,
-      config, pool, vault, solVault, systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID, rent: rentSysvar,
+      config, pool, vault, solVault, systemProgram: SystemProgram.programId, tokenProgram: REWARD_TOKEN_PROGRAM, rent: rentSysvar,
     }).rpc();
     r.pass(`initialized with claims_start = now; both claim windows open at lock`, sig);
   });
@@ -1381,7 +1383,7 @@ async function runB(ctx: Ctx, rep: Reporter) {
     const res = await expectError(
       program.methods.claimOldHolder(new BN(h.amount.toString()), proof).accountsPartial({
         claimant: h.kp.publicKey, config, receipt: pda("old_claim", h.kp.publicKey.toBuffer()),
-        pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([h.kp]).rpc(),
       "ConfigNotLocked"
     );
@@ -1396,7 +1398,7 @@ async function runB(ctx: Ctx, rep: Reporter) {
   });
 
   await program.methods.fundVault(new BN(TOTAL.toString())).accountsPartial({
-    authority: payer.publicKey, config, vault, pool, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
+    authority: payer.publicKey, config, vault, pool, source: treasury, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
   }).rpc();
   await program.methods.lockConfig().accountsPartial({ authority: payer.publicKey, config, pool, vault }).rpc();
   console.log("   funded + locked\n");
@@ -1406,7 +1408,7 @@ async function runB(ctx: Ctx, rep: Reporter) {
   await mintTo(ctx, mint.publicKey, stakerAta, 50_000n * UNIT);
   await program.methods.stake(new BN((10_000n * UNIT).toString())).accountsPartial({
     owner: staker.publicKey, config, pool, position: pda("stake", staker.publicKey.toBuffer()), vault, source: stakerAta,
-    tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+    rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
   }).signers([staker]).rpc();
 
   // Both windows were open when we locked; now wait them out on chain so the
@@ -1427,7 +1429,7 @@ async function runB(ctx: Ctx, rep: Reporter) {
     const res = await expectError(
       program.methods.claimOldHolder(new BN(h.amount.toString()), proof).accountsPartial({
         claimant: h.kp.publicKey, config, receipt: pda("old_claim", h.kp.publicKey.toBuffer()),
-        pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([h.kp]).rpc(),
       "ClaimWindowClosed"
     );
@@ -1469,7 +1471,7 @@ async function runB(ctx: Ctx, rep: Reporter) {
     const res = await expectError(
       program.methods.claimOldHolder(new BN(h.amount.toString()), proof).accountsPartial({
         claimant: h.kp.publicKey, config, receipt: pda("old_claim", h.kp.publicKey.toBuffer()),
-        pool, vault, destination: ata, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        pool, vault, destination: ata, rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, systemProgram: SystemProgram.programId,
       }).signers([h.kp]).rpc(),
       "ClaimWindowClosed"
     );
@@ -1569,7 +1571,7 @@ async function runB(ctx: Ctx, rep: Reporter) {
     const before = await tokenBalance(ctx, stakerAta);
     const sig = await program.methods.claimRewards().accountsPartial({
       owner: staker.publicKey, config, pool, position: pda("stake", staker.publicKey.toBuffer()), vault, solVault, destination: stakerAta,
-      tokenProgram: TOKEN_PROGRAM_ID, rent: rentSysvar,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM, rent: rentSysvar,
     }).signers([staker]).rpc();
     const after = await tokenBalance(ctx, stakerAta);
     if (after <= before) throw new Error("staker received nothing");

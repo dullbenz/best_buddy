@@ -15,6 +15,16 @@ import { useProgram } from "./useProgram";
 export interface DistributorState {
   config: any;
   pool: any;
+  /**
+   * The program that owns the reward mint — classic SPL Token or Token-2022.
+   *
+   * Read from the mint account itself rather than assumed, because pump.fun
+   * mints through `create_v2` (Token-2022) while its `create_v2_enabled` flag
+   * is on and through `create` (classic) when it is off, and every ATA
+   * derivation and every instruction's `token_program` account must name
+   * whichever one the launch coin actually got. Null until the read lands.
+   */
+  rewardTokenProgram: PublicKey | null;
   vaultBalance: bigint;
   solVaultBalance: bigint;
   /**
@@ -49,6 +59,7 @@ function useDistributorSource(): DistributorState {
   const { connection } = useConnection();
   const [config, setConfig] = useState<any>(null);
   const [pool, setPool] = useState<any>(null);
+  const [rewardTokenProgram, setRewardTokenProgram] = useState<PublicKey | null>(null);
   const [vaultBalance, setVaultBalance] = useState<bigint>(0n);
   const [solVaultBalance, setSolVaultBalance] = useState<bigint>(0n);
   const [solVaultRentFloor, setSolVaultRentFloor] = useState<bigint>(0n);
@@ -84,7 +95,15 @@ function useDistributorSource(): DistributorState {
         const cfg = coder.decode("config", cfgInfo.data);
         const pl = coder.decode("stakePool", poolInfo.data);
 
-        const vaultInfo = await connection.getTokenAccountBalance(pda([SEEDS.vault]));
+        // One round trip for the vault and the mint together: the vault's
+        // token amount is the u64 at offset 64 (identical layout in both token
+        // programs), and the mint account's owner tells us which token program
+        // every transaction must be built against.
+        const [vaultInfo, mintInfo] = await connection.getMultipleAccountsInfo([
+          pda([SEEDS.vault]),
+          new PublicKey(cfg.rewardMint),
+        ]);
+        if (!mintInfo) throw new Error("reward mint account not found");
 
         // Mirror the program: floor = rent for the vault's own data length.
         const floor = solInfo
@@ -94,7 +113,10 @@ function useDistributorSource(): DistributorState {
         if (cancelled) return;
         setConfig(cfg);
         setPool(pl);
-        setVaultBalance(BigInt(vaultInfo.value.amount));
+        setRewardTokenProgram(mintInfo.owner);
+        setVaultBalance(
+          vaultInfo ? Buffer.from(vaultInfo.data).readBigUInt64LE(64) : 0n
+        );
         setSolVaultBalance(BigInt(solInfo?.lamports ?? 0));
         setSolVaultRentFloor(floor);
         setError(null);
@@ -119,6 +141,7 @@ function useDistributorSource(): DistributorState {
   return {
     config,
     pool,
+    rewardTokenProgram,
     vaultBalance,
     solVaultBalance,
     solVaultRentFloor,

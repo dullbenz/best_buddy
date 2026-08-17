@@ -2,7 +2,13 @@ use crate::constants::*;
 use crate::errors::DistributorError;
 use crate::state::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount, Transfer};
+// The token interface, not the classic token program: pump.fun mints coins
+// through `create_v2` (Token-2022) whenever its `create_v2_enabled` flag is on,
+// which it is on mainnet today, and this program has to hold whichever kind the
+// launch produces. `transfer_checked` rather than the deprecated `transfer`,
+// because an immutable program should not depend on a deprecated instruction
+// surviving forever.
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked};
 
 /// Move lamports out of the SOL reward vault.
 ///
@@ -48,10 +54,11 @@ pub(crate) fn pay_sol_from_vault<'info>(
 /// replaces six near-identical copies of this CPI that previously lived in the
 /// claim, stream, unstake, exit and reward paths.
 pub(crate) fn pay_token_from_vault<'info>(
-    vault: &Account<'info, TokenAccount>,
-    destination: &Account<'info, TokenAccount>,
+    vault: &InterfaceAccount<'info, TokenAccount>,
+    destination: &InterfaceAccount<'info, TokenAccount>,
+    mint: &InterfaceAccount<'info, Mint>,
     config: &Account<'info, Config>,
-    token_program: &Program<'info, Token>,
+    token_program: &Interface<'info, TokenInterface>,
     pool: &mut StakePool,
     amount: u64,
 ) -> Result<()> {
@@ -65,17 +72,19 @@ pub(crate) fn pay_token_from_vault<'info>(
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
     let signer: &[&[&[u8]]] = &[&[CONFIG_SEED, &[config.bump]]];
-    anchor_spl::token::transfer(
+    anchor_spl::token_interface::transfer_checked(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
-            Transfer {
+            TransferChecked {
                 from: vault.to_account_info(),
+                mint: mint.to_account_info(),
                 to: destination.to_account_info(),
                 authority: config.to_account_info(),
             },
             signer,
         ),
         amount,
+        mint.decimals,
     )
 }
 
@@ -105,16 +114,20 @@ pub struct Stake<'info> {
     pub position: Account<'info, StakePosition>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = source.mint == config.reward_mint,
         constraint = source.owner == owner.key(),
     )]
-    pub source: Account<'info, TokenAccount>,
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
 
@@ -182,16 +195,18 @@ pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    anchor_spl::token::transfer(
+    anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Transfer {
+            TransferChecked {
                 from: ctx.accounts.source.to_account_info(),
+                mint: ctx.accounts.reward_mint.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.owner.to_account_info(),
             },
         ),
         amount,
+        ctx.accounts.reward_mint.decimals,
     )?;
 
     msg!(
@@ -245,15 +260,19 @@ pub struct Unstake<'info> {
     pub position: Account<'info, StakePosition>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
     pub sol_vault: Account<'info, SolVault>,
 
     #[account(mut, constraint = destination.mint == config.reward_mint)]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -323,6 +342,7 @@ pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
     pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         pool,
@@ -367,15 +387,19 @@ pub struct ClaimRewards<'info> {
     pub position: Account<'info, StakePosition>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
     pub sol_vault: Account<'info, SolVault>,
 
     #[account(mut, constraint = destination.mint == config.reward_mint)]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -398,6 +422,7 @@ pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
     pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         pool,
@@ -482,16 +507,20 @@ pub struct LockTokens<'info> {
     pub lockup: Account<'info, Lockup>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = source.mint == config.reward_mint,
         constraint = source.owner == owner.key(),
     )]
-    pub source: Account<'info, TokenAccount>,
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
 
@@ -565,16 +594,18 @@ pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, tier: u8, index: u64) 
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    anchor_spl::token::transfer(
+    anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Transfer {
+            TransferChecked {
                 from: ctx.accounts.source.to_account_info(),
+                mint: ctx.accounts.reward_mint.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.owner.to_account_info(),
             },
         ),
         amount,
+        ctx.accounts.reward_mint.decimals,
     )?;
 
     msg!(
@@ -609,15 +640,19 @@ pub struct ClaimLockupRewards<'info> {
     pub lockup: Account<'info, Lockup>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
     pub sol_vault: Account<'info, SolVault>,
 
     #[account(mut, constraint = destination.mint == config.reward_mint)]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -651,6 +686,7 @@ pub fn claim_lockup_rewards(ctx: Context<ClaimLockupRewards>) -> Result<()> {
     pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         pool,
@@ -737,15 +773,19 @@ pub struct UnlockTokens<'info> {
     pub lockup: Account<'info, Lockup>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
     pub sol_vault: Account<'info, SolVault>,
 
     #[account(mut, constraint = destination.mint == config.reward_mint)]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -785,6 +825,7 @@ pub fn unlock_tokens(ctx: Context<UnlockTokens>) -> Result<()> {
     pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         pool,
@@ -829,15 +870,19 @@ pub struct EmergencyExitLockup<'info> {
     pub lockup: Account<'info, Lockup>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut, seeds = [SOL_VAULT_SEED], bump = config.sol_vault_bump)]
     pub sol_vault: Account<'info, SolVault>,
 
     #[account(mut, constraint = destination.mint == config.reward_mint)]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -912,6 +957,7 @@ pub fn emergency_exit_lockup(ctx: Context<EmergencyExitLockup>) -> Result<()> {
     pay_token_from_vault(
         &ctx.accounts.vault,
         &ctx.accounts.destination,
+        &ctx.accounts.reward_mint,
         &ctx.accounts.config,
         &ctx.accounts.token_program,
         pool,

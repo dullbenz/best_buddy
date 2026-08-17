@@ -507,6 +507,15 @@ Costs ~3–5 SOL.
 
 Same icon, the story, real community socials.
 
+> **The coin will be a Token-2022 mint.** pump.fun creates coins through
+> `create_v2` (which mints under Token-2022) whenever its global
+> `create_v2_enabled` flag is on — read live from the Global account, it is on.
+> The contract, the site, `deploy-init.ts` and `team-withdraw.ts` all handle
+> this by reading the mint's owning program at run time and using the token
+> interface, so either outcome works; nothing assumes classic SPL. The devnet
+> campaign runs against a Token-2022 mint carrying a metadata-pointer
+> extension, mirroring exactly what `create_v2` produces.
+
 ### 4.3 Dev-buy in the same transaction as creation
 
 Use pump.fun's initial-buy field. Buying a minute later costs more and looks

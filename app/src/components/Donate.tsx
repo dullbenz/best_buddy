@@ -1,8 +1,5 @@
 import { BN } from "@coral-xyz/anchor";
-import {
-  getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { SystemProgram } from "@solana/web3.js";
 import { useState } from "react";
@@ -29,7 +26,7 @@ import { useProgram } from "../useProgram";
 export function Donate() {
   const { publicKey } = useWallet();
   const program = useProgram();
-  const { config, refresh } = useDistributor();
+  const { config, rewardTokenProgram, refresh } = useDistributor();
 
   const [amount, setAmount] = useState("");
   const [asset, setAsset] = useState<"sol" | "buddy">("sol");
@@ -73,8 +70,14 @@ export function Donate() {
             config: pda([SEEDS.config]),
             pool: pda([SEEDS.pool]),
             vault: pda([SEEDS.vault]),
-            source: getAssociatedTokenAddressSync(config!.rewardMint, publicKey),
-            tokenProgram: TOKEN_PROGRAM_ID,
+            source: getAssociatedTokenAddressSync(
+              config!.rewardMint,
+              publicKey,
+              false,
+              rewardTokenProgram!
+            ),
+            rewardMint: config!.rewardMint,
+            tokenProgram: rewardTokenProgram!,
           })
           .rpc();
       }

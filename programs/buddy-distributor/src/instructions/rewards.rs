@@ -3,7 +3,7 @@ use crate::errors::DistributorError;
 use crate::state::*;
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer as system_transfer, Transfer as SystemTransfer};
-use anchor_spl::token::{Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked};
 
 #[derive(Accounts)]
 pub struct NotifyTokenRewards<'info> {
@@ -17,16 +17,20 @@ pub struct NotifyTokenRewards<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = source.mint == config.reward_mint,
         constraint = source.owner == depositor.key(),
     )]
-    pub source: Account<'info, TokenAccount>,
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 /// Push token rewards into bucket 1 from an account you control.
@@ -47,16 +51,18 @@ pub fn notify_token_rewards(ctx: Context<NotifyTokenRewards>, amount: u64) -> Re
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    anchor_spl::token::transfer(
+    anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Transfer {
+            TransferChecked {
                 from: ctx.accounts.source.to_account_info(),
+                mint: ctx.accounts.reward_mint.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.depositor.to_account_info(),
             },
         ),
         amount,
+        ctx.accounts.reward_mint.decimals,
     )?;
 
     ctx.accounts.pool.add_token_rewards(amount)?;
@@ -198,7 +204,7 @@ pub struct SyncTokenRewards<'info> {
     pub pool: Account<'info, StakePool>,
 
     #[account(seeds = [VAULT_SEED], bump = config.vault_bump)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 }
 
 /// Credit reward-mint tokens sitting in the vault that nobody has accounted for.
@@ -241,9 +247,12 @@ pub struct UnwrapWsol<'info> {
         constraint = wsol_account.mint == WSOL_MINT @ DistributorError::InvalidWsolAccount,
         constraint = wsol_account.owner == sol_vault.key() @ DistributorError::InvalidWsolAccount,
     )]
-    pub wsol_account: Account<'info, TokenAccount>,
+    pub wsol_account: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// wSOL remains a classic SPL Token mint even when the reward mint is
+    /// Token-2022, so the caller passes whichever token program owns
+    /// `wsol_account` — the interface type accepts either.
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -263,9 +272,9 @@ pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
     let sol_vault_bump = ctx.accounts.config.sol_vault_bump;
     let signer: &[&[&[u8]]] = &[&[SOL_VAULT_SEED, &[sol_vault_bump]]];
 
-    anchor_spl::token::close_account(CpiContext::new_with_signer(
+    anchor_spl::token_interface::close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        anchor_spl::token::CloseAccount {
+        anchor_spl::token_interface::CloseAccount {
             account: ctx.accounts.wsol_account.to_account_info(),
             destination: ctx.accounts.sol_vault.to_account_info(),
             authority: ctx.accounts.sol_vault.to_account_info(),
@@ -312,16 +321,21 @@ pub struct RecoverForeignToken<'info> {
         constraint = source.mint != config.reward_mint @ DistributorError::InvalidRecoverySource,
         constraint = source.mint != WSOL_MINT @ DistributorError::InvalidRecoverySource,
     )]
-    pub source: Account<'info, TokenAccount>,
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = destination.mint == source.mint,
         constraint = destination.owner == config.dev_wallet,
     )]
-    pub destination: Account<'info, TokenAccount>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The stray token's own mint, pinned to `source`; `transfer_checked`
+    /// reads its decimals on chain.
+    #[account(constraint = foreign_mint.key() == source.mint @ DistributorError::InvalidRecoverySource)]
+    pub foreign_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 /// Forward tokens of a foreign mint to the team multisig, and close the stray
@@ -360,23 +374,25 @@ pub fn recover_foreign_token(ctx: Context<RecoverForeignToken>) -> Result<()> {
     // transfer is skipped.
     let amount = ctx.accounts.source.amount;
     if amount > 0 {
-        anchor_spl::token::transfer(
+        anchor_spl::token_interface::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
-                Transfer {
+                TransferChecked {
                     from: ctx.accounts.source.to_account_info(),
+                    mint: ctx.accounts.foreign_mint.to_account_info(),
                     to: ctx.accounts.destination.to_account_info(),
                     authority: authority.clone(),
                 },
                 signer,
             ),
             amount,
+            ctx.accounts.foreign_mint.decimals,
         )?;
     }
 
-    anchor_spl::token::close_account(CpiContext::new_with_signer(
+    anchor_spl::token_interface::close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        anchor_spl::token::CloseAccount {
+        anchor_spl::token_interface::CloseAccount {
             account: ctx.accounts.source.to_account_info(),
             destination: ctx.accounts.cranker.to_account_info(),
             authority,

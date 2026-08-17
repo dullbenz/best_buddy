@@ -16,12 +16,27 @@ import {
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
-  MINT_SIZE,
+  TOKEN_2022_PROGRAM_ID,
   createInitializeMint2Instruction,
   createInitializeAccount3Instruction,
+  createInitializeMetadataPointerInstruction,
   createMintToInstruction,
+  getMintLen,
+  ExtensionType,
   ACCOUNT_SIZE,
 } from "@solana/spl-token";
+
+/**
+ * The token program the reward mint lives under.
+ *
+ * Token-2022, not classic SPL: pump.fun creates coins through `create_v2`
+ * whenever its global `create_v2_enabled` flag is on — which it is on mainnet —
+ * and `create_v2` mints under Token-2022. The launch coin will therefore be a
+ * Token-2022 mint, and a suite that tested against classic SPL would prove a
+ * configuration the launch never uses. wSOL stays classic; that pairing (2022
+ * reward mint, classic wSOL) is exactly the mainnet reality.
+ */
+export const REWARD_TOKEN_PROGRAM = TOKEN_2022_PROGRAM_ID;
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { startAnchor, ProgramTestContext, Clock } from "solana-bankrun";
@@ -182,24 +197,40 @@ export async function fundSol(
   await env.provider.sendAndConfirm(tx, [env.payer]);
 }
 
+/**
+ * A Token-2022 mint carrying a metadata-pointer extension, mirroring what
+ * pump.fun's `create_v2` produces (its mints embed on-chain metadata via the
+ * pointer). The extension matters to the tests: it makes the mint
+ * extension-bearing, which is the shape that broke naive `dataSize: 165`
+ * assumptions once already, in scripts/snapshot.ts.
+ */
 export async function createMint(env: Env, decimals = 6): Promise<PublicKey> {
   const mint = Keypair.generate();
+  const space = getMintLen([ExtensionType.MetadataPointer]);
   const rent = await env.context.banksClient.getRent();
-  const lamports = Number(rent.minimumBalance(BigInt(MINT_SIZE)));
+  const lamports = Number(rent.minimumBalance(BigInt(space)));
 
   const tx = new Transaction().add(
     SystemProgram.createAccount({
       fromPubkey: env.payer.publicKey,
       newAccountPubkey: mint.publicKey,
-      space: MINT_SIZE,
+      space,
       lamports,
-      programId: TOKEN_PROGRAM_ID,
+      programId: REWARD_TOKEN_PROGRAM,
     }),
+    // Extensions initialize before the mint itself.
+    createInitializeMetadataPointerInstruction(
+      mint.publicKey,
+      env.payer.publicKey,
+      mint.publicKey, // metadata would live in the mint, as pump.fun's does
+      REWARD_TOKEN_PROGRAM,
+    ),
     createInitializeMint2Instruction(
       mint.publicKey,
       decimals,
       env.payer.publicKey,
       null,
+      REWARD_TOKEN_PROGRAM,
     ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer, mint]);
@@ -225,9 +256,14 @@ export async function createTokenAccount(
       newAccountPubkey: account.publicKey,
       space: ACCOUNT_SIZE,
       lamports,
-      programId: TOKEN_PROGRAM_ID,
+      programId: REWARD_TOKEN_PROGRAM,
     }),
-    createInitializeAccount3Instruction(account.publicKey, mint, owner),
+    createInitializeAccount3Instruction(
+      account.publicKey,
+      mint,
+      owner,
+      REWARD_TOKEN_PROGRAM,
+    ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer, account]);
   return account.publicKey;
@@ -245,6 +281,8 @@ export async function mintTo(
       destination,
       env.payer.publicKey,
       BigInt(amount),
+      [],
+      REWARD_TOKEN_PROGRAM,
     ),
   );
   await env.provider.sendAndConfirm(tx, [env.payer]);

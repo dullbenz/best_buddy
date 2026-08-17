@@ -41,6 +41,19 @@ system.
 
 ## 2. Architecture in one page
 
+**Token program.** The launch coin is a pump.fun `create_v2` mint, which means
+**Token-2022** (pump.fun's `create_v2_enabled` global flag is on for mainnet).
+Every token account is an `InterfaceAccount`, every token program an
+`Interface<TokenInterface>`, and every transfer is `transfer_checked` — the
+deprecated `transfer` is never used, because an immutable program should not
+depend on a deprecated instruction. Each instruction that moves reward tokens
+therefore carries the `reward_mint` account (`address = config.reward_mint`),
+and `recover_foreign_token` carries the stray token's own mint. wSOL remains a
+classic SPL mint, so `unwrap_wsol` is called with the classic token program —
+the interface accepts either. Worth an auditor's attention: the mint constraint
+on every added mint account, and that decimals come from the mint account, not
+a constant.
+
 **Config lock lifecycle.** `initialize` (once, config PDA is a singleton) sets
 every allocation, Merkle root, deadline and the signer key; `fund_vault` moves
 the committed tokens in; `lock_config` verifies solvency and freezes all of

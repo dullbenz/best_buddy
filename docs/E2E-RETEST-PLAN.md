@@ -1,9 +1,31 @@
-# Retest plan — staking redesign (v2)
+# Retest plan — staking redesign (v2), Token-2022 migration (v3)
 
 The staking model changed after the first campaign
 ([E2E-DEVNET-CAMPAIGN.md](E2E-DEVNET-CAMPAIGN.md)). This document is the
 delta: what changed, which proven scenarios are invalidated by it, and the
-full list of what must run again on devnet before the security review.
+full list of what must run again on devnet before launch.
+
+## v3 delta — the Token-2022 migration
+
+Discovered pre-launch: pump.fun's `create_v2_enabled` flag is on for mainnet,
+so the launch coin will be a **Token-2022** mint — and the program, tests,
+app and scripts were all built against classic SPL Token. Launching unmigrated
+would have deployed a program structurally unable to hold its own coin.
+
+| # | Change | Why |
+|---|---|---|
+| 1 | Program: `anchor_spl::token` → `token_interface` throughout (`InterfaceAccount`, `Interface<TokenInterface>`); every transfer is `transfer_checked`, never the deprecated `transfer` | Works under either token program; an immutable program must not depend on a deprecated instruction surviving |
+| 2 | Every instruction that moves reward tokens gains the `reward_mint` account (`address = config.reward_mint`); `recover_foreign_token` gains `foreign_mint` | `transfer_checked` verifies decimals against the mint on chain |
+| 3 | Tests, campaign, rehearsal: reward mint created under Token-2022 with a metadata-pointer extension — the exact shape `create_v2` mints; wSOL stays classic | Rehearse the launch pairing, not a lab configuration |
+| 4 | App reads the mint's owning program from chain and derives every ATA under it; `deploy-init.ts` / `team-withdraw.ts` do the same at run time | Correct whichever create path pump.fun has enabled on launch day |
+
+**Retest consequence: every scenario re-ran.** The token program participates
+in every vault transfer, so the entire matrix was invalidated and campaign v3
+re-executed both runs end-to-end against a Token-2022 mint. Results in
+[E2E-DEVNET-CAMPAIGN.md](E2E-DEVNET-CAMPAIGN.md). The v2 sections below are
+kept for the history of what changed and why.
+
+---
 
 ## What changed
 

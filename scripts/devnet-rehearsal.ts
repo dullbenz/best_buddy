@@ -26,10 +26,13 @@ import {
   createAssociatedTokenAccountInstruction,
   createInitializeAccount3Instruction,
   createInitializeMint2Instruction,
+  createInitializeMetadataPointerInstruction,
+  ExtensionType,
+  getMintLen,
+  TOKEN_2022_PROGRAM_ID,
   createMintToInstruction,
   getAssociatedTokenAddressSync,
   MINT_SIZE,
-  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   Connection,
@@ -45,6 +48,9 @@ import * as os from "os";
 import { buildTree, hashLeaf, MerkleTree } from "./merkle";
 
 const DECIMALS = 6;
+// Token-2022: what pump.fun's create_v2 mints (enabled on mainnet). The
+// rehearsal must exercise the launch coin's real token program.
+const REWARD_TOKEN_PROGRAM = TOKEN_2022_PROGRAM_ID;
 const UNIT = 10n ** BigInt(DECIMALS);
 
 const OLD_ALLOC = 550_000n * UNIT;
@@ -139,27 +145,34 @@ async function main() {
   heading("Create a mock token (stand-in for the pump.fun mint)");
 
   const mint = Keypair.generate();
-  const mintRent = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+  const mintSpace = getMintLen([ExtensionType.MetadataPointer]);
+  const mintRent = await connection.getMinimumBalanceForRentExemption(mintSpace);
   await provider.sendAndConfirm(
     new Transaction().add(
       SystemProgram.createAccount({
         fromPubkey: payer.publicKey,
         newAccountPubkey: mint.publicKey,
-        space: MINT_SIZE,
+        space: mintSpace,
         lamports: mintRent,
-        programId: TOKEN_PROGRAM_ID,
+        programId: REWARD_TOKEN_PROGRAM,
       }),
-      createInitializeMint2Instruction(mint.publicKey, DECIMALS, payer.publicKey, null)
+      createInitializeMetadataPointerInstruction(
+        mint.publicKey,
+        payer.publicKey,
+        mint.publicKey,
+        REWARD_TOKEN_PROGRAM
+      ),
+      createInitializeMint2Instruction(mint.publicKey, DECIMALS, payer.publicKey, null, REWARD_TOKEN_PROGRAM)
     ),
     [mint]
   );
   ok(`mint ${mint.publicKey.toBase58()}`);
 
-  const treasury = getAssociatedTokenAddressSync(mint.publicKey, payer.publicKey);
+  const treasury = getAssociatedTokenAddressSync(mint.publicKey, payer.publicKey, false, REWARD_TOKEN_PROGRAM);
   await provider.sendAndConfirm(
     new Transaction().add(
-      createAssociatedTokenAccountInstruction(payer.publicKey, treasury, payer.publicKey, mint.publicKey),
-      createMintToInstruction(mint.publicKey, treasury, payer.publicKey, TOTAL + STAKE_TEST)
+      createAssociatedTokenAccountInstruction(payer.publicKey, treasury, payer.publicKey, mint.publicKey, REWARD_TOKEN_PROGRAM),
+      createMintToInstruction(mint.publicKey, treasury, payer.publicKey, TOTAL + STAKE_TEST, [], REWARD_TOKEN_PROGRAM)
     )
   );
   ok(`minted ${(TOTAL + STAKE_TEST) / UNIT} tokens to the treasury`);
@@ -238,7 +251,7 @@ async function main() {
       vault: vaultPda,
       solVault: solVaultPda,
       systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      tokenProgram: REWARD_TOKEN_PROGRAM,
       rent: SYSVAR_RENT_PUBKEY,
     })
     .rpc();
@@ -255,7 +268,7 @@ async function main() {
       config: configPda,
       vault: vaultPda,
       source: treasury,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     })
     .rpc();
   const funded = await connection.getTokenAccountBalance(vaultPda);
@@ -279,7 +292,7 @@ async function main() {
         config: configPda,
         vault: vaultPda,
         source: treasury,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       })
       .rpc();
     throw new Error("FUNDING SUCCEEDED AFTER LOCK. This should be impossible");
@@ -308,10 +321,10 @@ async function main() {
   heading("Old-holder claim: a real Merkle proof accepted on chain");
 
   const holder = oldHolders[0];
-  const holderAta = getAssociatedTokenAddressSync(mint.publicKey, holder.kp.publicKey);
+  const holderAta = getAssociatedTokenAddressSync(mint.publicKey, holder.kp.publicKey, false, REWARD_TOKEN_PROGRAM);
   await provider.sendAndConfirm(
     new Transaction().add(
-      createAssociatedTokenAccountInstruction(payer.publicKey, holderAta, holder.kp.publicKey, mint.publicKey)
+      createAssociatedTokenAccountInstruction(payer.publicKey, holderAta, holder.kp.publicKey, mint.publicKey, REWARD_TOKEN_PROGRAM)
     )
   );
 
@@ -327,7 +340,7 @@ async function main() {
       receipt: pda("old_claim", holder.kp.publicKey.toBuffer()),
       vault: vaultPda,
       destination: holderAta,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       systemProgram: SystemProgram.programId,
     })
     .signers([holder.kp])
@@ -345,7 +358,7 @@ async function main() {
         receipt: pda("old_claim", holder.kp.publicKey.toBuffer()),
         vault: vaultPda,
         destination: holderAta,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
         systemProgram: SystemProgram.programId,
       })
       .signers([holder.kp])
@@ -391,11 +404,11 @@ async function main() {
       })
     )
   );
-  const stakerAta = getAssociatedTokenAddressSync(mint.publicKey, staker.publicKey);
+  const stakerAta = getAssociatedTokenAddressSync(mint.publicKey, staker.publicKey, false, REWARD_TOKEN_PROGRAM);
   await provider.sendAndConfirm(
     new Transaction().add(
-      createAssociatedTokenAccountInstruction(payer.publicKey, stakerAta, staker.publicKey, mint.publicKey),
-      createMintToInstruction(mint.publicKey, stakerAta, payer.publicKey, STAKE_TEST + LOCK_TEST)
+      createAssociatedTokenAccountInstruction(payer.publicKey, stakerAta, staker.publicKey, mint.publicKey, REWARD_TOKEN_PROGRAM),
+      createMintToInstruction(mint.publicKey, stakerAta, payer.publicKey, STAKE_TEST + LOCK_TEST, [], REWARD_TOKEN_PROGRAM)
     )
   );
 
@@ -410,7 +423,7 @@ async function main() {
       position: pda("stake", staker.publicKey.toBuffer()),
       vault: vaultPda,
       source: stakerAta,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       systemProgram: SystemProgram.programId,
     })
     .signers([staker])
@@ -441,7 +454,7 @@ async function main() {
       lockup: lockupPda,
       vault: vaultPda,
       source: stakerAta,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       systemProgram: SystemProgram.programId,
     })
     .signers([staker])
@@ -451,7 +464,7 @@ async function main() {
   const rewardAmount = 10_000n * UNIT;
   await provider.sendAndConfirm(
     new Transaction().add(
-      createMintToInstruction(mint.publicKey, treasury, payer.publicKey, rewardAmount)
+      createMintToInstruction(mint.publicKey, treasury, payer.publicKey, rewardAmount, [], REWARD_TOKEN_PROGRAM)
     )
   );
   await program.methods
@@ -462,7 +475,7 @@ async function main() {
       pool: poolPda,
       vault: vaultPda,
       source: treasury,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
     })
     .rpc();
   ok(`deposited ${rewardAmount / UNIT} tokens of rewards into bucket 1`);
@@ -478,7 +491,7 @@ async function main() {
       vault: vaultPda,
       solVault: solVaultPda,
       destination: stakerAta,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       rent: SYSVAR_RENT_PUBKEY,
     })
     .signers([staker])
@@ -498,7 +511,7 @@ async function main() {
       vault: vaultPda,
       solVault: solVaultPda,
       destination: stakerAta,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: mint.publicKey, tokenProgram: REWARD_TOKEN_PROGRAM,
       rent: SYSVAR_RENT_PUBKEY,
     })
     .signers([staker])

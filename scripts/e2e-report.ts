@@ -90,15 +90,13 @@ out.push("");
 out.push(`📝 = documented behaviour (an edge worth noting for the security review), not a failure.`);
 out.push("");
 out.push(
-  `> **The single Run A ❌ (N19) is a corrected test-harness assertion, not a contract fault.** ` +
-    `N19 checks that rewards paid to a lockup *after* it demotes at maturity accrue at exactly 1x, ` +
-    `no boost. That on-chain behaviour is correct and is proven deterministically by the bankrun test ` +
-    `_"lets a stranger demote a matured lockup, exactly once, and it earns 1x thereafter"_ ` +
-    `(\`tests/buddy-distributor.ts\`). The scenario's *helper* check pre-dated the dust-buffering fix: it ` +
-    `expected the reward accumulator to move by exactly \`reward · ACC / weight\`, but that fix now folds ` +
-    `each reward into \`pending\` and drains only whole per-weight units, so the true delta is ` +
-    `\`(pending + reward) · ACC / weight\` — larger by the carried dust. The assertion was corrected in ` +
-    `\`scripts/e2e-campaign.ts\` to include the pending buffer; the program was not touched.`
+  `> **The single Run B 📝 (W6) is a fast-clock timing artifact, not a contract fault.** ` +
+    `W6 expects \`release_community_stream\` to find nothing withdrawable in the same instant the ` +
+    `sweep opened the stream. Under the compressed 3-minute stream, at least one second has vested by ` +
+    `the time the release transaction lands on devnet, so a tiny first release succeeds instead of ` +
+    `rejecting. W7 immediately proves the schedule itself: ~half the forfeit at the halfway mark, the ` +
+    `exact total at the end, and \`NothingToWithdraw\` on every attempt after. With the real 30-day ` +
+    `stream the same-second window is unhittable by a human.`
 );
 out.push("");
 
@@ -116,6 +114,14 @@ out.push(`**What I drove, and how.** Each scenario is a real transaction (or a r
   `locally generated secp256k1 key so a valid Bitcoin-style signature can actually ` +
   `be produced. Every row below with a \`tx\` link is a signature you can open on ` +
   `Solscan and inspect independently — the accounts touched, the amounts, the logs.`);
+out.push("");
+out.push(`**The mint is Token-2022, deliberately.** pump.fun creates coins through ` +
+  `\`create_v2\` whenever its \`create_v2_enabled\` flag is on — it is on for mainnet — ` +
+  `and \`create_v2\` mints under **Token-2022**, not classic SPL Token. The campaign's ` +
+  `reward mint is therefore a Token-2022 mint carrying a metadata-pointer extension, ` +
+  `the exact shape \`create_v2\` produces, and every instruction runs through the ` +
+  `token interface with \`transfer_checked\`. wSOL remains classic SPL, so the ` +
+  `\`unwrap_wsol\` scenarios exercise the mixed pairing the launch will actually have.`);
 out.push("");
 out.push(`**What you verify, and how.** I cannot drive a browser wallet like Phantom, ` +
   `so the columns above prove the *contract* behaves correctly, not the *site's* ` +

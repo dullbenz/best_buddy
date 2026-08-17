@@ -3,7 +3,6 @@ import bs58 from "bs58";
 import {
   createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -133,7 +132,7 @@ export function MyBuddy() {
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
   const program = useProgram();
-  const { config, refresh } = useDistributor();
+  const { config, rewardTokenProgram, refresh } = useDistributor();
   const { stream, refresh: refreshStream } = useStream(publicKey ?? null);
   const receipts = useClaimReceipts(publicKey ?? null);
   const { position, refresh: refreshPosition } = useStakePosition(publicKey ?? null);
@@ -206,13 +205,29 @@ export function MyBuddy() {
 
   /* ---- the actions. Every transaction the site can sign starts here. ---- */
 
-  /** Make sure the wallet has an ATA for the token before anything pays into it. */
+  /** Make sure the wallet has an ATA for the token before anything pays into it.
+   *
+   * Derived under the mint's own token program (Token-2022 for a pump.fun
+   * `create_v2` coin): an ATA derived under the wrong program is a different,
+   * nonexistent address.
+   */
   async function ensureAta(): Promise<PublicKey> {
-    const ata = getAssociatedTokenAddressSync(config!.rewardMint, publicKey!);
+    const ata = getAssociatedTokenAddressSync(
+      config!.rewardMint,
+      publicKey!,
+      false,
+      rewardTokenProgram!
+    );
     const info = await connection.getAccountInfo(ata);
     if (!info) {
       const tx = new Transaction().add(
-        createAssociatedTokenAccountInstruction(publicKey!, ata, publicKey!, config!.rewardMint)
+        createAssociatedTokenAccountInstruction(
+          publicKey!,
+          ata,
+          publicKey!,
+          config!.rewardMint,
+          rewardTokenProgram!
+        )
       );
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, "confirmed");
@@ -237,7 +252,8 @@ export function MyBuddy() {
           receipt: pda([SEEDS.oldClaim, publicKey!.toBuffer()]),
           vault: pda([SEEDS.vault]),
           destination,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: config!.rewardMint,
+          tokenProgram: rewardTokenProgram!,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -398,7 +414,8 @@ export function MyBuddy() {
           stream: pda([SEEDS.stream, publicKey!.toBuffer()]),
           vault: pda([SEEDS.vault]),
           destination,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: config!.rewardMint,
+          tokenProgram: rewardTokenProgram!,
         })
         .rpc();
       const released = await releasedIn(sig);
@@ -452,7 +469,8 @@ export function MyBuddy() {
     vault: pda([SEEDS.vault]),
     solVault: pda([SEEDS.solVault]),
     destination: await ensureAta(),
-    tokenProgram: TOKEN_PROGRAM_ID,
+    rewardMint: config!.rewardMint,
+    tokenProgram: rewardTokenProgram!,
     rent: SYSVAR_RENT_PUBKEY,
   });
 
@@ -468,7 +486,8 @@ export function MyBuddy() {
           position: pda([SEEDS.stake, publicKey!.toBuffer()]),
           vault: pda([SEEDS.vault]),
           source,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: config!.rewardMint,
+          tokenProgram: rewardTokenProgram!,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -520,7 +539,8 @@ export function MyBuddy() {
           lockup: pda([SEEDS.lockup, publicKey!.toBuffer(), u64Seed(index)]),
           vault: pda([SEEDS.vault]),
           source,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: config!.rewardMint,
+          tokenProgram: rewardTokenProgram!,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -534,7 +554,8 @@ export function MyBuddy() {
     vault: pda([SEEDS.vault]),
     solVault: pda([SEEDS.solVault]),
     destination: await ensureAta(),
-    tokenProgram: TOKEN_PROGRAM_ID,
+    rewardMint: config!.rewardMint,
+    tokenProgram: rewardTokenProgram!,
     rent: SYSVAR_RENT_PUBKEY,
   });
 

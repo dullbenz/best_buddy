@@ -2,7 +2,7 @@ use crate::constants::*;
 use crate::errors::DistributorError;
 use crate::state::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct InitializeParams {
@@ -50,7 +50,10 @@ pub struct Initialize<'info> {
     )]
     pub program_data: Account<'info, ProgramData>,
 
-    pub reward_mint: Account<'info, Mint>,
+    /// The launch mint. `InterfaceAccount` because pump.fun's `create_v2` path
+    /// (live on mainnet) mints Token-2022 coins, and this program must accept
+    /// whichever token program the launch coin was created under.
+    pub reward_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
         init,
@@ -78,10 +81,11 @@ pub struct Initialize<'info> {
         payer = payer,
         token::mint = reward_mint,
         token::authority = config,
+        token::token_program = token_program,
         seeds = [VAULT_SEED],
         bump
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     /// Program-owned PDA holding SOL rewards (routed creator fees, donations).
     #[account(
@@ -94,7 +98,7 @@ pub struct Initialize<'info> {
     pub sol_vault: Account<'info, SolVault>,
 
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -200,16 +204,20 @@ pub struct FundVault<'info> {
         seeds = [VAULT_SEED],
         bump = config.vault_bump,
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
     /// Needed so the deposit registers in `reserved_token`.
     #[account(mut, seeds = [POOL_SEED], bump = pool.bump)]
     pub pool: Account<'info, StakePool>,
 
     #[account(mut, constraint = source.mint == config.reward_mint)]
-    pub source: Account<'info, TokenAccount>,
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// The reward mint itself: `transfer_checked` reads its decimals on chain.
+    #[account(address = config.reward_mint)]
+    pub reward_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn fund_vault(ctx: Context<FundVault>, amount: u64) -> Result<()> {
@@ -223,16 +231,18 @@ pub fn fund_vault(ctx: Context<FundVault>, amount: u64) -> Result<()> {
         .checked_add(amount)
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
-    anchor_spl::token::transfer(
+    anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            anchor_spl::token::Transfer {
+            TransferChecked {
                 from: ctx.accounts.source.to_account_info(),
+                mint: ctx.accounts.reward_mint.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.authority.to_account_info(),
             },
         ),
         amount,
+        ctx.accounts.reward_mint.decimals,
     )?;
     msg!("vault funded with {}", amount);
     Ok(())
@@ -263,7 +273,7 @@ pub struct LockConfig<'info> {
         seeds = [VAULT_SEED],
         bump = config.vault_bump,
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 }
 
 pub fn lock_config(ctx: Context<LockConfig>) -> Result<()> {

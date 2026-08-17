@@ -36,7 +36,6 @@ import {
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as fs from "fs";
 
 function env(name: string, fallback?: string): string {
@@ -168,6 +167,15 @@ async function main() {
     );
   }
 
+  // The mint decides its token program. pump.fun mints through `create_v2`
+  // (Token-2022) while its create_v2_enabled flag is on and through `create`
+  // (classic) when it is off, so read the answer from the mint account rather
+  // than assume — the vault init and every transfer must name the same program.
+  const mintInfo = await connection.getAccountInfo(rewardMint);
+  if (!mintInfo) throw new Error(`reward mint ${rewardMint.toBase58()} not found`);
+  const tokenProgram = mintInfo.owner;
+  console.log(`reward mint token program: ${tokenProgram.toBase58()}`);
+
   console.log("1/3 initialize...");
   const sig1 = await program.methods
     .initialize(params)
@@ -180,7 +188,7 @@ async function main() {
       vault,
       solVault,
       systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      tokenProgram,
       rent: SYSVAR_RENT_PUBKEY,
     })
     .rpc();
@@ -194,7 +202,8 @@ async function main() {
       config,
       vault,
       source,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint,
+      tokenProgram,
     })
     .rpc();
   console.log(`    ${sig2}`);

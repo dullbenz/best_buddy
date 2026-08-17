@@ -50,7 +50,6 @@ import { AnchorProvider, Program, Wallet } from "@coral-xyz/anchor";
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   Connection,
@@ -136,8 +135,19 @@ async function main() {
   const rewardMint = new PublicKey(state.rewardMint);
   const streamPda = pda([Buffer.from("stream"), beneficiary.toBuffer()]);
   const vaultPda = pda([Buffer.from("vault")]);
+  // The mint's own token program (Token-2022 for a pump.fun create_v2 coin),
+  // read from the mint account: the ATA derivation and the instruction's
+  // token_program must both name it.
+  const mintInfo = await connection.getAccountInfo(rewardMint);
+  if (!mintInfo) throw new Error(`reward mint ${rewardMint.toBase58()} not found`);
+  const tokenProgram = mintInfo.owner;
   // allowOwnerOffCurve: the whole point is that the owner is a PDA.
-  const destination = getAssociatedTokenAddressSync(rewardMint, beneficiary, true);
+  const destination = getAssociatedTokenAddressSync(
+    rewardMint,
+    beneficiary,
+    true,
+    tokenProgram
+  );
 
   console.log("=== team stream, via the Squads multisig ===");
   console.log(`program:                 ${programId.toBase58()}`);
@@ -193,7 +203,8 @@ async function main() {
         beneficiary, // payer: the vault pays its own rent (keep a little SOL in it)
         destination,
         beneficiary,
-        rewardMint
+        rewardMint,
+        tokenProgram
       )
     );
   }
@@ -207,7 +218,8 @@ async function main() {
         pool: pda([Buffer.from("pool")]),
         vault: vaultPda,
         destination,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        rewardMint,
+        tokenProgram,
       })
       .instruction()
   );

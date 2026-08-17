@@ -28,6 +28,7 @@ import {
   signerClaimMessage,
   solBalance,
   NATIVE_MINT,
+  REWARD_TOKEN_PROGRAM,
   stakePda,
   streamPda,
   communityStreamPda,
@@ -114,7 +115,7 @@ async function bootstrap(opts: { lock?: boolean; fundExtra?: bigint } = {}): Pro
       vault: env.vaultPda,
       solVault: env.solVaultPda,
       systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      tokenProgram: REWARD_TOKEN_PROGRAM,
       rent: SYSVAR_RENT_PUBKEY,
     })
     .signers([env.payer])
@@ -131,7 +132,8 @@ async function bootstrap(opts: { lock?: boolean; fundExtra?: bigint } = {}): Pro
       vault: env.vaultPda,
       pool: env.poolPda,
       source: treasury,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: env.mint,
+      tokenProgram: REWARD_TOKEN_PROGRAM,
     })
     .signers([env.authority])
     .rpc();
@@ -173,7 +175,8 @@ async function claimOldHolder(b: Bootstrapped, index: number) {
       )[0],
       vault: env.vaultPda,
       destination: dest,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: env.mint,
+      tokenProgram: REWARD_TOKEN_PROGRAM,
       systemProgram: SystemProgram.programId,
     })
     .signers([holder.keypair])
@@ -192,7 +195,8 @@ async function stake(env: Env, staker: Keypair, source: PublicKey, amount: bigin
       position: stakePda(staker.publicKey, env.programId),
       vault: env.vaultPda,
       source,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: env.mint,
+      tokenProgram: REWARD_TOKEN_PROGRAM,
       systemProgram: SystemProgram.programId,
     })
     .signers([staker])
@@ -218,7 +222,8 @@ async function lockTokens(
       lockup: lockupPda(owner.publicKey, index, env.programId),
       vault: env.vaultPda,
       source,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: env.mint,
+      tokenProgram: REWARD_TOKEN_PROGRAM,
       systemProgram: SystemProgram.programId,
     })
     .signers([owner])
@@ -235,7 +240,8 @@ function positionAccounts(env: Env, owner: Keypair, destination: PublicKey) {
     vault: env.vaultPda,
     solVault: env.solVaultPda,
     destination,
-    tokenProgram: TOKEN_PROGRAM_ID,
+    rewardMint: env.mint,
+    tokenProgram: REWARD_TOKEN_PROGRAM,
     rent: SYSVAR_RENT_PUBKEY,
   };
 }
@@ -250,7 +256,8 @@ function lockupAccounts(env: Env, owner: Keypair, index: number, destination: Pu
     vault: env.vaultPda,
     solVault: env.solVaultPda,
     destination,
-    tokenProgram: TOKEN_PROGRAM_ID,
+    rewardMint: env.mint,
+    tokenProgram: REWARD_TOKEN_PROGRAM,
     rent: SYSVAR_RENT_PUBKEY,
   };
 }
@@ -318,7 +325,8 @@ async function notifyTokens(env: Env, from: Keypair, source: PublicKey, amount: 
       pool: env.poolPda,
       vault: env.vaultPda,
       source,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      rewardMint: env.mint,
+      tokenProgram: REWARD_TOKEN_PROGRAM,
     })
     .signers([from])
     .rpc();
@@ -361,7 +369,7 @@ describe("buddy-distributor", () => {
           vault: env.vaultPda,
           solVault: env.solVaultPda,
           systemProgram: SystemProgram.programId,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          tokenProgram: REWARD_TOKEN_PROGRAM,
           rent: SYSVAR_RENT_PUBKEY,
         })
         .signers([env.payer])
@@ -415,7 +423,7 @@ describe("buddy-distributor", () => {
           vault: env.vaultPda,
           solVault: env.solVaultPda,
           systemProgram: SystemProgram.programId,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          tokenProgram: REWARD_TOKEN_PROGRAM,
           rent: SYSVAR_RENT_PUBKEY,
         })
         .signers([env.payer])
@@ -432,7 +440,8 @@ describe("buddy-distributor", () => {
           vault: env.vaultPda,
           pool: env.poolPda,
           source: treasury,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: env.mint,
+          tokenProgram: REWARD_TOKEN_PROGRAM,
         })
         .signers([env.authority])
         .rpc();
@@ -470,7 +479,8 @@ describe("buddy-distributor", () => {
           vault: env.vaultPda,
           pool: env.poolPda,
           source: treasury,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: env.mint,
+          tokenProgram: REWARD_TOKEN_PROGRAM,
         })
         .signers([env.authority])
         .rpc();
@@ -512,7 +522,8 @@ describe("buddy-distributor", () => {
             config: b.env.configPda,
             vault: b.env.vaultPda,
             source: extra,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            rewardMint: b.env.mint,
+            tokenProgram: REWARD_TOKEN_PROGRAM,
           })
           .signers([b.env.authority])
           .rpc(),
@@ -553,7 +564,7 @@ describe("buddy-distributor", () => {
             vault: env.vaultPda,
             solVault: env.solVaultPda,
             systemProgram: SystemProgram.programId,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            tokenProgram: REWARD_TOKEN_PROGRAM,
             rent: SYSVAR_RENT_PUBKEY,
           })
           .signers([attacker])
@@ -637,7 +648,8 @@ describe("buddy-distributor", () => {
             )[0],
             vault: b.env.vaultPda,
             destination: dest,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            rewardMint: b.env.mint,
+            tokenProgram: REWARD_TOKEN_PROGRAM,
             systemProgram: SystemProgram.programId,
           })
           .signers([holder.keypair])
@@ -664,7 +676,8 @@ describe("buddy-distributor", () => {
             )[0],
             vault: b.env.vaultPda,
             destination: dest,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            rewardMint: b.env.mint,
+            tokenProgram: REWARD_TOKEN_PROGRAM,
             systemProgram: SystemProgram.programId,
           })
           .signers([intruder])
@@ -757,7 +770,8 @@ describe("buddy-distributor", () => {
             stream: streamPda(inf.keypair.publicKey, b.env.programId),
             vault: b.env.vaultPda,
             destination: dest,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            rewardMint: b.env.mint,
+            tokenProgram: REWARD_TOKEN_PROGRAM,
           })
           .signers([inf.keypair])
           .rpc();
@@ -921,7 +935,7 @@ describe("buddy-distributor", () => {
             vault: env.vaultPda,
             solVault: env.solVaultPda,
             systemProgram: SystemProgram.programId,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            tokenProgram: REWARD_TOKEN_PROGRAM,
             rent: SYSVAR_RENT_PUBKEY,
           })
           .signers([env.payer])
@@ -962,7 +976,8 @@ describe("buddy-distributor", () => {
             stream: streamPda(b.devWallet.publicKey, b.env.programId),
             vault: b.env.vaultPda,
             destination: dest,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            rewardMint: b.env.mint,
+            tokenProgram: REWARD_TOKEN_PROGRAM,
           })
           .signers([b.devWallet])
           .rpc();
@@ -1010,7 +1025,8 @@ describe("buddy-distributor", () => {
           stream: streamPda(destinationOwner.publicKey, b.env.programId),
           vault: b.env.vaultPda,
           destination: dest,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: b.env.mint,
+          tokenProgram: REWARD_TOKEN_PROGRAM,
         })
         .signers([destinationOwner])
         .rpc();
@@ -1258,7 +1274,8 @@ describe("buddy-distributor", () => {
           position: stakePda(sniper.staker.publicKey, b.env.programId),
           vault: b.env.vaultPda,
           source: sniper.acct,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          rewardMint: b.env.mint,
+          tokenProgram: REWARD_TOKEN_PROGRAM,
           systemProgram: SystemProgram.programId,
         })
         .instruction();
@@ -1690,7 +1707,13 @@ describe("buddy-distributor", () => {
   describe("recover_foreign_token: stray token accounts", () => {
     // Donations in a mint the program cannot price on-chain forward to the
     // team multisig (config.dev_wallet), which converts and donates back.
-    const recover = (b: Bootstrapped, source: PublicKey, destination: PublicKey) =>
+    const recover = (
+      b: Bootstrapped,
+      source: PublicKey,
+      destination: PublicKey,
+      mint: PublicKey,
+      tokenProgram: PublicKey = REWARD_TOKEN_PROGRAM,
+    ) =>
       b.env.program.methods
         .recoverForeignToken()
         .accountsPartial({
@@ -1699,7 +1722,8 @@ describe("buddy-distributor", () => {
           solVault: b.env.solVaultPda,
           source,
           destination,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          foreignMint: mint,
+          tokenProgram,
         })
         .signers([b.env.payer])
         .rpc();
@@ -1723,7 +1747,8 @@ describe("buddy-distributor", () => {
           solVault: b.env.solVaultPda,
           source,
           destination,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          foreignMint,
+          tokenProgram: REWARD_TOKEN_PROGRAM,
         })
         .signers([cranker])
         .rpc();
@@ -1743,12 +1768,15 @@ describe("buddy-distributor", () => {
       // The reward vault's mint IS staker funds.
       const rewardSource = await createTokenAccount(b.env, b.env.solVaultPda);
       const rewardDest = await createTokenAccount(b.env, b.devWallet.publicKey);
-      await expectFailure(recover(b, rewardSource, rewardDest), "InvalidRecoverySource");
+      await expectFailure(recover(b, rewardSource, rewardDest, b.env.mint), "InvalidRecoverySource");
 
       // wSOL already has a route to stakers via unwrap_wsol.
       const wsolSource = await createWrappedSolAccount(b.env, b.env.solVaultPda, 1_000_000n);
       const wsolDest = await createWrappedSolAccount(b.env, b.devWallet.publicKey, 0n);
-      await expectFailure(recover(b, wsolSource, wsolDest), "InvalidRecoverySource");
+      await expectFailure(
+        recover(b, wsolSource, wsolDest, NATIVE_MINT, TOKEN_PROGRAM_ID),
+        "InvalidRecoverySource"
+      );
     });
 
     it("refuses a source the program's PDAs do not own, or a destination that is not the dev wallet's", async () => {
@@ -1759,13 +1787,13 @@ describe("buddy-distributor", () => {
       const strangerOwned = await createTokenAccount(b.env, Keypair.generate().publicKey, foreignMint);
       await mintTo(b.env, strangerOwned, 5n * UNIT, foreignMint);
       const goodDest = await createTokenAccount(b.env, b.devWallet.publicKey, foreignMint);
-      await expectFailure(recover(b, strangerOwned, goodDest), "InvalidRecoverySource");
+      await expectFailure(recover(b, strangerOwned, goodDest, foreignMint), "InvalidRecoverySource");
 
       // Nor may the proceeds land anywhere but the disclosed dev wallet.
       const goodSource = await createTokenAccount(b.env, b.env.solVaultPda, foreignMint);
       await mintTo(b.env, goodSource, 5n * UNIT, foreignMint);
       const badDest = await createTokenAccount(b.env, Keypair.generate().publicKey, foreignMint);
-      await expectFailure(recover(b, goodSource, badDest), "ConstraintRaw");
+      await expectFailure(recover(b, goodSource, badDest, foreignMint), "ConstraintRaw");
     });
   });
 
@@ -1891,6 +1919,7 @@ describe("buddy-distributor", () => {
           pool: b.env.poolPda,
           solVault: b.env.solVaultPda,
           wsolAccount: wsol,
+          // wSOL stays a classic SPL mint even with a Token-2022 reward mint.
           tokenProgram: TOKEN_PROGRAM_ID,
           rent: SYSVAR_RENT_PUBKEY,
         })
@@ -1921,6 +1950,7 @@ describe("buddy-distributor", () => {
             pool: b.env.poolPda,
             solVault: b.env.solVaultPda,
             wsolAccount: wsol,
+            // wSOL stays a classic SPL mint; see above.
             tokenProgram: TOKEN_PROGRAM_ID,
             rent: SYSVAR_RENT_PUBKEY,
           })

@@ -249,8 +249,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -370,8 +375,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "system_program",
@@ -611,8 +621,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -914,8 +929,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -1038,8 +1058,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": [
@@ -1166,7 +1191,12 @@
           }
         },
         {
-          "name": "reward_mint"
+          "name": "reward_mint",
+          "docs": [
+            "The launch mint. `InterfaceAccount` because pump.fun's `create_v2` path",
+            "(live on mainnet) mints Token-2022 coins, and this program must accept",
+            "whichever token program the launch coin was created under."
+          ]
         },
         {
           "name": "config",
@@ -1257,8 +1287,7 @@
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -1487,8 +1516,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "system_program",
@@ -1673,8 +1707,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": [
@@ -1764,8 +1803,14 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "foreign_mint",
+          "docs": [
+            "The stray token's own mint, pinned to `source`; `transfer_checked`",
+            "reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": []
@@ -1958,8 +2003,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "system_program",
@@ -2075,8 +2125,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": []
@@ -2517,8 +2572,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -2650,8 +2710,13 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "reward_mint",
+          "docs": [
+            "The reward mint itself: `transfer_checked` reads its decimals on chain."
+          ]
+        },
+        {
+          "name": "token_program"
         },
         {
           "name": "rent",
@@ -2749,7 +2814,11 @@
         },
         {
           "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "docs": [
+            "wSOL remains a classic SPL Token mint even when the reward mint is",
+            "Token-2022, so the caller passes whichever token program owns",
+            "`wsol_account` — the interface type accepts either."
+          ]
         },
         {
           "name": "rent",
