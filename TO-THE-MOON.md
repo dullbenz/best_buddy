@@ -479,10 +479,21 @@ verifier. Note the `merkleRoot` — it goes on chain next.
 Have every command ready in a terminal before you start. Do not announce
 anything until 4.8.
 
+> **One wallet signs everything today: `FbEC4un92t5nS3krXeVSwJUSAfk4LFZcEF5pLKVLXQXE`**,
+> whose keypair sits at `~/BUDDY-LAUNCH-WALLET-FbEC4un.json` (exported from
+> Phantom, mode 600). It is deployer, upgrade authority, config authority,
+> `fund_vault` source owner **and** the pump.fun coin creator, so every role
+> lines up in one identity. Every command below passes that keypair explicitly
+> with `-k`/`KEYPAIR`/`--provider.wallet` — the global `solana config` keypair
+> stays untouched (it is the devnet wallet `FWwN…`, and forgetting to switch it
+> back would be its own footgun). The coin creation and dev-buy happen in
+> Phantom's UI from the same account, so the bought tokens land in its ATA —
+> exactly where `fund_vault` reads from.
+
 ### 4.1 Deploy the program
 
 ```bash
-solana config set --url mainnet-beta && ~/.avm/bin/anchor-0.31.1 deploy --provider.cluster mainnet
+solana config set --url mainnet-beta && ~/.avm/bin/anchor-0.31.1 deploy --provider.cluster mainnet --provider.wallet ~/BUDDY-LAUNCH-WALLET-FbEC4un.json
 ```
 
 Costs ~3–5 SOL.
@@ -514,7 +525,7 @@ like an outsider sniping your own launch.
 Dry run first — it prints the whole plan and sends nothing:
 
 ```bash
-RPC_URL=<rpc> KEYPAIR=<your-keypair.json> REWARD_MINT=<new-mint> DEV_WALLET=<team-multisig-vault> OLD_ROOT=<hex> INF_ROOT=<hex> OLD_ALLOC=<n> INF_ALLOC=<n> SIGNER_ALLOC=<n> DEV_ALLOC=<n> SIGNER_PUBKEY=0480ba015ac8c00c8a0c6f4913d8a63364272a5472148ac19159932e36ffdffd2355a7358601b556af702d4ae5641e7d59bbda795894121d8bbc8412ae70744779 SOURCE_TOKEN_ACCOUNT=<your-ata> npx ts-node scripts/deploy-init.ts
+RPC_URL=<rpc> KEYPAIR=~/BUDDY-LAUNCH-WALLET-FbEC4un.json REWARD_MINT=<new-mint> DEV_WALLET=4aiePQdVpVLZu1chUvrgP35eDvKdQhhTxUiRRkt2LjRM OLD_ROOT=<hex> INF_ROOT=<hex> OLD_ALLOC=<n> INF_ALLOC=<n> SIGNER_ALLOC=<n> DEV_ALLOC=<n> SIGNER_PUBKEY=0480ba015ac8c00c8a0c6f4913d8a63364272a5472148ac19159932e36ffdffd2355a7358601b556af702d4ae5641e7d59bbda795894121d8bbc8412ae70744779 SOURCE_TOKEN_ACCOUNT=<your-ata> npx ts-node scripts/deploy-init.ts
 ```
 
 `DEV_WALLET` is the **Squads vault address** from §2.3a, and it is frozen by
@@ -545,7 +556,7 @@ Read every number against your published document. Then re-run with `EXECUTE=1`.
 ### 4.5 Create the team stream
 
 ```bash
-RPC_URL=<rpc> KEYPAIR=<your-keypair.json> npx ts-node scripts/create-dev-stream.ts
+RPC_URL=<rpc> KEYPAIR=~/BUDDY-LAUNCH-WALLET-FbEC4un.json npx ts-node scripts/create-dev-stream.ts
 ```
 
 No cliff argument here: it was fixed at init with `DEV_CLIFF_DAYS` and frozen by
@@ -563,7 +574,9 @@ visibly empty of allocation.
 can still redeploy the program and start over.
 
 Full detail in [docs/FEES.md](docs/FEES.md). Two transactions, both signed by
-you as the coin creator — no application to pump.fun, no waiting on anyone:
+you as the coin creator — which is the same launch wallet `FbEC4un…` again
+(sign in Phantom, or with `~/BUDDY-LAUNCH-WALLET-FbEC4un.json` from the CLI) —
+no application to pump.fun, no waiting on anyone:
 
 1. `create_fee_sharing_config` — opts the coin into shared fees. Shareholders
    default to `[(you, 100%)]`.
@@ -614,7 +627,7 @@ Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
 
 ```bash
-solana program set-upgrade-authority <MAINNET_PROGRAM_ID> --final
+solana program set-upgrade-authority <MAINNET_PROGRAM_ID> --final -k ~/BUDDY-LAUNCH-WALLET-FbEC4un.json
 ```
 
 ```bash
@@ -759,6 +772,10 @@ has the numbers; the post is a summary and a link.
       pointing at a program that does not exist on mainnet
 
 **Launch**
+- [ ] One wallet signs everything: `FbEC4un…` via
+      `~/BUDDY-LAUNCH-WALLET-FbEC4un.json` — deployer, config authority, coin
+      creator and `fund_vault` source are the same identity, and every command
+      names the keypair explicitly rather than trusting `solana config`
 - [ ] Program deployed (no `--final` yet)
 - [ ] Coin created, launch buy in the same transaction (pump.fun's dev-buy field)
 - [ ] `initialize` → `fund_vault` → `lock_config`; `DEV_WALLET` is the
