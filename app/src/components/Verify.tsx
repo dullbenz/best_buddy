@@ -240,7 +240,7 @@ export function Verify() {
           vaultShare ? (vaultShare.shareBps / 100).toFixed(0) : "0"
         }% of creator fees go to the community vault. Admin: ${
           sharing.adminRevoked
-            ? "cleared, so we can never change the split"
+            ? "revoked, so we can never change the split"
             : sharing.admin
         }. Status: ${sharing.status}.`,
     why:
