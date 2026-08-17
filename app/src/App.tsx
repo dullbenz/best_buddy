@@ -7,6 +7,7 @@ import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "./router"
 import { Claims } from "./components/Claims";
 import { SocialLinks } from "./components/SocialLinks";
 import { Dashboard } from "./components/Dashboard";
+import { Donate } from "./components/Donate";
 import { FundPool } from "./components/FundPool";
 import { HowItWorks } from "./components/HowItWorks";
 import { Landing } from "./components/Landing";
@@ -20,6 +21,7 @@ type Tab =
   | "claims"
   | "staking"
   | "fund pool"
+  | "donate"
   | "verify"
   | "how it works"
   | "my buddy";
@@ -37,6 +39,7 @@ const NAV_TABS: Tab[] = [
   "claims",
   "staking",
   "fund pool",
+  "donate",
   "verify",
   "how it works",
 ];
@@ -236,6 +239,7 @@ export function App() {
         {tab === "claims" && <Claims />}
         {tab === "staking" && <Staking />}
         {tab === "fund pool" && <FundPool />}
+        {tab === "donate" && <Donate />}
         {tab === "verify" && <Verify />}
         {tab === "how it works" && <HowItWorks />}
         {tab === "my buddy" && <MyBuddy />}

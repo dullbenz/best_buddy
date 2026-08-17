@@ -484,21 +484,6 @@ export function MyBuddy() {
         .rpc()
     );
 
-  // Anyone may crank demote_matured on anyone's lock-up; here it is simply the
-  // owner ending their own matured boost without withdrawing anything.
-  const demoteLockup = (l: LockupEntry) =>
-    runStake("Demoted to 1x", async () =>
-      program!.methods
-        .demoteMatured()
-        .accountsPartial({
-          cranker: publicKey!,
-          config: pda([SEEDS.config]),
-          pool: pda([SEEDS.pool]),
-          lockup: l.pubkey,
-        })
-        .rpc()
-    );
-
   /* ---- derived figures ---- */
 
   const vested = stream
@@ -836,7 +821,6 @@ export function MyBuddy() {
                 onClaim={() => claimLockup(l)}
                 onUnlock={() => unlock(l)}
                 onExit={() => exitLockup(l)}
-                onDemote={() => demoteLockup(l)}
               />
             ))}
           </div>
@@ -910,7 +894,6 @@ function LockupRow({
   onClaim,
   onUnlock,
   onExit,
-  onDemote,
 }: {
   lockup: LockupEntry;
   now: number;
@@ -918,7 +901,6 @@ function LockupRow({
   onClaim: () => void;
   onUnlock: () => void;
   onExit: () => void;
-  onDemote: () => void;
 }) {
   const a = lockup.account;
   const tier = TIERS[TIER_IDS[Object.keys(a.tier ?? {})[0]] ?? 0];
@@ -931,7 +913,7 @@ function LockupRow({
     ? `matures in ${left}`
     : a.demoted
       ? "matured; earning at 1x until you withdraw"
-      : `matured; still earning at ${tier.multiplier} until demoted — withdrawing demotes automatically`;
+      : `matured; still earning at ${tier.multiplier} until demoted — withdrawing demotes automatically, and the demote crank lives on the Fund pool tab`;
 
   return (
     <div className="file-row">
@@ -958,16 +940,9 @@ function LockupRow({
             Emergency exit (forfeit boost + 15%)
           </button>
         ) : (
-          <>
-            <button className="primary" disabled={busy} onClick={onUnlock}>
-              Unlock
-            </button>
-            {!a.demoted && (
-              <button disabled={busy} onClick={onDemote}>
-                Demote to 1x
-              </button>
-            )}
-          </>
+          <button className="primary" disabled={busy} onClick={onUnlock}>
+            Unlock
+          </button>
         )}
       </div>
     </div>
