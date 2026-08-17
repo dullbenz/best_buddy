@@ -251,7 +251,7 @@ before the token was announced to anyone. There is no window, no multisig, no
 future date to hold us to — the code that is deployed is the code that will run
 forever.
 
-Burn transaction: `<signature>`
+Burn transaction: [`27BZ725E88HcchufQ56U7tUdvZqZeY94rbtSG59L5inCaiBhhvcbNm1UP5v3ZTeP5kgi3rzBwy39BU3zqyegMk2P`](https://solscan.io/tx/27BZ725E88HcchufQ56U7tUdvZqZeY94rbtSG59L5inCaiBhhvcbNm1UP5v3ZTeP5kgi3rzBwy39BU3zqyegMk2P)
 
 | Period | Upgrade authority |
 |---|---|
@@ -299,4 +299,4 @@ anyone money, and we make no claim that it will.
 
 ## Signed
 
-`<date>` — published before launch, at commit `<git sha>`.
+2026-08-17 — published at launch, the burn confirmed on chain, at commit `75bd423`.
