@@ -1,6 +1,6 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { TIERS } from "../config";
-import { fmtAmount } from "../format";
+import { fmtAmount, fmtSol } from "../format";
 import { goTo } from "../nav";
 import { useDistributor, useStakePosition } from "../useDistributor";
 import { ConnectToClaim } from "./claimShared";
@@ -121,6 +121,12 @@ export function Staking() {
             <div className="stat">
               <span className="stat-value">{fmtAmount(pool.totalStaked, true)}</span>
               <span className="stat-label">Total staked</span>
+            </div>
+            <div className="stat">
+              <span className="stat-value">
+                {fmtSol(pool.lifetimeSolRewards)} SOL
+              </span>
+              <span className="stat-label">SOL rewards paid to date</span>
             </div>
             <div className="stat">
               <span className="stat-value">
