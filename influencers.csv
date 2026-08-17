@@ -1,0 +1,20 @@
+# Influencer allocations — bucket 3 (50%), EQUAL split across 10 wallets.
+#
+# The `amount` column below is a PLACEHOLDER (1 base unit each) used only to
+# build/validate the Merkle tree. The real per-wallet amount is computed at
+# launch: INF_ALLOC / 10, where INF_ALLOC = 50% of the distributor total, which
+# is only known after the launch buy. Re-run build-tree at launch with the real
+# equal amount. The ADDRESS LIST below is final.
+#
+# handle -> address (equal amounts, so order is irrelevant)
+address,amount
+5YRgrP3mjGzrzirYYN5HAQH19cTYREYwGxW6XRJQUzij,1
+GV6UUmNxz2RpKxmNAPadYKb7uQpszwqQAu3qLJxVdC52,1
+4Be9CvxqHW6BYiRAxW9Q3xu1ycTMWaL5z8NX4HR3ha7t,1
+6i2aHtxfqkC2biTo98FSkP59FVHPKFRLZWDbdghN6WKK,1
+7YndBV5gp3VvAiBbSfv8M7CoyMhFsiKeGYWkwee49fTg,1
+CAPn1yH4oSywsxGU456jfgTrSSUidf9jgeAnHceNUJdw,1
+Fv7ubG15npHzRTKqg8AkAwNNMLaaTgecGWt3yoTmfUWT,1
+6HJetMbdHBuk3mLUainxAPpBpWzDgYbHGTS2TqDAUSX2,1
+6DtEedWf9Wk5hA7Xth82Eq441yf5DA4aGLqaQAVfDokm,1
+FuP8dYQytaThMh9Fg2XNd1Z1eNHxMHW92kVUfWf3TnmD,1

@@ -382,6 +382,22 @@ out while you could still have chosen differently.
 
 ## Section 3 — Snapshot (~1 hour)
 
+> **State: the holder set is already frozen.** Taken at mainnet finalized slot
+> **439869907** (2026-08-17T14:48:36Z): 3,468 token accounts read, 976 holders,
+> 3 excluded, **946 wallets** eligible. `verify-snapshot.ts` reproduces it and
+> all 946 proofs verify. The slot and date are set in `app/src/config.ts`.
+>
+> What is *not* fixed yet is the money: each wallet's amount is a share of
+> bucket 2, and bucket 2 is 15% of the distributor total, which is only known
+> once the launch buy executes. So the **Merkle root is recomputed on launch
+> day** from this same slot with the real total — §3.3a below. The influencer
+> list (10 wallets, equal split, `influencers.csv`) is final in the same way:
+> addresses fixed, amounts computed at launch.
+>
+> **The old mint is Token-2022.** `snapshot.ts` reads the mint's owning program
+> at run time and must not filter on `dataSize: 165`; a classic-SPL-only query
+> returns zero holders for this mint and would silently pay nobody.
+
 ### 3.1 Choose a slot that has already passed
 
 **Do not announce a future snapshot time.** That tells the market to buy the old
@@ -410,6 +426,36 @@ RPC_URL=<archival-rpc> BUCKET_TWO_ALLOCATION=<base-units> npx ts-node scripts/sn
 ```bash
 npx ts-node scripts/verify-snapshot.ts
 ```
+
+### 3.3a Launch-day recompute — the roots the chain gets
+
+Run this **after** the launch buy, once you know the distributor total. Same
+slot, same eligible wallets; only the amounts change.
+
+`FROZEN_SNAPSHOT` rescales the holder set already committed in `snapshot/`
+rather than re-reading the chain. That is not an optimisation, it is the only
+correct way: `getProgramAccounts` sees present state only — no RPC can replay it
+at slot 439869907 — so a fresh query on launch day would silently snapshot a
+*different*, later set of holders than the one published here. It needs no RPC.
+
+```bash
+TOTAL=<distributor total in base units>
+FROZEN_SNAPSHOT=snapshot BUCKET_TWO_ALLOCATION=$(( TOTAL * 15 / 100 )) npx ts-node scripts/snapshot.ts
+```
+
+Then rebuild the influencer tree with the real equal amount (bucket 3 is 50% of
+the total, split ten ways), replacing the placeholder `1`s in `influencers.csv`:
+
+```bash
+npx ts-node scripts/build-tree.ts influencers.csv snapshot/influencers
+```
+
+```bash
+npx ts-node scripts/verify-snapshot.ts
+```
+
+The two `merkleRoot` values that come out are `OLD_ROOT` and `INF_ROOT` for
+§4.4. Publish both trees in full before announcing.
 
 ### 3.4 Build the influencer tree
 

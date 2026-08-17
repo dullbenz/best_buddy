@@ -304,12 +304,22 @@ export const INFLUENCER_PROOFS_URL = `/proofs${publishedDir}/influencers.json`;
  * available is that the names are stated openly and the Merkle root matches.
  */
 /**
- * The real mainnet snapshot, filled in on launch day. Both must be set
- * together: a date without a slot is unverifiable, and a slot without a date
- * is unreadable.
+ * The real mainnet snapshot. Both must be set together: a date without a slot
+ * is unverifiable, and a slot without a date is unreadable.
+ *
+ * Taken at mainnet finalized slot 439869907 against the legacy mint
+ * `7MYegHoq…pump`: 3,468 token accounts read, 976 holders, 3 excluded (the
+ * PumpSwap and Meteora pool vaults and a program-controlled trading vault, see
+ * RECEIPTS.md §5), 946 wallets in the tree.
+ *
+ * The *eligible wallet set* is frozen here and never changes. The per-wallet
+ * token amounts and therefore the Merkle root are NOT fixed by this slot: they
+ * are a share of bucket 2, whose size depends on the distributor total the
+ * launch buy acquires. The root is recomputed from this same slot on launch day
+ * with the real total and committed on chain then.
  */
-const MAINNET_SNAPSHOT_TAKEN_AT: string | null = null;
-const MAINNET_SNAPSHOT_SLOT: number | null = null;
+const MAINNET_SNAPSHOT_TAKEN_AT: string | null = "2026-08-17T14:48:36Z";
+const MAINNET_SNAPSHOT_SLOT: number | null = 439_869_907;
 
 export const SNAPSHOT = {
   /**
