@@ -34,9 +34,17 @@ const TOKEN_PROGRAM_ID = new PublicKey(
  * Addresses excluded from restitution, with the reason recorded so the
  * community can audit every exclusion rather than take it on faith.
  *
- * Fill this in from the receipts dossier before running for real. Liquidity
- * pool vaults must be excluded or the pool itself would claim a large share of
- * the bucket; the old dev's wallets are excluded on the merits.
+ * Seeded from the receipts dossier (docs/RECEIPTS.md §1 creator wallets, §5 pool
+ * and infrastructure addresses). Liquidity pool vaults must be excluded or the
+ * pool itself would claim a large share of the bucket and nothing could ever
+ * claim it (a PDA has no key); the old dev's wallets are excluded on the merits.
+ *
+ * IMPORTANT — re-verify against the actual snapshot slot before publishing the
+ * root. Holder balances move slot to slot: a trading bot can hold millions at one
+ * slot and nothing at the next, and a new pool can appear. Re-run the top-20
+ * sweep (RECEIPTS.md §5) at the chosen slot and extend this list with any
+ * non-person holder it surfaces. Matching works on either the wallet (owner) or
+ * the token-account address, so both forms are safe to list.
  */
 interface Exclusion {
   address: string;
@@ -44,9 +52,19 @@ interface Exclusion {
 }
 
 const EXCLUSIONS: Exclusion[] = [
-  // { address: "<old dev wallet>", reason: "creator wallet: dumped on holders, see receipts #1" },
-  // { address: "<PumpSwap pool vault>", reason: "AMM pool vault, not a community holder" },
-  // { address: "<Meteora pool vault>",  reason: "AMM pool vault, not a community holder" },
+  // Creator wallets — RECEIPTS.md §1, excluded on the merits.
+  { address: "D3us8ZjT9eAZDBYYsowmfcDE87VvPbHRN1YaQckQQwnJ", reason: "creator wallet: launched and dumped the old token, receipts §1" },
+  { address: "H9XXSb8jwVsDWvj577KP3w9i9hRvhz78kSftQqQw3jwv", reason: "creator dump-proceeds pass-through, receipts §1" },
+  { address: "BmFdpraQhkiDQE6SnfG5omcA1VwzqfXrwtNYBwWTymy6", reason: "funded the creator's launch, holds 0 Buddy, receipts §1" },
+  { address: "E6VD9jaLaSdQkXRc5Sv8ZwnYtNX2b6WyvrSejyKYCnuX", reason: "round-tripped SOL with the creator, holds 0 Buddy, receipts §1" },
+  // Pool / infrastructure vaults — RECEIPTS.md §5, contracts not people.
+  { address: "3MePuztv5iB56hyecEaBztjxQQSgAs7m4G7yq7gKLs38", reason: "PumpSwap pool vault, not a community holder, receipts §5" },
+  { address: "3HmXpoWkYxUmGT1i66NAFtrxGGM4w7Z9TG8TdZ9YUDy4", reason: "PumpSwap pool authority, not a community holder, receipts §5" },
+  { address: "9U329jLt17aUrYbb4xD2tdjCtA1yQwZjVDPrnoYagq4k", reason: "Meteora DAMM v2 pool vault, not a community holder, receipts §5" },
+  { address: "htjkX4zqELWzeHHEjkwgZcUWBDNbS9LSNWpygTmnRPf", reason: "Meteora DAMM v2 pool vault (second pool), not a community holder, receipts §5" },
+  { address: "5mbHmspj9ye4eZiBEpy1SoMcE3uPR3WEGFf9DjjmRh6T", reason: "pump.fun bonding-curve token account (migrated, balance 0), receipts §5" },
+  // Program-controlled trading vault surfaced by the top-20 sweep — RECEIPTS.md §5.
+  { address: "4kPFFQZJ51RZvpqFCtozBquDZqnRd1ehiT9MazewbaPR", reason: "program-controlled trading vault (va1t8sdG… PDA), not a community holder, receipts §5" },
 ];
 
 /** Balances below this are ignored: dust accounts inflate the tree for nothing. */
