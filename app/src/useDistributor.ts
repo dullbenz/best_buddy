@@ -171,6 +171,58 @@ async function rentFloorFor(
   return value;
 }
 
+/**
+ * What a position or lock-up could claim RIGHT NOW, not what its stored fields
+ * say.
+ *
+ * The stored `claimable_*`/`escrow_*` fields only move when an instruction
+ * runs `settle()` on chain; rewards that arrived since then live in the
+ * accumulator as `weight x (acc - debt)`. Displaying the stored fields alone
+ * shows "0" to a staker who is genuinely owed rewards — and a Claim button
+ * pressed in that state sends a transaction that fails with NothingToWithdraw,
+ * which wallet simulators flag as suspicious. This mirrors
+ * `state.rs::settle_accrual` + `split_accrual` exactly: floor division at each
+ * step, base capped at total, boost = remainder.
+ */
+const ACC_PRECISION = 10n ** 12n;
+
+export interface LiveAccrual {
+  claimableToken: bigint;
+  claimableSol: bigint;
+  escrowToken: bigint;
+  escrowSol: bigint;
+}
+
+export function liveAccrual(entry: any, pool: any): LiveAccrual {
+  const amount = BigInt(entry.amount.toString());
+  const weight = BigInt(entry.weight.toString());
+
+  const split = (debt: bigint, acc: bigint) => {
+    const delta = acc > debt ? acc - debt : 0n;
+    if (delta === 0n || weight === 0n) return { base: 0n, boost: 0n };
+    const total = (weight * delta) / ACC_PRECISION;
+    let base = (amount * delta) / ACC_PRECISION;
+    if (base > total) base = total;
+    return { base, boost: total - base };
+  };
+
+  const t = split(
+    BigInt(entry.tokenDebt.toString()),
+    BigInt(pool.accTokenPerWeight.toString())
+  );
+  const s = split(
+    BigInt(entry.solDebt.toString()),
+    BigInt(pool.accSolPerWeight.toString())
+  );
+
+  return {
+    claimableToken: BigInt(entry.claimableToken.toString()) + t.base,
+    claimableSol: BigInt(entry.claimableSol.toString()) + s.base,
+    escrowToken: BigInt(entry.escrowToken.toString()) + t.boost,
+    escrowSol: BigInt(entry.escrowSol.toString()) + s.boost,
+  };
+}
+
 const DistributorContext = createContext<DistributorState | null>(null);
 
 /** Wrap the app once; every `useDistributor()` below shares this one read. */

@@ -35,6 +35,7 @@ import { countdown, fmtAmount, fmtDate, fmtSol, shortAddress, shortSignature } f
 import { goTo } from "../nav";
 import {
   useClaimReceipts,
+  liveAccrual,
   useDistributor,
   useLockups,
   useStakePosition,
@@ -132,7 +133,7 @@ export function MyBuddy() {
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
   const program = useProgram();
-  const { config, rewardTokenProgram, refresh } = useDistributor();
+  const { config, pool, rewardTokenProgram, refresh } = useDistributor();
   const { stream, refresh: refreshStream } = useStream(publicKey ?? null);
   const receipts = useClaimReceipts(publicKey ?? null);
   const { position, refresh: refreshPosition } = useStakePosition(publicKey ?? null);
@@ -601,6 +602,13 @@ export function MyBuddy() {
   // Flexible exits in two steps: request, wait out the cooldown, withdraw. The
   // cooldown is the program's own constant, not a hardcoded day, so a fast-clock
   // devnet build counts down the seconds the chain actually enforces.
+  // What the position could claim right now, accumulator included. The stored
+  // fields alone read 0 between settles, which both lies to the staker and
+  // arms a Claim button whose transaction would fail simulation.
+  const live = position && pool ? liveAccrual(position, pool) : null;
+  const nothingToClaimRewards =
+    !live || (live.claimableToken === 0n && live.claimableSol === 0n);
+
   const requestedAt = position ? Number(position.unstakeRequestedAt) : 0;
   const cooldownLeft =
     requestedAt > 0 ? countdown(requestedAt + UNSTAKE_COOLDOWN_SECONDS, now) : null;
@@ -814,11 +822,15 @@ export function MyBuddy() {
                 <span className="stat-label">Staked</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{fmtAmount(position.claimableToken, true)}</span>
+                <span className="stat-value">
+                  {fmtAmount(live?.claimableToken ?? position.claimableToken, true)}
+                </span>
                 <span className="stat-label">Base, claimable now</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{fmtSol(position.claimableSol)} SOL</span>
+                <span className="stat-value">
+                  {fmtSol(live?.claimableSol ?? position.claimableSol)} SOL
+                </span>
                 <span className="stat-label">SOL rewards</span>
               </div>
             </div>
@@ -831,8 +843,12 @@ export function MyBuddy() {
             )}
 
             <div className="button-row">
-              <button disabled={busy} onClick={claimRewards}>
-                Claim rewards
+              <button
+                disabled={busy || nothingToClaimRewards}
+                title={nothingToClaimRewards ? "Nothing has accrued yet" : undefined}
+                onClick={claimRewards}
+              >
+                {nothingToClaimRewards ? "Nothing to claim yet" : "Claim rewards"}
               </button>
               {requestedAt === 0 && (
                 <button disabled={busy} onClick={requestUnstake}>
@@ -925,6 +941,7 @@ export function MyBuddy() {
             </div>
             {lockups.map((l) => (
               <LockupRow
+                pool={pool}
                 key={l.pubkey.toBase58()}
                 lockup={l}
                 now={now}
@@ -1000,6 +1017,7 @@ const TIER_IDS: Record<string, number> = {
  */
 function LockupRow({
   lockup,
+  pool,
   now,
   busy,
   onClaim,
@@ -1007,6 +1025,7 @@ function LockupRow({
   onExit,
 }: {
   lockup: LockupEntry;
+  pool: any;
   now: number;
   busy: boolean;
   onClaim: () => void;
@@ -1016,9 +1035,14 @@ function LockupRow({
   const a = lockup.account;
   const tier = TIERS[TIER_IDS[Object.keys(a.tier ?? {})[0]] ?? 0];
   const left = countdown(Number(a.lockEnd), now);
-  const claimableSol = BigInt(a.claimableSol.toString());
-  const escrowToken = BigInt(a.escrowToken.toString());
-  const escrowSol = BigInt(a.escrowSol.toString());
+  // Live accrual, accumulator included; the stored fields alone read 0
+  // between settles. See liveAccrual.
+  const live = pool ? liveAccrual(a, pool) : null;
+  const claimableToken = live?.claimableToken ?? BigInt(a.claimableToken.toString());
+  const claimableSol = live?.claimableSol ?? BigInt(a.claimableSol.toString());
+  const escrowToken = live?.escrowToken ?? BigInt(a.escrowToken.toString());
+  const escrowSol = live?.escrowSol ?? BigInt(a.escrowSol.toString());
+  const nothingToClaim = claimableToken === 0n && claimableSol === 0n;
 
   // No principal leaves inside the first cooldown window, by any route (the
   // program gates early exit on created_at + the same cooldown flexible
@@ -1040,7 +1064,7 @@ function LockupRow({
           {fmtAmount(a.amount, true)} · {tier.name} at {tier.multiplier} · {state}
         </span>
         <span className="file-desc">
-          claimable now: {fmtAmount(a.claimableToken, true)}
+          claimable now: {fmtAmount(claimableToken, true)}
           {claimableSol > 0n ? ` + ${fmtSol(claimableSol)} SOL` : ""}
           {escrowToken > 0n || escrowSol > 0n
             ? ` · boost in escrow: ${fmtAmount(escrowToken, true)}${
@@ -1050,8 +1074,12 @@ function LockupRow({
         </span>
       </div>
       <div className="file-actions">
-        <button disabled={busy} onClick={onClaim}>
-          Claim rewards
+        <button
+          disabled={busy || nothingToClaim}
+          title={nothingToClaim ? "Nothing has accrued yet" : undefined}
+          onClick={onClaim}
+        >
+          {nothingToClaim ? "Nothing to claim yet" : "Claim rewards"}
         </button>
         {left ? (
           <button
