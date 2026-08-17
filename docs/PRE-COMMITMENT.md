@@ -15,9 +15,9 @@ in [RECEIPTS.md](./RECEIPTS.md) — transaction by transaction.
 
 The community stayed anyway. The market kept trading and holders kept pushing —
 uphill, because the one person with the creator's powers and the creator's fee
-stream was not behind them, and a community takeover of the old token would
-still have routed fees to him. So this is a new token, run by rules in a
-contract nobody can walk away with.
+stream was not behind them. So this is a new token, run by rules in a
+contract nobody can walk away with — rules the old coin could never have been
+given.
 
 The mechanism below is designed on one assumption: **nobody should have to trust
 us.** Every number here is enforced by a program whose source is public, whose

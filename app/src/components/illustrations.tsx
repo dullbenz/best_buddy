@@ -15,8 +15,9 @@
 const MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace";
 
 /* ------------------------------------------------------------------ *
- * Why a community takeover of the Legacy Buddy coin was impossible.
- * Before/after, because the whole argument is a comparison.
+ * Where the trading fee goes: the legacy coin sent it to a creator who
+ * had already left; this one sends 90% to the staking pool. Drawn
+ * before/after, because the point is the contrast.
  * ------------------------------------------------------------------ */
 export function FeeTrapDiagram() {
   return (

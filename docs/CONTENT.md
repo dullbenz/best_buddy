@@ -102,12 +102,12 @@ The community never left. It kept the coin alive, and now it has rebuilt it.
 Here's how, and how to verify all of it. 🧵
 
 **2/**
-The problem with taking over the old token: fees still routed to him, and the
-creator's powers left with him. The community kept pushing, but every push
-paid the person who caused the damage.
+Why a new token and not just the old one? Because the old coin's rules were
+only ever promises. Nothing about it could be locked down, and the creator had
+already dumped and moved on to his next launch.
 
 So: new token, same story, rules enforced by a contract nobody can walk away
-with.
+with — that's the part the old coin could never have.
 
 **3/**
 Four buckets.

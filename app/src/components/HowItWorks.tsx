@@ -45,10 +45,10 @@ export function HowItWorks() {
           pump.fun, where almost nothing is.
         </p>
         <p>
-          A community takeover of the Legacy Buddy token would still have paid him. So
-          this is a new token, and the difference is not that we are promising
+          So this is a new token, and the difference is not that we are promising
           to behave better. It is that the rules are enforced by a program
-          nobody can alter, including us. The story stays the same. What changes
+          nobody can alter, including us — the kind of guarantee the old coin
+          could never have been given. The story stays the same. What changes
           is that it no longer depends on anyone's good intentions.
         </p>
 

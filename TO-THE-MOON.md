@@ -289,9 +289,6 @@ Wayback captures of the creator's abandoned socials, dated screenshots.
 is worth nothing later. This is both your defence if the old dev objects and the
 justification for every wallet you exclude from the snapshot.
 
-Optional but strong: file pump.fun's official CTO fee-redirect application for
-the *old* token. An approval is third-party confirmation of abandonment.
-
 ### 2.3 Decide the numbers
 
 Fill these into [docs/PRE-COMMITMENT.md](docs/PRE-COMMITMENT.md):
