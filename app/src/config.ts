@@ -200,11 +200,17 @@ export const NEW_TOKEN_INFO = {
   name: "Best Buddy",
   ticker: "$BUDDY",
   image: "/tokens/new/logo.png",
-  /** Set on launch day. Until then every link below stays null. */
-  mint: null as string | null,
+  /** Launched 2026-08-17; the config lock pinned this mint on chain. */
+  mint: "G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
   links: [
-    { label: "pump.fun", note: "the launch page", url: null as string | null },
     {
+      label: "pump.fun",
+      note: "the launch page",
+      url: "https://pump.fun/coin/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
+    },
+    {
+      // Stays pending until DexScreener has indexed the market; a dead chart
+      // link on launch day reads worse than a visibly-coming one.
       label: "DexScreener",
       note: "the price chart",
       url: null as string | null,
@@ -212,7 +218,7 @@ export const NEW_TOKEN_INFO = {
     {
       label: "Solscan",
       note: "holders and transfers",
-      url: null as string | null,
+      url: "https://solscan.io/token/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
     },
   ],
 };
@@ -234,9 +240,10 @@ export const SOCIAL_LINKS = [
     id: "pumpfun",
     label: "pump.fun",
     title: "Trade on pump.fun",
-    url: null as string | null,
+    url: "https://pump.fun/coin/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
   },
   {
+    // Pending until DexScreener indexes the market.
     id: "dexscreener",
     label: "DexScreener",
     title: "Price chart",
@@ -246,7 +253,7 @@ export const SOCIAL_LINKS = [
     id: "solscan",
     label: "Solscan",
     title: "Holders and transfers",
-    url: null as string | null,
+    url: "https://solscan.io/token/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
   },
 ];
 
