@@ -1,0 +1,51 @@
+{
+  "oldTokenMint": "7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump",
+  "slot": 439869907,
+  "takenAt": "2026-08-17T14:48:36.743Z",
+  "bucketTwoAllocation": "30000000000000",
+  "eligibleWallets": 946,
+  "merkleRoot": "abc94638c85e512f0fe636b515a96c7a409702d26ef80bac37941087eb78ef52",
+  "exclusions": [
+    {
+      "address": "D3us8ZjT9eAZDBYYsowmfcDE87VvPbHRN1YaQckQQwnJ",
+      "reason": "creator wallet: launched and dumped the old token, receipts §1"
+    },
+    {
+      "address": "H9XXSb8jwVsDWvj577KP3w9i9hRvhz78kSftQqQw3jwv",
+      "reason": "creator dump-proceeds pass-through, receipts §1"
+    },
+    {
+      "address": "BmFdpraQhkiDQE6SnfG5omcA1VwzqfXrwtNYBwWTymy6",
+      "reason": "funded the creator's launch, holds 0 Buddy, receipts §1"
+    },
+    {
+      "address": "E6VD9jaLaSdQkXRc5Sv8ZwnYtNX2b6WyvrSejyKYCnuX",
+      "reason": "round-tripped SOL with the creator, holds 0 Buddy, receipts §1"
+    },
+    {
+      "address": "3MePuztv5iB56hyecEaBztjxQQSgAs7m4G7yq7gKLs38",
+      "reason": "PumpSwap pool vault, not a community holder, receipts §5"
+    },
+    {
+      "address": "3HmXpoWkYxUmGT1i66NAFtrxGGM4w7Z9TG8TdZ9YUDy4",
+      "reason": "PumpSwap pool authority, not a community holder, receipts §5"
+    },
+    {
+      "address": "9U329jLt17aUrYbb4xD2tdjCtA1yQwZjVDPrnoYagq4k",
+      "reason": "Meteora DAMM v2 pool vault, not a community holder, receipts §5"
+    },
+    {
+      "address": "htjkX4zqELWzeHHEjkwgZcUWBDNbS9LSNWpygTmnRPf",
+      "reason": "Meteora DAMM v2 pool vault (second pool), not a community holder, receipts §5"
+    },
+    {
+      "address": "5mbHmspj9ye4eZiBEpy1SoMcE3uPR3WEGFf9DjjmRh6T",
+      "reason": "pump.fun bonding-curve token account (migrated, balance 0), receipts §5"
+    },
+    {
+      "address": "4kPFFQZJ51RZvpqFCtozBquDZqnRd1ehiT9MazewbaPR",
+      "reason": "program-controlled trading vault (va1t8sdG… PDA), not a community holder, receipts §5"
+    }
+  ],
+  "minBalanceBaseUnits": "1"
+}
