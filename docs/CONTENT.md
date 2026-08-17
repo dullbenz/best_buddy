@@ -164,8 +164,8 @@ Ten seconds to check. Please do.
 
 **9/**
 Cost of that: it can never be patched either. A bug would be permanent.
-That's why there was a devnet rehearsal and an independent review first, and
-why the source is public.
+That's why there was an extensive devnet rehearsal and a full test suite first,
+and why the source is public.
 
 Trade made on purpose. A contract someone can rewrite is a contract you have to
 trust someone about.

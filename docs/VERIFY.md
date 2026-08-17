@@ -27,7 +27,7 @@ team can write about itself.
 | pump.fun fee config | `<SHARING_CONFIG_PDA>` |
 | Token mint | `<MINT>` |
 | Source | https://github.com/dullbenz/best_buddy |
-| Security review | `<link>` |
+| Devnet test campaign | https://github.com/dullbenz/best_buddy/blob/main/docs/E2E-DEVNET-CAMPAIGN.md |
 
 ---
 
@@ -166,9 +166,10 @@ rule is real rather than decorative.
 Being straight about the limits, because a page that oversells its own rigour
 is doing the same trick from a different angle:
 
-- **Verification is not an audit.** These checks confirm the contract is what
-  we say it is. They do not prove it is free of bugs. That is what the security
-  review at `<link>` was for, and even that is not a guarantee.
+- **Verification is not a guarantee of safety.** These checks confirm the
+  contract is what we say it is. They do not prove it is free of bugs — no check
+  can. The source and its full test suite are public precisely so more eyes can
+  look, and even that is not a promise nothing was missed.
 - **Immutable means unfixable.** The same property that stops us changing the
   rules stops anyone fixing a bug. This was a deliberate trade.
 - **None of this predicts price.** Everything here is about mechanics and

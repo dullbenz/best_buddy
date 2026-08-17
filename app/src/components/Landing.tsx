@@ -715,7 +715,7 @@ export function Landing({
           <IndexRow
             when="Trade-off"
             title="Permanent code can never be fixed either."
-            body="Making the contract unchangeable also means that if there is a mistake in it, nobody can repair it. Not us, not anyone, ever. A full rehearsal on a test network and an independent security review were the only two chances to catch one. We chose that anyway, because a contract someone can rewrite is a contract you have to trust someone about, and this community has already been asked to do that once."
+            body="Making the contract unchangeable also means that if there is a mistake in it, nobody can repair it. Not us, not anyone, ever. A full rehearsal on a test network and an exhaustive automated test suite were the chances to catch one, and the source is public for anyone to read. We chose that anyway, because a contract someone can rewrite is a contract you have to trust someone about, and this community has already been asked to do that once."
           />
           <IndexRow
             when="Deadlines"

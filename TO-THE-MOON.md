@@ -273,12 +273,14 @@ community's fee stream permanently.
 Steps 2.1–2.4 can all run in parallel. This section, not the launch, is where
 the real work is.
 
-### 2.1 Book the security review
+### 2.1 Review the contract
 
-**Start this first — auditors have lead times.**
-
-Because the contract will be immutable, this is not best practice, it's the only
-safety net you have. Budget for it, publish the report, and fix what it finds.
+The contract is immutable, so it has to be right before the burn — there is no
+patch afterwards. The review standing behind it is a full devnet rehearsal (the
+85-scenario campaign in [docs/E2E-DEVNET-CAMPAIGN.md](docs/E2E-DEVNET-CAMPAIGN.md),
+with [docs/E2E-RETEST-PLAN.md](docs/E2E-RETEST-PLAN.md)) plus the contract's own
+test suite, read alongside [docs/AUDIT-BRIEF.md](docs/AUDIT-BRIEF.md). The source
+is public, so anyone can read it and report what they find.
 
 ### 2.2 Build the receipts dossier
 
@@ -667,7 +669,7 @@ has the numbers; the post is a summary and a link.
 - [ ] `deploy-init.ts` dry run read line by line
 
 **Preparation**
-- [ ] Security review done and published
+- [ ] Contract reviewed: devnet campaign clean + full test suite green
 - [ ] Receipts dossier complete and archived
 - [ ] All numbers decided; the launch buy is money you can lose
 - [ ] Distributor total understood: it is whatever the launch buy acquires,
@@ -758,9 +760,9 @@ unwrapped internally — but a doc is not the deployed program on the day.
 `unwrap_wsol` exists to cover either form regardless. §1.5 is where you find
 out for real.
 
-**The security review.** The 35 tests prove the mechanisms work as designed.
-They do not prove there's no exploit nobody thought of. With an immutable
-contract, that difference is permanent.
+**Undiscovered bugs.** The tests and the devnet campaign prove the mechanisms
+work as designed. They do not prove there's no exploit nobody thought of. With
+an immutable contract, that difference is permanent.
 
 **Whether any of this works commercially.** Everything here is about mechanics
 and custody. It's a memecoin. It can go to zero regardless of how good the

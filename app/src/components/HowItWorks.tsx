@@ -248,9 +248,10 @@ export function HowItWorks() {
         <ul className="muted">
           <li>
             <strong>An immutable contract cannot be fixed.</strong> If there is a
-            bug, nobody can patch it, not us and not anyone. A devnet rehearsal and
-            an independent security review were the only two chances to catch
-            one.
+            bug, nobody can patch it, not us and not anyone. A full devnet
+            rehearsal and an exhaustive automated test suite were the chances to
+            catch one before the code was frozen, and the source is public for
+            anyone to read.
           </li>
           <li>
             <strong>Missing a claim window means missing it.</strong> The

@@ -255,8 +255,9 @@ We are telling you what this costs, because a project that only tells you the
 upside is selling you something. An immutable program cannot be patched. If
 there is a bug in it, nobody can fix it — not us, not anyone — and it has to
 keep working until the 2030 signer deadline. Our mitigations were a full devnet
-rehearsal and an independent security review (`<link>`), and those were our only
-two shots at it.
+rehearsal — the 85-scenario campaign in
+[docs/E2E-DEVNET-CAMPAIGN.md](./E2E-DEVNET-CAMPAIGN.md) — and the contract's own
+test suite, and the source is public for anyone to read.
 
 We made that trade deliberately. A contract that someone can rewrite is a
 contract you have to trust someone about, and this community has already been
@@ -270,7 +271,7 @@ asked to do that once.
 - Config account: `<CONFIG_PDA>`
 - Token vault: `<VAULT_PDA>`
 - Source code: `<repo link>`
-- Security review: `<link>`
+- Devnet campaign report: [docs/E2E-DEVNET-CAMPAIGN.md](./E2E-DEVNET-CAMPAIGN.md)
 - Live dashboard: `<link>`
 
 ---
