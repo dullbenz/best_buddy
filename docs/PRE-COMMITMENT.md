@@ -45,15 +45,15 @@ up in bucket 1.
 ### Allocations
 
 The distributor total — every token the team's launch buy acquired, sent into
-the contract in its entirety through `fund_vault` — is `<amount>` (`<n>` base
-units). It is split:
+the contract in its entirety through `fund_vault` — is **377,695,999.980531 BUDDY** (`377695999980531` base
+units — every token the launch buy acquired). It is split:
 
 | Bucket | Amount | Share |
 |---|---|---|
-| 2 — Legacy Buddy holders | `<amount>` | **15%** |
-| 3 — influencers | `<amount>` | **50%** |
-| 4a — original signer | `<amount>` | **10%** |
-| 4b — the team | `<amount>` | **25%** |
+| 2 — Legacy Buddy holders | 56,654,399.997081 (`56654399997081`) | **15%** |
+| 3 — influencers | 188,847,999.990265 (`188847999990265`) | **50%** |
+| 4a — original signer | 37,769,599.998053 (`37769599998053`) | **10%** |
+| 4b — the team | 94,423,999.995132 (`94423999995132`) | **25%** |
 | 1 — staking pool | **0 at launch** | grows forever |
 
 Bucket 1 starting empty is deliberate. It is funded by what the ecosystem
@@ -63,9 +63,10 @@ generates and by what other people forfeit, not by a pre-mine.
 
 ## Bucket 2 — Legacy Buddy holders
 
-Snapshot taken at slot `<slot>` (`<UTC time>`), chosen **retroactively** — the
-block of `<the documented event: e.g. the creator's final sell transaction>`,
-`<solscan link>`.
+Snapshot taken at mainnet slot `439869907` (2026-08-17T14:48:36Z), chosen
+**retroactively** — the slot had already passed when it was read, and the full
+sweep of the holder set at that slot (946 eligible wallets, three non-person
+holders excluded with reasons) is documented in the receipts dossier.
 
 The moment was already in the past when this was published, deliberately.
 Announcing a future snapshot would have told the whole market to go buy the old
@@ -73,9 +74,9 @@ token and farm the airdrop, which would have handed restitution to speculators
 instead of the people it is owed to — and paid the old creator's fees on the way
 through.
 
-- Full holder list, allocations and Merkle proofs: `<link>`
-- Merkle root committed on chain: `<hex>`
-- Excluded wallets and the reason for each: `<link>`
+- Full holder list, allocations and Merkle proofs: https://mybestbuddy.fun/snapshot/holders.csv and /proofs/old-holders.json
+- Merkle root committed on chain: `254e1d146f8fe847410521bbf76f22eb0c1f0957ba1b6bf3128f1cbe8b044caa`
+- Excluded wallets and the reason for each: https://mybestbuddy.fun/snapshot/excluded.csv
 
 Anyone can re-run `scripts/verify-snapshot.ts` against the published files and
 must arrive at the identical root. If they do not, we are lying and it is
@@ -92,7 +93,7 @@ directly, and many belong to people who left after the rug.
 
 ## Bucket 3 — influencers
 
-The complete list of addresses and amounts is published at `<link>`. There are
+The complete list of addresses and amounts is published at https://mybestbuddy.fun/snapshot/influencers.csv. There are
 no allocations that are not on that list.
 
 72 hours to claim. Claiming opens a 30-day linear stream rather than
@@ -274,9 +275,11 @@ asked to do that once.
 **Verify it yourself:**
 
 - Program: `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM`
-- Config account: `<CONFIG_PDA>`
-- Token vault: `<VAULT_PDA>`
+- Token mint: `G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump`
+- Config account: `5FchcWEipuLrsYWs6M634jEiHYudY1LaWc4zZKMGQJbT`
+- Token vault: `EuLtBocmZxYTG77rqYxjLKSs8okTSCiBXpEYMkUJa5Lz`
 - Source code: https://github.com/dullbenz/best_buddy
+- SOL vault: `Fd8YBEg6VZ2LPDXVJARD9fEcwjYGhdteNSoEiERfMykB`
 - Devnet campaign report: [docs/E2E-DEVNET-CAMPAIGN.md](./E2E-DEVNET-CAMPAIGN.md)
 - Live dashboard: https://mybestbuddy.fun
 
