@@ -705,6 +705,37 @@ function SignerInfo({ config, connected }: { config: any; connected: boolean }) 
         frozen in its config. It either matches or it does not.
       </p>
 
+      <div className="note">
+        <strong>Why a successful claim really is the 2014 signer.</strong> A
+        Bitcoin address is not a public key; it is a fingerprint (a hash) of
+        one. The full key behind the 2014 address became public the moment
+        that wallet <em>spent</em> in 2014, because a spend must reveal its
+        key for the network to check it. That revealed key, not the address,
+        is what this contract froze at launch.
+        <br />
+        To claim, the holder writes a one-line message naming their own Solana
+        wallet and signs it with that same key, offline, in whatever Bitcoin
+        wallet has held it since — Electrum's <em>Sign/Verify message</em> or{" "}
+        <span className="mono">signmessage</span> in Bitcoin Core. The
+        2014-era address type (a classic <span className="mono">1…</span>{" "}
+        P2PKH address) is exactly what those tools sign for.
+        <br />
+        A Bitcoin message signature carries enough information to{" "}
+        <em>reconstruct</em> the key that produced it. The contract recomputes
+        that key from the signature, on chain, and compares it byte for byte
+        with the 2014 key. Only the true key holder can produce a match, and
+        because the destination wallet is inside the signed text, a signature
+        seen publicly cannot be redirected by anyone else. So if this bucket
+        ever reads "claimed", it was claimed by the key that wrote the
+        message this coin is named after; there is no other way in.
+        <br />
+        <span className="muted">
+          The Dashboard's provenance panel shows the exact key and the 2014
+          transaction it was revealed in, so the key-to-address link is
+          checkable against the Bitcoin blockchain, not against us.
+        </span>
+      </div>
+
       {swept ? (
         <Verdict tone="done" heading="Unclaimed, and now gone to the stakers.">
           <p>

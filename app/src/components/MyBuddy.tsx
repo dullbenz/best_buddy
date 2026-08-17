@@ -854,12 +854,14 @@ export function MyBuddy() {
       <section className="card">
         <details className="terms">
           <summary>I hold the Bitcoin key that signed the 2014 message</summary>
-          <SignerClaimBody
-            config={config}
-            wallet={publicKey}
-            busy={busy}
-            onClaim={claimOriginalSigner}
-          />
+          <div className="terms-inner">
+            <SignerClaimBody
+              config={config}
+              wallet={publicKey}
+              busy={busy}
+              onClaim={claimOriginalSigner}
+            />
+          </div>
         </details>
         <ForfeitNote label="Why this is here">
           A share of the supply is reserved until{" "}

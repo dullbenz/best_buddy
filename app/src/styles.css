@@ -3105,3 +3105,10 @@ a.ho-link:hover {
 .prov-explorers a:hover {
   text-decoration: underline;
 }
+
+/* Body of a folded card section (the signer flow): the .terms styling was
+   built for a summary + <pre>, so arbitrary content ran flush against the
+   card edges. */
+.terms-inner {
+  padding: 6px 14px 14px;
+}
