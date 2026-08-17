@@ -47,7 +47,7 @@ export const RPC_IS_KEYED = !servedFromLocalhost && !!KEYED_RPC;
 
 export const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID ??
-    "7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP",
+    "GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca",
 );
 
 /** Decimals of the new token; pump.fun mints use 6. */
@@ -202,6 +202,26 @@ export const SOCIAL_LINKS = [
     url: null as string | null,
   },
 ];
+
+/**
+ * The decided split of the initial distributor supply, in whole percent.
+ *
+ * The four buckets sum to 100% of whatever total goes into the contract at
+ * launch; bucket 1 (the staking pool) deliberately starts at zero and is fed
+ * by fees and forfeits, so it has no slice here.
+ *
+ * These are the committed numbers from the pre-commitment document, not a
+ * reading. Once `initialize` runs, the on-chain allocations are the authority
+ * and the UI derives the live percentages from those instead, so a mismatch
+ * between this constant and the chain would be visible rather than papered
+ * over.
+ */
+export const BUCKET_SPLIT = {
+  legacyHolders: 15,
+  influencers: 50,
+  originalSigner: 10,
+  team: 25,
+} as const;
 
 /**
  * Published proof and snapshot files, served as static assets next to the app.

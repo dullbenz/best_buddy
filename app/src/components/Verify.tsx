@@ -191,19 +191,19 @@ export function Verify() {
     command: `spl-token balance --address ${vaultPda}`,
   });
 
-  // 4: the Token Creator cannot dump.
+  // 4: the team cannot dump.
   checks.push({
-    title: "The Token Creator's tokens are locked in a stream",
+    title: "The team's tokens are locked in a stream",
     status: loading || !config ? "pending" : config.devStreamCreated ? "pass" : "fail",
     detail: loading
       ? "reading the config…"
       : !config
       ? UNREADABLE
       : config.devStreamCreated
-      ? `${fmtAmount(config.devAllocation)} released linearly over 12 months behind a cliff. The Token Creator's wallet holds none of it.`
-      : "The dev stream has not been created yet.",
+      ? `${fmtAmount(config.devAllocation)} released linearly over 12 months behind a cliff. No team wallet holds any of it.`
+      : "The team's stream has not been created yet.",
     why:
-      "The original token failed because its creator could sell whenever he liked. Here the Token Creator's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate.",
+      "The original token failed because its creator could sell whenever he liked. Here the team's allocation exists only inside the contract and comes out at a fixed rate nobody can accelerate, into a multisig rather than any one person's wallet.",
   });
 
   // 5: reproduce the snapshot.

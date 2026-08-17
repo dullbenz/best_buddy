@@ -15,6 +15,11 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+# Devnet test builds ONLY: shrinks every wall-clock duration to minutes so the
+# end-to-end campaign can watch windows expire, locks mature and streams vest in
+# one sitting. Never a default; never in a mainnet build. solana-verify builds
+# default features, so the deployed mainnet bytecode provably excludes it.
+fast-clock = []
 
 [dependencies]
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }

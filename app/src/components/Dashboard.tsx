@@ -34,6 +34,15 @@ export function Dashboard() {
   const now = Date.now() / 1000;
   const oldRemaining = BigInt(config.oldHolderAllocation) - BigInt(config.oldHolderClaimed);
   const infRemaining = BigInt(config.influencerAllocation) - BigInt(config.influencerClaimed);
+  // The published launch figure: the sum of the four frozen allocations.
+  // Constant since the lock, unlike the vault balance below it, which falls
+  // as people claim — the pair together answer "how much was there, and how
+  // much is still inside".
+  const initialDistribution =
+    BigInt(config.oldHolderAllocation) +
+    BigInt(config.influencerAllocation) +
+    BigInt(config.originalSignerAllocation) +
+    BigInt(config.devAllocation);
   const oldLeft = countdown(Number(config.oldHolderDeadline), now);
   const infLeft = countdown(Number(config.influencerDeadline), now);
   const signerLeft = countdown(ORIGINAL_SIGNER_DEADLINE, now);
@@ -42,7 +51,7 @@ export function Dashboard() {
   return (
     <div className="stack">
       <section className="card highlight">
-        <h2>Bucket 4: the two founders</h2>
+        <h2>Bucket 4: the 2014 signer, and the team</h2>
 
         <div className="split">
           <div className="split-half">
@@ -80,7 +89,7 @@ export function Dashboard() {
 
           <div className="split-half">
             <div className="split-head">
-              <h3>The Token Creator</h3>
+              <h3>The team</h3>
               <span className={config.devStreamCreated ? "badge pass" : "badge fail"}>
                 {config.devStreamCreated ? "locked up" : "not locked yet"}
               </span>
@@ -92,10 +101,17 @@ export function Dashboard() {
             </div>
 
             <p className="muted small">
-              Nothing is held in a wallet. The tokens sit in this contract and
-              are released a little at a time, with none at all before the
-              cliff. There is no instruction that pays them out faster, not for
-              the Token Creator, not for anyone.
+              Nothing is held in anyone's personal wallet. The tokens sit in
+              this contract and are released a little at a time, with none at
+              all before the cliff, into a team multisig that no single member
+              controls. There is no instruction that pays them out faster, not
+              for the team, not for anyone.
+            </p>
+            <p className="muted small">
+              Even withdrawing what has vested takes more than one member:
+              the multisig itself has to sign, and the contract will only pay
+              into the multisig's own account, so a withdrawal can be
+              proposed but never redirected.
             </p>
           </div>
         </div>
@@ -199,6 +215,10 @@ export function Dashboard() {
           in, and whether the rules governing them can still be edited.
         </p>
         <div className="stat-row">
+          <Stat
+            label="Initial distribution"
+            value={fmtAmount(initialDistribution, true)}
+          />
           <Stat label="Tokens held" value={fmtAmount(vaultBalance, true)} />
           <Stat label="SOL held" value={`${fmtSol(solVaultBalance)} SOL`} />
           <Stat
@@ -208,6 +228,9 @@ export function Dashboard() {
           />
         </div>
         <p className="muted small">
+          <strong>Initial distribution</strong> is the whole launch purchase:
+          the sum of the four allocations, frozen by the lock, and the figure
+          the pre-commitment document publishes. It never changes.{" "}
           <strong>Tokens held</strong> is every unclaimed allocation: the claim
           windows, the streams and the staking pool all pay out of it, so it
           falls as people claim. <strong>SOL held</strong> is fee and donation

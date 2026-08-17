@@ -1,9 +1,13 @@
 /**
- * Create the dev's vesting stream.
+ * Create the team's vesting stream.
  *
  * Permissionless on purpose: anyone can run this, and it can only ever produce
  * the terms fixed at initialization. Run it immediately after `lock_config` so
- * the dev wallet is visibly empty from the first block.
+ * it is visible from the first block that no team wallet holds anything.
+ *
+ * The beneficiary is whatever `DEV_WALLET` was at init — for launch, the
+ * team's Squads multisig vault. Withdrawals therefore go through the Squads
+ * proposal flow, not through the site.
  *
  *   RPC_URL=<rpc> KEYPAIR=<any-funded-keypair.json> \
  *     npx ts-node scripts/create-dev-stream.ts
@@ -39,7 +43,7 @@ async function main() {
   const state = await (program.account as any).config.fetch(config);
 
   if (state.devStreamCreated) {
-    console.log("dev stream already exists, nothing to do");
+    console.log("the team stream already exists, nothing to do");
     return;
   }
 
@@ -52,7 +56,13 @@ async function main() {
   // by anyone: whoever calls it gets the same terms.
   const cliffDays = Number(state.devCliffSeconds) / 86_400;
 
-  console.log(`dev wallet:  ${state.devWallet.toString()}`);
+  const beneficiary = new PublicKey(state.devWallet);
+  console.log(`beneficiary (team multisig vault): ${beneficiary.toBase58()}`);
+  console.log(
+    PublicKey.isOnCurve(beneficiary.toBytes())
+      ? "  ⚠ on-curve: an ordinary wallet, not a Squads vault (expected only in rehearsals)"
+      : "  off-curve: program-derived, consistent with a Squads vault"
+  );
   console.log(`allocation:  ${state.devAllocation.toString()}`);
   console.log(`cliff:       ${cliffDays} days (fixed at init, not by this call)`);
   console.log(`stream PDA:  ${stream.toBase58()}`);

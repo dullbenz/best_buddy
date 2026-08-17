@@ -1,3 +1,4 @@
+import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useEffect, useRef, useState } from "react";
 import { CLUSTER, IS_MAINNET } from "./config";
@@ -9,6 +10,7 @@ import { Dashboard } from "./components/Dashboard";
 import { FundPool } from "./components/FundPool";
 import { HowItWorks } from "./components/HowItWorks";
 import { Landing } from "./components/Landing";
+import { MyBuddy } from "./components/MyBuddy";
 import { Staking } from "./components/Staking";
 import { Verify } from "./components/Verify";
 
@@ -19,9 +21,17 @@ type Tab =
   | "staking"
   | "fund pool"
   | "verify"
-  | "how it works";
+  | "how it works"
+  | "my buddy";
 
-const TABS: Tab[] = [
+/**
+ * The main nav row: the pages that describe the system, in reading order.
+ *
+ * "my buddy" is deliberately not here. It is the personal page, everything
+ * one wallet can do, so it renders beside the wallet button it belongs to
+ * rather than among pages that read the same for everyone.
+ */
+const NAV_TABS: Tab[] = [
   "home",
   "dashboard",
   "claims",
@@ -30,6 +40,9 @@ const TABS: Tab[] = [
   "verify",
   "how it works",
 ];
+
+/** Every routable tab, for the URL parser. */
+const TABS: Tab[] = [...NAV_TABS, "my buddy"];
 
 /**
  * Which chain this build talks to, but only when that is not mainnet.
@@ -53,6 +66,8 @@ function ClusterBadge() {
 }
 
 export function App() {
+  const { connected } = useWallet();
+
   // Initial tab comes from the URL, so a deep link and a refresh both land
   // where they should instead of bouncing to the landing page.
   const [tab, setTabState] = useState<Tab>(() => parseLocation(TABS).tab as Tab);
@@ -184,12 +199,25 @@ export function App() {
 
         <div className="header-right">
           <ClusterBadge />
+          {/* The personal page sits beside the wallet button because they are
+              about the same thing: this button is where "your wallet" lives on
+              screen. Rendered only while connected; the page itself still
+              answers a cold deep link with a connect prompt. */}
+          {connected && (
+            <button
+              type="button"
+              className={tab === "my buddy" ? "hub-btn active" : "hub-btn"}
+              onClick={() => setTab("my buddy")}
+            >
+              My Buddy
+            </button>
+          )}
           <WalletMultiButton />
         </div>
       </header>
 
       <nav>
-        {TABS.map((t) => (
+        {NAV_TABS.map((t) => (
           <button
             key={t}
             className={tab === t ? "tab active" : "tab"}
@@ -210,6 +238,7 @@ export function App() {
         {tab === "fund pool" && <FundPool />}
         {tab === "verify" && <Verify />}
         {tab === "how it works" && <HowItWorks />}
+        {tab === "my buddy" && <MyBuddy />}
       </main>
 
       <footer>

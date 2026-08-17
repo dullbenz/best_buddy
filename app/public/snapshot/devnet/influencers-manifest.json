@@ -1,7 +1,7 @@
 {
   "FIXTURE": "fabricated devnet test data, not a real list",
-  "merkleRoot": "7dcb2163c11f0a056ed6d84f6413bd21b1978fca8ebfd107890b78891507e8bd",
+  "merkleRoot": "3caa70033a072bab7190703d890e88e2b74e743d457923815160d3965f451f83",
   "entries": 6,
-  "total": "30000000000000",
-  "builtAt": "2026-08-15T00:22:45.771Z"
+  "total": "100000000000000",
+  "builtAt": "2026-08-17T02:14:47.827Z"
 }

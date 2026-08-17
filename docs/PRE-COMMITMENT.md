@@ -32,22 +32,26 @@ claim opens.
 | 2 | Legacy Buddy holders | 30 days | instantly, no lockup |
 | 3 | Influencers | 72 hours | 30-day stream on claim |
 | 4a | The original 2014 Bitcoin signer | until 2030-12-31 | 12-month stream |
-| 4b | The new dev | automatic | 12-month stream behind a cliff |
+| 4b | The team | automatic | 12-month stream behind a cliff, to a multisig |
 
 **One rule governs all of it: anything unclaimed becomes community staking
 rewards.** Expired influencer allocations, the unclaimed old-holder remainder,
-the founder allocation if the 2014 signer never appears, forfeited boost escrow
+the signer allocation if the 2014 signer never appears, forfeited boost escrow
 and slashed principal from people who break their locks — every last unit ends
 up in bucket 1.
 
 ### Allocations
 
+The distributor total — every token the team's launch buy acquired, sent into
+the contract in its entirety through `fund_vault` — is `<amount>` (`<n>` base
+units). It is split:
+
 | Bucket | Amount | Share |
 |---|---|---|
-| 2 — Legacy Buddy holders | `<amount>` | `<55%>` |
-| 3 — influencers | `<amount>` | `<15%>` |
-| 4a — original signer | `<amount>` | `<20%>` |
-| 4b — new dev | `<amount>` | `<10%>` |
+| 2 — Legacy Buddy holders | `<amount>` | **15%** |
+| 3 — influencers | `<amount>` | **50%** |
+| 4a — original signer | `<amount>` | **10%** |
+| 4b — the team | `<amount>` | **25%** |
 | 1 — staking pool | **0 at launch** | grows forever |
 
 Bucket 1 starting empty is deliberate. It is funded by what the ecosystem
@@ -130,16 +134,22 @@ If nobody ever claims, the allocation goes to the community after the deadline.
 
 ---
 
-## Bucket 4b — the new dev
+## Bucket 4b — the team
 
-The dev's allocation streams linearly over 12 months behind a `<30>`-day cliff.
+The team's allocation streams linearly over 12 months behind a `<30>`-day cliff.
 
-**The dev wallet holds no tokens after deployment.** Every token the dev will
+**No team wallet holds tokens after deployment.** Every token the team will
 ever receive from this allocation exists only inside the distributor contract
-and comes out at a fixed rate that nobody — including the dev — can accelerate.
+and comes out at a fixed rate that nobody — including the team — can
+accelerate.
 
-Ongoing dev income is the retained share of pump.fun creator fees: **10%
-retained, 90% to the community staking pool.**
+What does vest is paid to a **team multisig** (`<vault address>`), not to any
+individual: moving anything the team earns requires more than one member to
+sign, so no single person can run off with it, and no single person's absence
+can freeze it.
+
+Ongoing team income is the retained share of pump.fun creator fees: **10%
+retained — paid to that same multisig — 90% to the community staking pool.**
 
 That split is set once, on chain, through pump.fun's fee-sharing config — which
 revokes its own admin immediately afterwards. It is therefore **permanent and

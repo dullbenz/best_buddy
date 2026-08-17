@@ -40,7 +40,7 @@ This file is your contract's identity. It lives in `target/`, a build folder
 that `anchor clean` wipes without asking. Put a copy in a password manager or
 an encrypted drive. Never in Git, never in Google Drive, never in a chat.
 
-Current program ID: `7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP`
+Current program ID: `GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca`
 
 > **This is a devnet identity, not the launch one.** The roots a claim is
 > checked against can only be set at `initialize`, and only once, so putting
@@ -59,7 +59,7 @@ Current program ID: `7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP`
 cd /Users/dullbenz/Projects/Personal/best_buddy && npm test
 ```
 
-Expect **37 passing**. Then:
+Expect **40 passing**. Then:
 
 ```bash
 cargo test -p buddy-distributor --lib
@@ -135,7 +135,7 @@ Set these in **Settings → Secrets and variables → Actions**:
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | the service-account JSON |
 | Variable | `FIREBASE_PROJECT_ID` | your Firebase project ID |
 | Variable | `VITE_RPC_URL` | your Helius RPC URL |
-| Variable | `VITE_PROGRAM_ID` | `7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP` |
+| Variable | `VITE_PROGRAM_ID` | `GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca` |
 | Secret | `STAGING_PASSWORD` | the staging basic-auth password |
 | Variable | `STAGING_RPC_URL` | a devnet RPC endpoint |
 
@@ -199,12 +199,20 @@ sequence. Four lines prove the guarantees rather than assert them:
 
 Full guide, including how to re-run it: [docs/DEVNET-REHEARSAL.md](docs/DEVNET-REHEARSAL.md).
 
+> **Done, and then some.** The full end-to-end campaign in
+> [docs/E2E-DEVNET-CAMPAIGN.md](docs/E2E-DEVNET-CAMPAIGN.md) ran every scenario
+> above plus every rejection path, sweep, forfeit and maturity on devnet —
+> 69 pass, 2 documented notes, 0 fail — with a transaction signature for each.
+> Time-gated paths used the `fast-clock` build (test-only cargo feature; the
+> mainnet build provably excludes it). What remains untestable before launch
+> is exactly the pump.fun fee chain (§1.5) and your own Phantom click-through.
+
 ### 1.3 Click through the real app against devnet
 
 Locally:
 
 ```bash
-cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP npm run dev
+cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca npm run dev
 ```
 
 Or push to `develop` and use `staging.mybestbuddy.fun`, which is the same build
@@ -232,12 +240,16 @@ it work.
 
 1. Create a junk coin on pump.fun with a minimal buy.
 2. `create_fee_sharing_config`, then set a 90/10 split with a test PDA of the
-   same shape as the real SOL vault.
+   same shape as the real SOL vault, and the 10% pointing at a **test Squads
+   vault** — the real 10% goes to the team multisig (§2.3a), and both
+   recipients are program-owned accounts, so this rehearsal must prove that
+   *both* kinds can actually be paid.
 3. Trade it a little so fees actually accrue.
 4. Run the whole chain from the Fund pool tab and confirm value lands and gets
-   credited.
+   credited on both sides of the split.
 5. **Note which form the payout arrived in** — native lamports or wrapped SOL.
-   That tells you whether `unwrap_wsol` is on the critical path.
+   That tells you whether `unwrap_wsol` is on the critical path, and whether
+   the multisig vault needs a wSOL token account to receive its share.
 
 Budget a few tens of dollars. Cheap, against a mistake that would freeze the
 community's fee stream permanently.
@@ -274,11 +286,64 @@ Fill these into [docs/PRE-COMMITMENT.md](docs/PRE-COMMITMENT.md):
 
 | Decision | Guidance |
 |---|---|
-| Dev-buy size | Money you can lose entirely. Old token liquidity is ~$26k, so low tens of SOL is proportionate; larger mostly buys your own slippage. |
-| Bucket split | Suggested 55 / 15 / 20 / 10 across Legacy Buddy holders, influencers, 2014 signer, dev. |
-| Dev cliff | 30 days is the default. |
-| Creator fee split | 90% to the community vault, 10% to you. Set **once, irreversibly** — see [docs/FEES.md](docs/FEES.md). |
+| Launch-buy size | Money you can lose entirely. Old token liquidity is ~$26k, so low tens of SOL is proportionate; larger mostly buys your own slippage. This is pump.fun's "dev-buy" field, sent in the same transaction as creation (§4.3). |
+| **Distributor total** | **The number of tokens the launch buy actually acquires, all of which goes into the contract through `fund_vault`.** The rehearsal fixture uses 200M as a stand-in; the real figure is only known after the buy executes, and every allocation below is a slice of it. Decide the percentages now, compute the base-unit amounts on launch day, publish both. |
+| Bucket split | **Decided: 15 / 50 / 10 / 25** across Legacy Buddy holders, influencers, 2014 signer, the team. The four `*_ALLOC` amounts passed to `initialize` must sum to exactly the distributor total. |
+| Team cliff | 30 days is the default (`DEV_CLIFF_DAYS`, frozen at init). |
+| Creator fee split | 90% to the community vault, 10% to the team multisig. Set **once, irreversibly** — see [docs/FEES.md](docs/FEES.md). |
 | Influencer list | Addresses and amounts. All published — no hidden deals. |
+
+### 2.3a Create the team multisig (Squads)
+
+The team's two revenue destinations — the 25% allocation stream and the 10%
+creator-fee share — both point at a **multisig vault**, not any one member's
+wallet. Two reasons, and they are the same reasons any team should:
+
+- **No single member holds all the rights.** One compromised or rogue key
+  cannot move the team's funds.
+- **No single member can hold them up.** With a 2-of-3 threshold, any two
+  signers can act when the third is unavailable.
+
+Create it at [Squads](https://squads.so) (the standard Solana multisig; the
+vault signs transactions through its proposal → approve → execute flow, which
+is what lets it be the stream's beneficiary):
+
+1. All three members create or designate a personal signing wallet.
+2. Create a Squads multisig with those three keys, **threshold 2-of-3**.
+3. Record the **vault address** — this is what goes into `DEV_WALLET` at §4.4
+   and into the 10% fee share at §4.6. Not the multisig account address, and
+   not any member's wallet: the *vault*.
+4. Send it a little SOL and practise one full proposal → approve → execute
+   round with all three members, so launch week is not the first time anyone
+   has signed one.
+
+**The launch wallet is unaffected.** Deploying, creating the coin, the launch
+buy, `initialize`, `fund_vault`, `lock_config` — all of that stays on your
+ordinary wallet, because pump.fun's creation flow and the deploy scripts need
+a plain signer. Only the *destinations* of team money are the multisig.
+
+> **How the team's tokens are claimed and withdrawn.** Both steps work with
+> the multisig, and neither needs a program change:
+>
+> - *Claiming* the allocation is `create_dev_stream` (§4.5): permissionless,
+>   run from any ordinary wallet. It opens the stream **to the vault** — the
+>   tokens never pass through anyone's personal wallet.
+> - *Withdrawing* vested tokens is `stream_withdraw`, which the vault itself
+>   must sign — a browser wallet cannot connect *as* a vault, so the site's
+>   My Buddy page deliberately cannot do this. Instead:
+>
+>   ```bash
+>   RPC_URL=<rpc> npx ts-node scripts/team-withdraw.ts
+>   ```
+>
+>   prints what has vested and the exact instructions for the Squads app's
+>   transaction builder, and `ACTION=propose MULTISIG=<msig> KEYPAIR=<member.json>`
+>   creates and part-approves the proposal directly; the other members approve
+>   in the Squads app (or `ACTION=approve`), then anyone executes. The
+>   program only ever pays a token account **owned by the vault**, so even a
+>   compromised proposal cannot redirect the withdrawal. The proposal flow's
+>   plumbing (vault signing via propose → approve → execute) is verified on
+>   devnet. Everyone else's streams work from the site exactly as before.
 
 ### 2.4 Write the launch content
 
@@ -384,8 +449,18 @@ like an outsider sniping your own launch.
 Dry run first — it prints the whole plan and sends nothing:
 
 ```bash
-RPC_URL=<rpc> KEYPAIR=<your-keypair.json> REWARD_MINT=<new-mint> DEV_WALLET=<dev-wallet> OLD_ROOT=<hex> INF_ROOT=<hex> OLD_ALLOC=<n> INF_ALLOC=<n> SIGNER_ALLOC=<n> DEV_ALLOC=<n> SIGNER_PUBKEY=0480ba015ac8c00c8a0c6f4913d8a63364272a5472148ac19159932e36ffdffd2355a7358601b556af702d4ae5641e7d59bbda795894121d8bbc8412ae70744779 SOURCE_TOKEN_ACCOUNT=<your-ata> npx ts-node scripts/deploy-init.ts
+RPC_URL=<rpc> KEYPAIR=<your-keypair.json> REWARD_MINT=<new-mint> DEV_WALLET=<team-multisig-vault> OLD_ROOT=<hex> INF_ROOT=<hex> OLD_ALLOC=<n> INF_ALLOC=<n> SIGNER_ALLOC=<n> DEV_ALLOC=<n> SIGNER_PUBKEY=0480ba015ac8c00c8a0c6f4913d8a63364272a5472148ac19159932e36ffdffd2355a7358601b556af702d4ae5641e7d59bbda795894121d8bbc8412ae70744779 SOURCE_TOKEN_ACCOUNT=<your-ata> npx ts-node scripts/deploy-init.ts
 ```
+
+`DEV_WALLET` is the **Squads vault address** from §2.3a, and it is frozen by
+the lock like everything else, so a typo here strands the team allocation on
+whatever address you typed, permanently. Check it twice.
+
+The four `*_ALLOC` amounts are the 15 / 50 / 10 / 25 split of the distributor
+total in base units (`OLD_ALLOC` legacy holders, `INF_ALLOC` influencers,
+`SIGNER_ALLOC` the 2014 signer, `DEV_ALLOC` the team), and they must sum to
+exactly what the launch buy acquired — `lock_config` checks the vault covers
+them.
 
 Read every number against your published document. Then re-run with `EXECUTE=1`.
 
@@ -402,15 +477,20 @@ Read every number against your published document. Then re-run with `EXECUTE=1`.
 > as bucket backing would promise the same tokens twice. `fund_vault` stops
 > working the instant the config locks, so there is no second chance to top up.
 
-### 4.5 Create the dev stream
+### 4.5 Create the team stream
 
 ```bash
 RPC_URL=<rpc> KEYPAIR=<your-keypair.json> npx ts-node scripts/create-dev-stream.ts
 ```
 
 No cliff argument here: it was fixed at init with `DEV_CLIFF_DAYS` and frozen by
-the lock, so anyone can run this and the terms come out the same. Your wallet is
-now visibly empty of allocation.
+the lock, so anyone can run this and the terms come out the same. The stream's
+beneficiary is the team multisig vault from §4.4, and every team wallet is now
+visibly empty of allocation.
+
+> When the team later withdraws vested tokens, that is a `stream_withdraw`
+> executed through Squads, paying the vault's own token account. The tooling
+> for it is `scripts/team-withdraw.ts` — see §2.3a for the full flow.
 
 ### 4.6 Set the fee split — the other irreversible step
 
@@ -422,7 +502,9 @@ you as the coin creator — no application to pump.fun, no waiting on anyone:
 
 1. `create_fee_sharing_config` — opts the coin into shared fees. Shareholders
    default to `[(you, 100%)]`.
-2. `update_fee_shares_v2` — set **90% → the SOL vault PDA, 10% → your wallet**.
+2. `update_fee_shares_v2` — set **90% → the SOL vault PDA, 10% → the team
+   multisig vault** (§2.3a). Not your wallet: the split is permanent, and the
+   team's income should never depend on one person's key.
 
 > **`update_fee_shares_v2` can only ever be called once.** pump.fun's program
 > revokes its own admin immediately afterwards and the shareholder list is
@@ -441,28 +523,31 @@ becomes the eighth check on the Verify page.
 **Point of no return. Do the checks first.**
 
 ```bash
-solana program show 7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP
+solana program show GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca
 ```
 
 Confirm, one by one:
 
-- the vault holds the full committed total
+- the vault holds the full committed total — the distributor total you
+  published, split 15 / 50 / 10 / 25
 - `locked` reads true
 - both Merkle roots match your published files
 - both deadlines are the dates you published
-- the dev stream exists with the right total and cliff
+- the team stream exists with the right total and cliff, and its beneficiary
+  is the team multisig vault
 - the signer key matches the 2014 transaction
-- the fee split from 4.6 reads 90/10 with the admin revoked
+- the fee split from 4.6 reads 90% SOL vault / 10% team multisig with the
+  admin revoked
 
 Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
 
 ```bash
-solana program set-upgrade-authority 7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP --final
+solana program set-upgrade-authority GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca --final
 ```
 
 ```bash
-solana program show 7h8fAnCmpeLaAo2Y9j43wrdERexUycMH5CV484v5wtrP
+solana program show GgsLMe6gmK4wXuN6zMfg3wH9rb8HxCUnCvfGsESGryca
 ```
 
 `Authority` must read **`none`**. Save that transaction signature — it leads the
@@ -565,7 +650,11 @@ has the numbers; the post is a summary and a link.
 **Preparation**
 - [ ] Security review done and published
 - [ ] Receipts dossier complete and archived
-- [ ] All numbers decided; dev-buy is money you can lose
+- [ ] All numbers decided; the launch buy is money you can lose
+- [ ] Distributor total understood: it is whatever the launch buy acquires,
+      split 15 / 50 / 10 / 25, published in the pre-commitment doc
+- [ ] Team multisig created at Squads, 2-of-3, all three signers have
+      practised a proposal round; vault address recorded
 - [ ] Content written, no price promises anywhere
 - [ ] Pre-commitment doc published **before** launch
 
@@ -598,14 +687,17 @@ has the numbers; the post is a summary and a link.
 
 **Launch**
 - [ ] Program deployed (no `--final` yet)
-- [ ] Coin created, dev-buy in the same transaction
-- [ ] `initialize` → `fund_vault` → `lock_config`
+- [ ] Coin created, launch buy in the same transaction (pump.fun's dev-buy field)
+- [ ] `initialize` → `fund_vault` → `lock_config`; `DEV_WALLET` is the
+      multisig vault, the four allocations sum to the distributor total
 - [ ] Every committed token went in through `fund_vault`, not a wallet transfer
-- [ ] Dev stream created
+- [ ] Team stream created, beneficiary reads as the multisig vault
 - [ ] Every parameter verified against the published doc
 - [ ] Upgrade authority burned; `Authority: none` confirmed
-- [ ] Throwaway-coin rehearsal proved the fee chain end to end (§1.5)
-- [ ] Fee split set to 90/10 via `update_fee_shares_v2` — **one shot**
+- [ ] Throwaway-coin rehearsal proved the fee chain end to end, including a
+      Squads vault receiving its share (§1.5)
+- [ ] Fee split set to 90% SOL vault / 10% team multisig via
+      `update_fee_shares_v2` — **one shot**
 - [ ] Sharing config confirmed frozen (admin revoked)
 - [ ] `develop` merged to `main`, production deploy green
 - [ ] **Repo flipped to public** (verification checks need it)

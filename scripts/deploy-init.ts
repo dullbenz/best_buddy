@@ -11,9 +11,17 @@
  *   RPC_URL                  Solana RPC endpoint
  *   KEYPAIR                  path to the authority keypair
  *   REWARD_MINT              the new token mint from pump.fun
- *   DEV_WALLET               wallet the dev stream pays to
+ *   DEV_WALLET               the team stream's beneficiary. For launch this is
+ *                            the team's Squads multisig VAULT address, not any
+ *                            member's wallet: the vault signs withdrawals
+ *                            through the Squads proposal flow, and the lock
+ *                            freezes this choice permanently.
  *   OLD_ROOT / INF_ROOT      hex Merkle roots (no 0x)
- *   OLD_ALLOC / INF_ALLOC / SIGNER_ALLOC / DEV_ALLOC   base-unit amounts
+ *   OLD_ALLOC / INF_ALLOC / SIGNER_ALLOC / DEV_ALLOC   base-unit amounts.
+ *                            The published split is 15/50/10/25 of the
+ *                            distributor total (legacy holders, influencers,
+ *                            2014 signer, team) and they must sum to exactly
+ *                            what fund_vault will move.
  *   SIGNER_PUBKEY            130-hex-char uncompressed key from the 2014 tx (with 04 prefix)
  *   SOURCE_TOKEN_ACCOUNT     token account holding the tokens to move into the vault
  *   DEV_CLIFF_DAYS           optional, defaults to 30
@@ -108,8 +116,26 @@ async function main() {
   console.log(`bucket 2 (old holders): ${oldAlloc.toString()}`);
   console.log(`bucket 3 (influencers): ${infAlloc.toString()}`);
   console.log(`bucket 4a (2014 signer): ${signerAlloc.toString()}`);
-  console.log(`bucket 4b (dev, ${devCliffDays}d cliff): ${devAlloc.toString()}`);
+  console.log(`bucket 4b (team, ${devCliffDays}d cliff): ${devAlloc.toString()}`);
   console.log(`total to move into vault: ${total.toString()}`);
+  console.log("");
+
+  // A Squads vault is a PDA, and PDAs are off the ed25519 curve. This cannot
+  // prove the address is the *right* vault, but it can catch the launch-night
+  // mistake that matters: pasting a personal wallet where the team multisig
+  // vault belongs. The lock freezes dev_wallet forever, so say it loudly now.
+  console.log(`team wallet:    ${devWallet.toBase58()}`);
+  if (PublicKey.isOnCurve(devWallet.toBytes())) {
+    console.log(
+      "    ⚠ ON-CURVE: this is an ordinary wallet keypair, NOT a Squads vault.\n" +
+        "      Fine for a devnet rehearsal; on mainnet the team stream must pay\n" +
+        "      the multisig vault, and this choice is frozen by lock_config."
+    );
+  } else {
+    console.log(
+      "    off-curve (program-derived), consistent with a Squads vault PDA"
+    );
+  }
   console.log("");
 
   const params = {

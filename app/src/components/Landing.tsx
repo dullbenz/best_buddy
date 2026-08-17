@@ -1,5 +1,6 @@
 import { Fragment, useState, type ReactNode } from "react";
 import {
+  BUCKET_SPLIT,
   LEGACY_TOKEN,
   ORIGINAL_MESSAGE,
   ORIGINAL_SIGNER_DEADLINE,
@@ -118,6 +119,51 @@ export function Landing({
     chainReadable ? BigInt(alloc.toString()) - BigInt(claimed.toString()) : 0n;
 
   /**
+   * The initial distribution: what the launch buy acquired and `fund_vault`
+   * moved into the contract, read back as the sum of the four frozen
+   * allocations. Constant from the lock onwards, unlike the vault balance,
+   * which falls as people claim — so this is the figure the pre-commitment
+   * document publishes and the one the page should state.
+   */
+  const initialDistribution: bigint | null = chainReadable
+    ? [
+        config.oldHolderAllocation,
+        config.influencerAllocation,
+        config.originalSignerAllocation,
+        config.devAllocation,
+      ]
+        .map((a: any) => BigInt(a.toString()))
+        .reduce((sum: bigint, b: bigint) => sum + b, 0n)
+    : null;
+
+  /**
+   * Each bucket's share of the initial distribution, as a percentage.
+   *
+   * Derived from the on-chain allocations whenever the config is readable,
+   * because those are what the lock froze and what the vault actually backs;
+   * the published BUCKET_SPLIT constants only fill in before the program is
+   * initialized on this cluster. If we ever committed one split and
+   * initialized another, this page would say so by disagreeing with the
+   * pre-commitment document, which is exactly the kind of lie the site is
+   * built to make visible.
+   */
+  const shareOf =
+    initialDistribution && initialDistribution > 0n
+      ? (alloc: any) => {
+          const pct =
+            Number((BigInt(alloc.toString()) * 1000n) / initialDistribution) / 10;
+          return `${pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)}%`;
+        }
+      : null;
+
+  const shares = {
+    legacy: shareOf ? shareOf(config.oldHolderAllocation) : `${BUCKET_SPLIT.legacyHolders}%`,
+    influencers: shareOf ? shareOf(config.influencerAllocation) : `${BUCKET_SPLIT.influencers}%`,
+    signer: shareOf ? shareOf(config.originalSignerAllocation) : `${BUCKET_SPLIT.originalSigner}%`,
+    team: shareOf ? shareOf(config.devAllocation) : `${BUCKET_SPLIT.team}%`,
+  };
+
+  /**
    * The amber line under each allocation row: where that bucket is in its own
    * lifecycle, right now.
    *
@@ -174,7 +220,7 @@ export function Landing({
       note: authorityCell.note,
     },
     {
-      label: "Creator's tokens",
+      label: "Team's tokens",
       value: !chainReadable ? "unread" : config.devStreamCreated ? "locked up" : "not locked",
       tone: (!chainReadable
         ? "unknown"
@@ -443,12 +489,13 @@ export function Landing({
       <Section
         label="Allocation"
         title="Where the coins go"
-        intro="After the launch of this new coin, the original supply purchased by the team at launch was sent in its entirety to the smart contract. That supply was then split by the contract into the four allocation groups below, and each group has its own rules for how and when it can be claimed."
+        intro="After the launch of this new coin, the original supply purchased by the team at launch was sent in its entirety to the smart contract. That supply was then split by the contract into the four allocation groups below, and each group has its own rules for how and when it can be claimed. The percentages are frozen on chain by the config lock, so what you read here is what the contract enforces, not what we remembered to update."
       >
         <Sub title="The four splits" />
         <div className="l-alloc">
           <AllocRow
             who="People who held the Legacy Buddy coin"
+            share={shares.legacy}
             window="30 days to claim"
             body="Free tokens as restitution, paid the moment you claim, with no lockup of any kind."
             live={
@@ -460,6 +507,7 @@ export function Landing({
           />
           <AllocRow
             who="Influencers"
+            share={shares.influencers}
             window="72 hours to claim"
             body="People asked to talk about the project publicly. Their tokens release slowly across 30 days rather than arriving at once, so nobody can promote it and dump the same day. To be straight about the limit: the contract cannot tell whether they actually posted, so this is their word, not code."
             live={
@@ -471,6 +519,7 @@ export function Landing({
           />
           <AllocRow
             who="Whoever signed that 2014 message"
+            share={shares.signer}
             window="reserved until end of 2030"
             body="Held in reserve, in case the original person ever shows up. They would prove it by signing with the same Bitcoin key. The contract checks the signature itself, so they need no permission from us, and it streams to them over 12 months. If they never appear, it streams to the staking community instead, on that same 12-month schedule."
             live={
@@ -484,8 +533,9 @@ export function Landing({
           />
           <AllocRow
             who="The team"
+            share={shares.team}
             window="12 months, drip-fed"
-            body="Their tokens are not in a wallet. They sit inside the contract and trickle out daily across a year, after an initial waiting period. There is no button, not even for them, that releases it early."
+            body="The team's tokens are not in a wallet anyone can spend from. They sit inside the contract and trickle out daily across a year, after an initial waiting period, to a multisig that needs more than one team member to agree before anything moves. There is no button, not even for them, that releases it early."
             live={
               config
                 ? config.devStreamCreated
@@ -496,6 +546,23 @@ export function Landing({
             clock={teamClock}
           />
         </div>
+        <p className="l-micro" style={{ marginTop: 8 }}>
+          {shareOf && initialDistribution ? (
+            <>
+              Shares are read live from the contract's frozen allocations.
+              Together they total {fmtAmount(initialDistribution, true)}: the
+              initial distribution, every token the launch buy acquired.{" "}
+            </>
+          ) : (
+            <>
+              Shares are the published pre-commitment split; the chain shows
+              the same numbers, and the exact distributor total, once the
+              program is initialized at launch.{" "}
+            </>
+          )}
+          The staking pool starts at 0% by design and is fed by fees and
+          forfeits.
+        </p>
 
         <Sub
           title="How you actually get paid"
@@ -794,7 +861,11 @@ function Route({
         <h3>{title}</h3>
         {clock && <span className="l-route-clock">{clock}</span>}
       </div>
-      <p>{body}</p>
+      {/* A div, not a p: one route's body carries a <ul> of claim cases, and
+          block content inside a paragraph is invalid HTML that React warns
+          about on every render. The stylesheet targets the class, so the
+          typography is identical. */}
+      <div className="l-route-body">{body}</div>
       {address && <code className="l-route-address">{address}</code>}
       {note && <p className="l-route-note">{note}</p>}
       {href ? (
@@ -821,12 +892,15 @@ function Route({
 
 function AllocRow({
   who,
+  share,
   window: win,
   body,
   live,
   clock,
 }: {
   who: string;
+  /** This bucket's slice of the initial distribution, e.g. "15%". */
+  share?: string | null;
   window: string;
   body: string;
   live: string | null;
@@ -835,7 +909,10 @@ function AllocRow({
   return (
     <div className="l-alloc-row">
       <div className="l-alloc-main">
-        <h3>{who}</h3>
+        <h3>
+          {who}
+          {share && <span className="l-alloc-share">{share}</span>}
+        </h3>
         <p>{body}</p>
       </div>
       <div className="l-alloc-meta">

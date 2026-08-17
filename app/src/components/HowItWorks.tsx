@@ -1,4 +1,4 @@
-import { LEGACY_TOKEN } from "../config";
+import { BUCKET_SPLIT, LEGACY_TOKEN } from "../config";
 import { useUpgradeAuthority } from "../useUpgradeAuthority";
 
 /**
@@ -64,6 +64,7 @@ export function HowItWorks() {
               <tr>
                 <th>Bucket</th>
                 <th>Who</th>
+                <th>Share at launch</th>
                 <th>Window</th>
                 <th>How it pays</th>
               </tr>
@@ -72,30 +73,42 @@ export function HowItWorks() {
               <tr>
                 <td>1</td>
                 <td>Community stakers</td>
+                <td>0%, grows forever</td>
                 <td>forever</td>
                 <td>continuously, pro-rata</td>
               </tr>
               <tr>
                 <td>2</td>
                 <td>Legacy Buddy holders</td>
+                <td>{BUCKET_SPLIT.legacyHolders}%</td>
                 <td>30 days</td>
                 <td>instantly, no lockup</td>
               </tr>
               <tr>
                 <td>3</td>
                 <td>Influencers</td>
+                <td>{BUCKET_SPLIT.influencers}%</td>
                 <td>72 hours</td>
                 <td>30-day stream on claim</td>
               </tr>
               <tr>
                 <td>4</td>
-                <td>The 2014 signer, and the Token Creator</td>
+                <td>The 2014 signer, and the team</td>
+                <td>
+                  {BUCKET_SPLIT.originalSigner}% / {BUCKET_SPLIT.team}%
+                </td>
                 <td>until 2030 / automatic</td>
                 <td>12-month streams</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p className="muted small">
+          The percentages are of the initial supply the team bought at launch
+          and sent into the contract, and the config lock froze them there. The
+          Dashboard reads the live allocations straight from chain, so you can
+          check that what was published is what was locked.
+        </p>
         <p>
           <strong>One rule ties them together: anything unclaimed becomes
           staking rewards for the community.</strong> Influencers who never turn
@@ -140,9 +153,10 @@ export function HowItWorks() {
           and no ability to stop it.
         </p>
         <p className="muted">
-          The remaining 10% of fees goes to the Token Creator. That is the only
-          ongoing income from this project, and it is stated here so nobody has
-          to guess.
+          The remaining 10% of fees goes to the team, into a multisig wallet
+          that needs more than one member to agree before anything moves. That
+          is the only ongoing income from this project, and it is stated here
+          so nobody has to guess.
         </p>
       </section>
 
@@ -192,9 +206,10 @@ export function HowItWorks() {
       <section className="card">
         <h2>What stops us from doing what he did</h2>
         <p>
-          <strong>The Token Creator's tokens are locked in the contract</strong>,
-          released over twelve months behind a cliff. There is no wallet holding
-          a pile that could be sold tomorrow.
+          <strong>The team's tokens are locked in the contract</strong>,
+          released over twelve months behind a cliff, and what does release
+          lands in a multisig rather than any one person's wallet. There is no
+          wallet holding a pile that could be sold tomorrow.
         </p>
         {burned ? (
           <p>

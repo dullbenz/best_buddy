@@ -33,23 +33,61 @@ pub const TIER_TWELVE_MONTH_BPS: u64 = 50_000; // 5.0x
 /// Lock durations in seconds.
 pub const ONE_DAY: i64 = 86_400;
 pub const LOCK_FLEXIBLE: i64 = 0;
+
+// ---------------------------------------------------------------------------
+// Every wall-clock duration exists in two forms. The real values are the
+// contract; the `fast-clock` values exist ONLY so the devnet end-to-end
+// campaign can watch a lock mature or a window expire inside one sitting
+// instead of one month. The feature is never a default, CI never enables it,
+// and `solana-verify` builds default features — so the mainnet bytecode
+// provably contains the real values. If you are reading this in an audit:
+// the `not(feature = "fast-clock")` branch is the deployed program.
+// ---------------------------------------------------------------------------
+
+#[cfg(not(feature = "fast-clock"))]
 pub const LOCK_ONE_MONTH: i64 = 30 * ONE_DAY;
+#[cfg(not(feature = "fast-clock"))]
 pub const LOCK_THREE_MONTH: i64 = 90 * ONE_DAY;
+#[cfg(not(feature = "fast-clock"))]
 pub const LOCK_TWELVE_MONTH: i64 = 365 * ONE_DAY;
+
+#[cfg(feature = "fast-clock")]
+pub const LOCK_ONE_MONTH: i64 = 5 * 60; // 5 minutes
+#[cfg(feature = "fast-clock")]
+pub const LOCK_THREE_MONTH: i64 = 8 * 60; // 8 minutes
+#[cfg(feature = "fast-clock")]
+pub const LOCK_TWELVE_MONTH: i64 = 12 * 60; // 12 minutes
 
 /// Cooldown a flexible staker must wait between requesting an unstake and
 /// withdrawing. Prevents same-block stake/claim/unstake cycling.
+#[cfg(not(feature = "fast-clock"))]
 pub const UNSTAKE_COOLDOWN: i64 = 3 * ONE_DAY;
+#[cfg(feature = "fast-clock")]
+pub const UNSTAKE_COOLDOWN: i64 = 3 * 60; // 3 minutes
 
 /// Penalty applied to *principal* when a locked position exits early, in bps.
 /// The forfeited boost escrow is on top of this. Both flow to the stake pool.
 pub const EMERGENCY_EXIT_SLASH_BPS: u64 = 1_500; // 15%
 
-/// Claim windows.
+/// Claim windows. Fast-clock variants above apply here too — see the block
+/// comment beside the lock durations.
+#[cfg(not(feature = "fast-clock"))]
 pub const OLD_HOLDER_CLAIM_WINDOW: i64 = 30 * ONE_DAY;
+#[cfg(not(feature = "fast-clock"))]
 pub const INFLUENCER_CLAIM_WINDOW: i64 = 3 * ONE_DAY; // 72 hours
+#[cfg(not(feature = "fast-clock"))]
 pub const INFLUENCER_STREAM_DURATION: i64 = 30 * ONE_DAY;
+#[cfg(not(feature = "fast-clock"))]
 pub const FOUNDER_STREAM_DURATION: i64 = 365 * ONE_DAY;
+
+#[cfg(feature = "fast-clock")]
+pub const OLD_HOLDER_CLAIM_WINDOW: i64 = 45 * 60; // 45 minutes
+#[cfg(feature = "fast-clock")]
+pub const INFLUENCER_CLAIM_WINDOW: i64 = 20 * 60; // 20 minutes
+#[cfg(feature = "fast-clock")]
+pub const INFLUENCER_STREAM_DURATION: i64 = 15 * 60; // 15 minutes
+#[cfg(feature = "fast-clock")]
+pub const FOUNDER_STREAM_DURATION: i64 = 30 * 60; // 30 minutes
 
 /// Unix timestamp for 2030-12-31T23:59:59Z, the deadline for the original
 /// 2014 Bitcoin message signer to claim.

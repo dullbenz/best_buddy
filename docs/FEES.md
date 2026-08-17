@@ -21,7 +21,7 @@ trades ──► pump.fun creator vault
                  │  transfer_creator_fees_to_pump_v2   (permissionless)
                  │  distribute_creator_fees_v2         (permissionless)
                  ▼
-        90% our SOL vault  +  10% dev wallet
+        90% our SOL vault  +  10% team multisig
                  │  unwrap_wsol       (ours, permissionless)
                  │  sync_sol_rewards  (ours, permissionless)
                  ▼
@@ -91,14 +91,24 @@ two independent, checkable "this can never change" facts.
 | Shareholder | Share | Why |
 |---|---|---|
 | Our SOL vault PDA | 90% | funds the staking pool, permanently |
-| Dev wallet | 10% | the project's only ongoing income, disclosed |
+| The team multisig vault (Squads, 2-of-3) | 10% | the team's only ongoing income, disclosed, and behind more than one key |
+
+The 10% deliberately points at the **team's Squads vault**, not any member's
+wallet. The split is frozen forever, so pointing it at one person's key would
+make the team's entire future income hostage to that one key never being lost,
+stolen, or walked away with. A multisig survives all three. The pump.fun
+constraint table above allows it: a shareholder only has to be non-executable
+and not owned by the Fees program, which a Squads vault satisfies — and the
+rehearsal below proves it rather than assumes it.
 
 Sequence, all self-service — **no application to pump.fun is needed**:
 
-1. Create the coin (creator = your wallet).
+1. Create the coin (creator = your ordinary launch wallet — the multisig is a
+   payout destination, not the coin creator).
 2. `create_fee_sharing_config` — signed by you as coin creator. Initial
    shareholders default to `[(creator, 10000 bps)]`.
-3. `update_fee_shares_v2` — set 90/10. **One shot. Frozen after this.**
+3. `update_fee_shares_v2` — set 90% → SOL vault PDA, 10% → the team multisig
+   vault. **One shot. Frozen after this.**
 
 > Do not confuse this with the **CTO fee-redirect application**, which is a
 > request to pump.fun to reassign fees on *someone else's* abandoned coin. That
@@ -144,11 +154,15 @@ Before touching the real coin, on **mainnet**:
 
 1. Create a throwaway coin with a minimal buy.
 2. `create_fee_sharing_config`, then set a 90/10 split onto a test PDA of the
-   same shape as the real vault.
+   same shape as the real vault, with the 10% pointing at a **test Squads
+   vault** — the real configuration pays the team's multisig, and both
+   recipients being program-owned accounts is exactly the property to prove.
 3. Generate a little trading volume so fees accrue.
-4. Run the full chain and confirm value actually lands and gets credited.
+4. Run the full chain and confirm value actually lands and gets credited on
+   both sides of the split.
 5. **Record which form the payout took** — native lamports or wrapped SOL. That
-   determines whether `unwrap_wsol` sits on the critical path.
+   determines whether `unwrap_wsol` sits on the critical path, and whether the
+   multisig needs a wSOL token account before it can be paid.
 
 Cost: a few tens of dollars. It is the only way to validate the configuration
 before spending the irreversible one-shot on the real coin.
@@ -175,6 +189,6 @@ Anyone can confirm the whole arrangement:
 solana account <SHARING_CONFIG_PDA>
 ```
 
-Check that the shareholder list is 90% our vault / 10% dev, and that the admin
-is revoked. The Verify page renders the same check live, and shows "CHECK IT"
-rather than a verdict when it cannot read the chain.
+Check that the shareholder list is 90% our vault / 10% the team multisig, and
+that the admin is revoked. The Verify page renders the same check live, and
+shows "CHECK IT" rather than a verdict when it cannot read the chain.

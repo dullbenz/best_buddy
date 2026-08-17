@@ -1,32 +1,22 @@
-import { BN } from "@coral-xyz/anchor";
-import bs58 from "bs58";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from "@solana/spl-token";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   INFLUENCER_PROOFS_URL,
-  OLD_HOLDER_PROOFS_URL,
   INFLUENCER_TERMS,
+  OLD_HOLDER_PROOFS_URL,
   ORIGINAL_MESSAGE,
   ORIGINAL_SIGNER_DEADLINE,
-  SEEDS,
   SNAPSHOT,
-  TERMS_API,
   btcTxUrl,
-  pda,
-  signerClaimMessage,
-  solscanTx,
 } from "../config";
-import { countdown, fmtAmount, fmtDate, shortSignature } from "../format";
-import { Pager, usePaged } from "./Pager";
+import { countdown, fmtAmount, fmtDate } from "../format";
 import { VERIFY_ANCHORS, goTo } from "../nav";
 import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "../router";
 import { useClaimReceipts, useDistributor, useStream } from "../useDistributor";
-import { useClaimLedger, useStreamHistory } from "../useClaimData";
+import { useClaimLedger } from "../useClaimData";
 import { ClaimTables } from "./ClaimTables";
-import { useProgram } from "../useProgram";
+import { ConnectToClaim, ForfeitNote, StreamExplainer, Verdict, useClock } from "./claimShared";
 
 interface ProofEntry {
   address: string;
@@ -36,7 +26,7 @@ interface ProofEntry {
 
 type ProofFile = Record<string, ProofEntry>;
 
-type ClaimTab = "overview" | "legacy" | "influencer" | "signer" | "stream";
+type ClaimTab = "overview" | "legacy" | "influencer" | "signer";
 
 async function loadProofs(url: string): Promise<ProofFile> {
   const res = await fetch(url);
@@ -44,36 +34,25 @@ async function loadProofs(url: string): Promise<ProofFile> {
   return res.json();
 }
 
+/**
+ * The public side of the claims: who is owed what, on what terms, and how the
+ * lists were built. Deliberately readable end to end without a wallet.
+ *
+ * Nothing on this page signs anything. Every action a wallet can take, from
+ * claiming to withdrawing from a stream, lives on My Buddy, so a visitor is
+ * never asked to plug a wallet into a page they are still deciding about, and
+ * someone who is owed something is handed one place to do it all.
+ */
 export function Claims() {
-  const { publicKey, sendTransaction, signMessage } = useWallet();
-  const { connection } = useConnection();
-  const program = useProgram();
-  const { config, refresh } = useDistributor();
-  const { stream, refresh: refreshStream } = useStream(publicKey ?? null);
+  const { publicKey } = useWallet();
+  const { config } = useDistributor();
+  const { stream } = useStream(publicKey ?? null);
   const receipts = useClaimReceipts(publicKey ?? null);
 
   const [oldProofs, setOldProofs] = useState<ProofFile | null>(null);
   const [infProofs, setInfProofs] = useState<ProofFile | null>(null);
-  const [status, setStatus] = useState<
-    { text: string; signature?: string } | null
-  >(null);
-  const [busy, setBusy] = useState(false);
-  // Base58 of the wallet's signature over INFLUENCER_TERMS. Gates the claim.
-  //
-  // Seeded from localStorage so someone who signs, then reloads or comes back
-  // later, is not asked to sign the same terms twice. The register is keyed by
-  // address, so a re-signature would be a no-op server-side anyway.
-  const [termsSig, setTermsSig] = useState<string | null>(() =>
-    publicKey ? localStorage.getItem(`buddy.terms.${publicKey.toBase58()}`) : null
-  );
 
-  const CLAIM_TABS: ClaimTab[] = [
-    "overview",
-    "legacy",
-    "influencer",
-    "signer",
-    "stream",
-  ];
+  const CLAIM_TABS: ClaimTab[] = ["overview", "legacy", "influencer", "signer"];
   const sectionFromUrl = (): ClaimTab => {
     const { section } = parseLocation(["claims"]);
     return (CLAIM_TABS as string[]).includes(section ?? "")
@@ -87,6 +66,12 @@ export function Claims() {
 
   // Back and forward move between sections too, not just between tabs.
   useEffect(() => onRouteChange(() => setTab(sectionFromUrl())), []);
+
+  // "/claims/stream" was a real URL before the stream moved to My Buddy, so a
+  // saved link lands where the stream actually is rather than on a shrug.
+  useEffect(() => {
+    if (parseLocation(["claims"]).section === "stream") goTo("my buddy");
+  }, []);
 
   useEffect(() => {
     loadProofs(OLD_HOLDER_PROOFS_URL).then(setOldProofs).catch(() => setOldProofs({}));
@@ -121,244 +106,18 @@ export function Claims() {
     // still take them to wherever they actually came from.
     replaceRoute("claims", pick);
   }, [address, oldProofs, infProofs]);
-  // A stream releases continuously, so a figure computed once at load is
-  // already stale by the time it is read. Everything time-derived on this page
-  // hangs off this clock, which advances on its own, so the countdowns and
-  // the available balance both move without a refresh.
+
+  // Countdowns tick rather than freeze at first paint.
   const now = useClock();
   const oldLeft = config ? countdown(Number(config.oldHolderDeadline), now) : null;
   const infLeft = config ? countdown(Number(config.influencerDeadline), now) : null;
 
-  /** Make sure the wallet has an ATA for the token before anything pays into it. */
-  async function ensureAta(): Promise<PublicKey> {
-    const ata = getAssociatedTokenAddressSync(config!.rewardMint, publicKey!);
-    const info = await connection.getAccountInfo(ata);
-    if (!info) {
-      const tx = new Transaction().add(
-        createAssociatedTokenAccountInstruction(publicKey!, ata, publicKey!, config!.rewardMint)
-      );
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
-    }
-    return ata;
-  }
-
-  async function claimOldHolder() {
-    if (!program || !oldEntry) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      const destination = await ensureAta();
-      const sig = await program.methods
-        .claimOldHolder(
-          new BN(oldEntry.amount),
-          oldEntry.proof.map((p) => Array.from(Buffer.from(p, "hex")))
-        )
-        .accountsPartial({
-          claimant: publicKey!,
-          config: pda([SEEDS.config]),
-          receipt: pda([SEEDS.oldClaim, publicKey!.toBuffer()]),
-          vault: pda([SEEDS.vault]),
-          destination,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-      setStatus({ text: "Claimed. The tokens are in your wallet.", signature: sig });
-      refresh();
-      receipts.refresh();
-    } catch (e: any) {
-      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /**
-   * Sign the published terms and record the signature publicly.
-   *
-   * Not a transaction: no fee, nothing on chain. The wallet shows the full
-   * terms text, so what is being agreed to is visible at signing time rather
-   * than hidden behind a hash.
-   */
-  async function signTerms() {
-    if (!signMessage || !publicKey) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      const raw = await signMessage(new TextEncoder().encode(INFLUENCER_TERMS));
-      const encoded = bs58.encode(raw);
-      const signer = publicKey.toBase58();
-
-      setTermsSig(encoded);
-      localStorage.setItem(`buddy.terms.${signer}`, encoded);
-
-      // Publishing is best-effort on purpose. The register is a transparency
-      // aid, not a gate: refusing to let someone claim their allocation
-      // because our own server was down would be the wrong failure.
-      try {
-        const res = await fetch(TERMS_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address: signer, signature: encoded }),
-        });
-        setStatus({
-          text: res.ok
-            ? "Terms signed and published to the public register. You can claim now."
-            : "Terms signed. The public register could not be reached, so it was not recorded there, but you can still claim.",
-        });
-      } catch {
-        setStatus({
-          text: "Terms signed. The public register could not be reached, so it was not recorded there, but you can still claim.",
-        });
-      }
-    } catch (e: any) {
-      setStatus({ text: `Not signed: ${e?.message ?? String(e)}` });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function claimInfluencer() {
-    if (!program || !infEntry) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      const sig = await program.methods
-        .claimInfluencer(
-          new BN(infEntry.amount),
-          infEntry.proof.map((p) => Array.from(Buffer.from(p, "hex")))
-        )
-        .accountsPartial({
-          claimant: publicKey!,
-          config: pda([SEEDS.config]),
-          receipt: pda([SEEDS.influencerClaim, publicKey!.toBuffer()]),
-          stream: pda([SEEDS.stream, publicKey!.toBuffer()]),
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-      setStatus({
-        text: `Claimed ${fmtAmount(infEntry.amount)} as your influencer allocation. The stream is open.`,
-        signature: sig,
-      });
-      refresh();
-      receipts.refresh();
-      refreshStream();
-    } catch (e: any) {
-      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Read what a stream_withdraw actually released, from its log. */
-  async function releasedIn(signature: string): Promise<bigint | null> {
-    try {
-      const tx = await connection.getParsedTransaction(signature, {
-        maxSupportedTransactionVersion: 0,
-      });
-      const line = (tx?.meta?.logMessages ?? []).find((l) =>
-        l.includes("stream_withdraw:")
-      );
-      const amount = line?.match(/released (\d+)/)?.[1];
-      return amount ? BigInt(amount) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Claim bucket 4a by proving control of the 2014 Bitcoin key.
-   *
-   * No wallet signature proves anything here; the authorisation is the
-   * Bitcoin signature itself, made offline in whatever wallet holds that key.
-   * The connected wallet only pays the fee and names where the tokens go, and
-   * the message binds the signature to that address so a copied signature
-   * cannot be redirected to someone else's wallet.
-   */
-  async function claimOriginalSigner(base64Signature: string) {
-    if (!program || !publicKey) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      const raw = Buffer.from(base64Signature.trim(), "base64");
-      if (raw.length !== 65) {
-        throw new Error(
-          `That is not a Bitcoin message signature. Expected 65 bytes once decoded, got ${raw.length}.`
-        );
-      }
-      const header = raw[0];
-      if (!((header >= 27 && header <= 30) || (header >= 31 && header <= 34))) {
-        throw new Error(`Unrecognised signature header byte (${header}).`);
-      }
-
-      const sig = await program.methods
-        .claimOriginalSigner(publicKey, header, Array.from(raw.subarray(1)))
-        .accountsPartial({
-          payer: publicKey,
-          config: pda([SEEDS.config]),
-          stream: pda([SEEDS.stream, publicKey.toBuffer()]),
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-      setStatus({
-        text: "Signature accepted. The founder stream is open to this wallet.",
-        signature: sig,
-      });
-      refresh();
-      refreshStream();
-    } catch (e: any) {
-      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function withdrawStream() {
-    if (!program) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      const destination = await ensureAta();
-      const sig = await program.methods
-        .streamWithdraw()
-        .accountsPartial({
-          beneficiary: publicKey!,
-          config: pda([SEEDS.config]),
-          stream: pda([SEEDS.stream, publicKey!.toBuffer()]),
-          vault: pda([SEEDS.vault]),
-          destination,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .rpc();
-      const released = await releasedIn(sig);
-      setStatus({
-        text: released
-          ? `Withdrawal of ${fmtAmount(released)} successful.`
-          : "Withdrawal successful.",
-        signature: sig,
-      });
-      refresh();
-      refreshStream();
-    } catch (e: any) {
-      setStatus({ text: `Failed: ${e?.message ?? String(e)}` });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const vested = stream
-    ? (() => {
-        const total = Number(stream.total);
-        const start = Number(stream.start);
-        const end = Number(stream.end);
-        const cliff = Number(stream.cliff);
-        if (now < cliff) return 0;
-        if (now >= end) return total;
-        return (total * (now - start)) / (end - start);
-      })()
-    : 0;
-  const withdrawable = stream ? Math.max(0, vested - Number(stream.withdrawn)) : 0;
+  /** One sentence and one button: the road from "you are owed" to "go do it". */
+  const goClaim = (label: string) => (
+    <button className="primary" onClick={() => goTo("my buddy")}>
+      {label} <span aria-hidden="true">→</span>
+    </button>
+  );
 
   /**
    * Both bucket cards render whether or not a wallet is connected.
@@ -396,11 +155,11 @@ export function Claims() {
         <Verdict tone="hit" heading="This wallet is in the legacy $Buddy holder snapshot.">
           <p>
             It is owed <strong>{fmtAmount(oldEntry.amount)}</strong>.{" "}
-            {oldLeft ? `The claim window closes in ${oldLeft}.` : "The window has closed."}
+            {oldLeft ? `The claim window closes in ${oldLeft}.` : "The window has closed."}{" "}
+            Claiming happens on <strong>My Buddy</strong>, the page for
+            everything this wallet can do.
           </p>
-          <button className="primary" disabled={busy || !oldLeft} onClick={claimOldHolder}>
-            {oldLeft ? "Claim" : "Window closed"}
-          </button>
+          {oldLeft ? goClaim("Claim it on My Buddy") : null}
         </Verdict>
       ) : (
         <Verdict tone="miss" heading="This wallet is not in the legacy $Buddy holder snapshot.">
@@ -462,6 +221,11 @@ export function Claims() {
 
       <StreamExplainer />
 
+      <details className="terms">
+        <summary>The terms every influencer signs before claiming</summary>
+        <pre className="terms-body">{INFLUENCER_TERMS}</pre>
+      </details>
+
       {!publicKey ? (
         <ConnectToClaim question="On the influencer list?" />
       ) : infProofs === null ? (
@@ -472,67 +236,20 @@ export function Claims() {
             <strong>{fmtAmount(receipts.influencer.amount)}</strong> was
             committed to this wallet on {fmtDate(receipts.influencer.claimedAt)}
             , and is releasing across 30 days from then. Nothing further is
-            claimed here. Withdraw from it on{" "}
-            <button
-              type="button"
-              className="inline-link"
-              onClick={() => {
-                setTab("stream");
-                pushRoute("claims", "stream");
-              }}
-            >
-              your stream page
-            </button>{" "}
-            whenever you like.
+            claimed here. Withdraw from it on <strong>My Buddy</strong> whenever
+            you like.
           </p>
+          {goClaim("Open My Buddy")}
         </Verdict>
       ) : infEntry ? (
-        // Terms and buttons live inside the verdict, not beside it. They are
-        // the actions belonging to this answer, and splitting them out left a
-        // green box making a statement and an unexplained row of buttons under
-        // it that looked like they belonged to the card as a whole.
         <Verdict tone="hit" heading="This wallet is on the influencer list.">
           <p>
             It is allocated <strong>{fmtAmount(infEntry.amount)}</strong>.{" "}
-            {infLeft ? `You have ${infLeft} left to claim.` : "The 72-hour window has closed."}
+            {infLeft ? `You have ${infLeft} left to claim.` : "The 72-hour window has closed."}{" "}
+            Signing the terms and claiming both happen on{" "}
+            <strong>My Buddy</strong>.
           </p>
-
-          <details className="terms" open={!termsSig}>
-            <summary>The terms you are agreeing to</summary>
-            <pre className="terms-body">{INFLUENCER_TERMS}</pre>
-          </details>
-
-          {termsSig ? (
-            <p>
-              ✓ Terms signed by this wallet, and added to the{" "}
-              <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
-                public register
-              </a>
-              .
-            </p>
-          ) : (
-            <p>
-              Sign the terms before claiming. This costs nothing and is not a
-              transaction; it is a message signed with your key, proving these
-              terms were shown and accepted. Your wallet will display the
-              full text, so you can read exactly what you are agreeing to.
-            </p>
-          )}
-
-          <div className="button-row">
-            {!termsSig && (
-              <button disabled={busy || !infLeft || !signMessage} onClick={signTerms}>
-                {signMessage ? "Sign the terms" : "Wallet cannot sign messages"}
-              </button>
-            )}
-            <button
-              className="primary"
-              disabled={busy || !infLeft || !termsSig}
-              onClick={claimInfluencer}
-            >
-              {infLeft ? "Claim and open stream" : "Window closed"}
-            </button>
-          </div>
+          {infLeft ? goClaim("Claim it on My Buddy") : null}
         </Verdict>
       ) : (
         <Verdict tone="miss" heading="This wallet is not on the influencer list.">
@@ -566,16 +283,6 @@ export function Claims() {
     </section>
   );
 
-  const streamCard = stream ? (
-    <StreamPage
-      stream={stream}
-      withdrawable={withdrawable}
-      busy={busy}
-      onWithdraw={withdrawStream}
-      beneficiary={publicKey ?? null}
-    />
-  ) : null;
-
   /**
    * One section at a time, rather than all of them stacked.
    *
@@ -602,13 +309,7 @@ export function Claims() {
       body: (
         <>
           {stream && (
-            <StreamShortcut
-              available={withdrawable}
-              onOpen={() => {
-                setTab("stream");
-                pushRoute("claims", "stream");
-              }}
-            />
+            <StreamShortcut onOpen={() => goTo("my buddy")} />
           )}
           <AddressLookup oldProofs={oldProofs} infProofs={infProofs} />
           <ClaimTables
@@ -634,29 +335,13 @@ export function Claims() {
       marked: !!infEntry && !receipts.influencer,
       body: influencerCard,
     },
+    {
+      id: "signer",
+      label: "2014 signer",
+      marked: false,
+      body: <SignerInfo config={config} connected={!!publicKey} />,
+    },
   ];
-  sections.push({
-    id: "signer",
-    label: "2014 signer",
-    marked: false,
-    body: (
-      <SignerClaim
-        config={config}
-        wallet={publicKey ?? null}
-        busy={busy}
-        onClaim={claimOriginalSigner}
-      />
-    ),
-  });
-
-  if (streamCard) {
-    sections.push({
-      id: "stream",
-      label: "Your stream",
-      marked: withdrawable >= 1,
-      body: streamCard,
-    });
-  }
 
   const active = sections.find((t) => t.id === tab) ?? sections[0];
 
@@ -683,42 +368,7 @@ export function Claims() {
         ))}
       </nav>
 
-      {status && (
-        <div className="card status">
-          <span>{status.text}</span>
-          {status.signature && (
-            <a
-              className="mono"
-              href={solscanTx(status.signature)}
-              title={status.signature}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              {shortSignature(status.signature)} <span aria-hidden="true">&#8599;</span>
-            </a>
-          )}
-        </div>
-      )}
-
       {publicKey && !config ? <div className="card">Loading…</div> : active.body}
-    </div>
-  );
-}
-
-/**
- * The way in, at the end of each bucket card.
- *
- * Opens the wallet picker rather than re-implementing the header's button, so
- * there is one wallet flow on the page and not two that can disagree.
- */
-function ConnectToClaim({ question }: { question: string }) {
-  const { setVisible } = useWalletModal();
-  return (
-    <div className="claim-cta">
-      <span>{question} Connect wallet to claim.</span>
-      <button className="primary" onClick={() => setVisible(true)}>
-        Connect wallet
-      </button>
     </div>
   );
 }
@@ -756,55 +406,6 @@ function SnapshotMoment() {
       )}
       . Nothing you do now can change what you can claim.
     </>
-  );
-}
-
-/**
- * The answer to "does this wallet have anything", boxed.
- *
- * This is what the visitor came for, and it was a paragraph of muted body text
- * indistinguishable from the explanation around it: a "no" that scrolled past
- * unread. It is the one thing on the card addressed to them personally, so it
- * gets the only strong border on the card.
- */
-function Verdict({
-  tone,
-  heading,
-  children,
-}: {
-  tone: "hit" | "miss" | "done";
-  heading: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={`verdict verdict-${tone}`} role="status">
-      <strong className="verdict-head">{heading}</strong>
-      {children}
-    </div>
-  );
-}
-
-/**
- * What happens to everything nobody claims.
- *
- * A standing rule rather than news, so it reads as a specification footnote
- * instead of competing with the verdict above it for the same attention. The
- * fact still matters (it is the difference between a forfeited allocation
- * going to the community and going back to the team), but it is the same fact
- * on every visit, and it should not shout on every visit.
- */
-function ForfeitNote({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <p className="card-foot">
-      <span className="card-foot-label">{label}</span>
-      {children}
-    </p>
   );
 }
 
@@ -931,7 +532,8 @@ function AddressLookup({
             )}
           </div>
           <div className="note-cta">
-            Connect this wallet to claim. Nobody else can claim on its behalf.
+            Connect this wallet and claim it on My Buddy. Nobody else can claim
+            on its behalf.
           </div>
         </div>
       )}
@@ -1050,261 +652,33 @@ function SnapshotFiles({
 }
 
 /**
- * What a "30-day stream" actually is, in mechanical terms.
- *
- * People reasonably assume a stream is a promise someone keeps. It is not. It
- * is arithmetic in an account nobody can edit, so it is worth showing the
- * arithmetic.
- */
-function StreamExplainer() {
-  return (
-    <div className="note">
-      <strong>What "released over 30 days" actually means.</strong> Claiming does
-      not send you tokens. It creates a <em>stream account</em> holding four
-      numbers: the total, the start time, the end time, and how much you have
-      already withdrawn.
-      <br />
-      Whenever you press withdraw, the contract works out how much time has
-      passed as a fraction of the 30 days, multiplies that by your total,
-      subtracts what you already took, and sends the difference. After ten days
-      you can take about a third; after thirty, all of it.
-      <br />
-      Withdrawing is a normal transaction you send whenever you like: daily,
-      once at the end, or never. Nothing is automatic and nothing expires: a
-      matured stream stays yours indefinitely.
-      <br />
-      <span className="muted">
-        The tokens stay in the contract's vault until each withdrawal, and no
-        instruction exists to release them faster, not for you and not for us. The
-        stream is keyed to your wallet, so nobody else can withdraw it. Equally,
-        there is no instruction to cancel or claw one back: once opened, it runs
-        to completion whatever anyone thinks of you afterwards.
-      </span>
-    </div>
-  );
-}
-
-/**
- * Everything about this wallet's own stream, on its own page.
- *
- * The three totals answer "how much and when", and the history answers "what
- * have I already done", which the stream account itself cannot, because it
- * keeps a running total and no record of the individual releases. Those are
- * recovered from the transactions that touched the account.
- *
- * Green-accented like a positive verdict, because that is what it is: this
- * page only exists for a wallet that has something.
- */
-function StreamPage({
-  stream,
-  withdrawable,
-  busy,
-  onWithdraw,
-  beneficiary,
-}: {
-  stream: any;
-  withdrawable: number;
-  busy: boolean;
-  onWithdraw: () => void;
-  beneficiary: PublicKey | null;
-}) {
-  const { events, loading } = useStreamHistory(beneficiary);
-  const history = usePaged(events, 10);
-  const total = BigInt(stream.total.toString());
-  const withdrawn = BigInt(stream.withdrawn.toString());
-  const end = Number(stream.end);
-  const left = countdown(end);
-  const releasedPct = total === 0n ? 0 : Number((withdrawn * 10000n) / total) / 100;
-
-  return (
-    <section className="card">
-      <h2>Your stream</h2>
-      <p className="muted">
-        {fmtAmount(total)} committed to this wallet, releasing steadily until{" "}
-        {fmtDate(end)}.{" "}
-        {left
-          ? `${left} left to run. Anything already released stays yours whether you take it now or later.`
-          : "Fully matured: all of it is available, and it stays available indefinitely."}
-      </p>
-
-      <div className="stat-row">
-        <div className="stat">
-          <span className="stat-value">{fmtAmount(total, true)}</span>
-          <span className="stat-label">Total committed</span>
-        </div>
-        <div className="stat">
-          <span className="stat-value">{fmtAmount(withdrawn, true)}</span>
-          <span className="stat-label">Withdrawn · {releasedPct.toFixed(1)}%</span>
-        </div>
-        <div className="stat stat-emphasis">
-          <span className="stat-value stat-live">
-            {fmtAmount(BigInt(Math.floor(withdrawable)))}
-          </span>
-          <span className="stat-label">Available right now · updating live</span>
-        </div>
-      </div>
-
-      <Progress done={Number(withdrawn)} total={Number(total)} />
-
-      <div className="stream-actions">
-        <button className="primary" disabled={busy || withdrawable < 1} onClick={onWithdraw}>
-          {withdrawable < 1 ? "Nothing available yet" : "Withdraw available"}
-        </button>
-        <span className="muted small">
-          Withdraw as often or as rarely as you like. You've already claimed, so it never expires.
-        </span>
-      </div>
-
-      <div className="files">
-        <div className="files-head">
-          Transaction history
-          <span className="files-note">
-            read from the transactions that touched this stream, not from a log
-            we keep, so every row is checkable on an explorer.
-          </span>
-        </div>
-        {loading ? (
-          <p className="file-foot">Reading the chain…</p>
-        ) : events.length === 0 ? (
-          <p className="file-foot">
-            Nothing withdrawn yet. When you do, it will appear here.
-          </p>
-        ) : (
-          history.slice.map((e) => (
-            <div className="file-row" key={e.signature}>
-              <div className="file-meta">
-                <span className="file-name">
-                  {e.kind === "withdraw"
-                    ? e.amount === null
-                      ? "Withdrawal"
-                      : `Withdrew ${fmtAmount(e.amount)}`
-                    : `Claimed ${fmtAmount(total)} as influencer allocation and opened this stream`}
-                </span>
-                <span className="file-desc">
-                  {e.at ? fmtDate(e.at) : "time unknown"}
-                </span>
-              </div>
-              <div className="file-actions">
-                <a
-                  className="mono"
-                  href={solscanTx(e.signature)}
-                  title={e.signature}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  {shortSignature(e.signature)}
-                </a>
-              </div>
-            </div>
-          ))
-        )}
-        <div className="file-foot">
-          <Pager
-            page={history.page}
-            pageCount={history.pageCount}
-            from={history.from}
-            to={history.to}
-            total={history.total}
-            unit="transactions"
-            onPage={history.setPage}
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Progress({ done, total }: { done: number; total: number }) {
-  const p = total > 0 ? Math.min(100, (done / total) * 100) : 0;
-  return (
-    <div className="progress" role="progressbar" aria-valuenow={Math.round(p)}>
-      <div className="progress-fill" style={{ width: `${p}%` }} />
-    </div>
-  );
-}
-
-/**
  * The stream, surfaced on Overview so it is not hidden behind a tab.
  *
- * A single line, not a card. Overview is a page of lists and this is a pointer
- * to somewhere else; giving it a heading and its own button made it look like
- * a section with content of its own, which it is not. One fact and one exit,
- * with the whole row as the target rather than a button inside it.
+ * A single line, not a card: one fact and one exit, with the whole row as the
+ * target. The stream itself lives on My Buddy with everything else the wallet
+ * can act on, so this is a signpost rather than a summary, and it does not
+ * repeat numbers that page keeps live.
  */
-function StreamShortcut({
-  available,
-  onOpen,
-}: {
-  available: number;
-  onOpen: () => void;
-}) {
-  const ready = available >= 1;
+function StreamShortcut({ onOpen }: { onOpen: () => void }) {
   return (
     <button type="button" className="stream-shortcut" onClick={onOpen}>
       <span className="shortcut-text">
-        {ready ? (
-          <>
-            <strong>{fmtAmount(BigInt(Math.floor(available)))}</strong> is
-            available to withdraw
-          </>
-        ) : (
-          <>Your stream is open, nothing has released yet</>
-        )}
+        This wallet has an open stream.
       </span>
       <span className="shortcut-go">
-        Open stream <span aria-hidden="true">&rarr;</span>
+        Open it on My Buddy <span aria-hidden="true">&rarr;</span>
       </span>
     </button>
   );
 }
 
 /**
- * A clock that ticks, for values that change with time rather than with data.
- *
- * Streams vest per second. Reading `Date.now()` during render gives a number
- * that is correct at first paint and wrong from then until something unrelated
- * happens to re-render, which is why the available balance only moved on a
- * manual refresh. Nothing here touches the network: the chain already told us
- * the start, end and total, so the rest is arithmetic the browser can do.
+ * Bucket 4a, explained: whoever holds the Bitcoin key that signed the 2014
+ * message. The claim itself, with its two-step signature flow, lives on
+ * My Buddy like every other action; this page carries the story and the
+ * current state, which are what a visitor without the key came to read.
  */
-function useClock(intervalMs = 1000): number {
-  const [now, setNow] = useState(() => Date.now() / 1000);
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now() / 1000), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
-
-/**
- * Bucket 4a: whoever holds the Bitcoin key that signed the 2014 message.
- *
- * The odd one out among the claims, and the page says so. There is no list to
- * be on and no wallet signature that helps: the authorisation is a Bitcoin
- * signature made offline, in whatever wallet holds a key from 2014, over a
- * message naming the Solana address the tokens should go to. That binding is
- * what stops a signature posted publicly from being replayed into someone
- * else's wallet, and it is why the message has to be regenerated for each
- * destination rather than signed once.
- *
- * Anyone can relay the transaction. The connected wallet is only paying the
- * fee and naming the destination.
- */
-function SignerClaim({
-  config,
-  wallet,
-  busy,
-  onClaim,
-}: {
-  config: any;
-  wallet: PublicKey | null;
-  busy: boolean;
-  onClaim: (signature: string) => void;
-}) {
-  const [signature, setSignature] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  const message = wallet ? signerClaimMessage(wallet.toBase58()) : null;
+function SignerInfo({ config, connected }: { config: any; connected: boolean }) {
   const left = countdown(ORIGINAL_SIGNER_DEADLINE);
   const claimed = config?.originalSignerClaimed === true;
   const swept = config?.originalSignerSwept === true;
@@ -1345,69 +719,18 @@ function SignerClaim({
             Nothing further can be claimed here.
           </p>
         </Verdict>
-      ) : !wallet ? (
+      ) : !connected ? (
         <ConnectToClaim question="Do you hold the 2014 key?" />
       ) : (
-        <>
-          <div className="signer-step">
-            <span className="signer-step-num">1</span>
-            <div>
-              <strong>Sign this exact text with the 2014 Bitcoin key.</strong>
-              <p className="muted small">
-                Use whatever wallet holds it: Electrum's <em>Sign/Verify</em>{" "}
-                dialog, or <span className="mono">signmessage</span> in Bitcoin
-                Core. The address below is this connected wallet, and the
-                signature is bound to it, so tokens can only ever arrive here.
-              </p>
-              <div className="signer-message">
-                <code>{message}</code>
-                <button
-                  type="button"
-                  className="copy"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(message!);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  }}
-                >
-                  {copied ? "copied" : "copy"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="signer-step">
-            <span className="signer-step-num">2</span>
-            <div>
-              <strong>Paste the signature it gives you.</strong>
-              <p className="muted small">
-                A base64 string, usually ending in <span className="mono">=</span>.
-                Nothing is sent anywhere until you press claim.
-              </p>
-              <textarea
-                className="signer-input"
-                rows={3}
-                spellCheck={false}
-                placeholder="H1a2b3c…="
-                value={signature}
-                onChange={(e) => setSignature(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="stream-actions">
-            <button
-              className="primary"
-              disabled={busy || !signature.trim() || !left}
-              onClick={() => onClaim(signature)}
-            >
-              {left ? "Prove it and claim" : "The deadline has passed"}
-            </button>
-            {left && (
-              <span className="muted small">{left} left to claim</span>
-            )}
-          </div>
-        </>
+        <div className="claim-cta">
+          <span>
+            Hold the key? The claim is a two-step signature flow, and it lives
+            with every other wallet action.
+          </span>
+          <button className="primary" onClick={() => goTo("my buddy")}>
+            Prove it on My Buddy <span aria-hidden="true">→</span>
+          </button>
+        </div>
       )}
 
       <ForfeitNote label="If nobody claims">
@@ -1416,7 +739,7 @@ function SignerClaim({
         signs, it streams to the signer. If it never does, it streams to the
         community instead: same amount, same year-long schedule, and never
         back to the team. Forfeiting a stream does not turn it into a lump
-        sum for anyone.
+        sum for anyone.{left ? ` ${left} remain.` : ""}
       </ForfeitNote>
     </section>
   );

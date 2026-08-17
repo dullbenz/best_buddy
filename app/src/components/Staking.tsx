@@ -1,150 +1,28 @@
-import { BN } from "@coral-xyz/anchor";
-import {
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
-import { useState } from "react";
-import { SEEDS, TIERS, TOKEN_DECIMALS, pda } from "../config";
-import { countdown, fmtAmount, fmtSol } from "../format";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { TIERS } from "../config";
+import { fmtAmount } from "../format";
+import { goTo } from "../nav";
 import { useDistributor, useStakePosition } from "../useDistributor";
-import { useProgram } from "../useProgram";
+import { ConnectToClaim } from "./claimShared";
 
+/**
+ * The staking terms, as a public page.
+ *
+ * This is the offer: what staking pays, what each lock costs, and why the
+ * bonus is escrowed. It reads end to end without a wallet, because the terms
+ * of a lockup are exactly what someone should be able to study before
+ * connecting anything. The doing (staking, claiming, exiting) lives on
+ * My Buddy with every other wallet action.
+ */
 export function Staking() {
-  const { publicKey, sendTransaction } = useWallet();
-  const { connection } = useConnection();
-  const program = useProgram();
-  const { config, refresh: refreshPool } = useDistributor();
-  const { position, refresh: refreshPosition } = useStakePosition(publicKey ?? null);
-
-  const [amount, setAmount] = useState("");
-  const [tier, setTier] = useState(0);
-  const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  if (!publicKey) {
-    return (
-      <div className="card">
-        <h2>Staking</h2>
-        <p className="muted">
-          Connect a wallet to stake. Staking registers you for every reward the
-          ecosystem generates: pump.fun creator fees, donations, and everything
-          forfeited by people who did not show up. Fees do not arrive by
-          themselves; anyone can push them in from the Fund pool tab.
-        </p>
-        <h3 className="tiers-title">The locks you can choose from</h3>
-        <TierCards selected={-1} onSelect={() => {}} />
-      </div>
-    );
-  }
-  if (!config) return <div className="card">Loading…</div>;
-
-  const refresh = () => {
-    refreshPool();
-    refreshPosition();
-  };
-
-  async function ensureAta(): Promise<PublicKey> {
-    const ata = getAssociatedTokenAddressSync(config.rewardMint, publicKey!);
-    const info = await connection.getAccountInfo(ata);
-    if (!info) {
-      const tx = new Transaction().add(
-        createAssociatedTokenAccountInstruction(publicKey!, ata, publicKey!, config.rewardMint)
-      );
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
-    }
-    return ata;
-  }
-
-  async function run(label: string, fn: () => Promise<string>) {
-    setBusy(true);
-    setStatus(null);
-    try {
-      const sig = await fn();
-      setStatus(`${label}. ${sig}`);
-      refresh();
-    } catch (e: any) {
-      setStatus(`Failed: ${e?.message ?? String(e)}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const commonAccounts = async () => ({
-    owner: publicKey!,
-    config: pda([SEEDS.config]),
-    pool: pda([SEEDS.pool]),
-    position: pda([SEEDS.stake, publicKey!.toBuffer()]),
-    vault: pda([SEEDS.vault]),
-    solVault: pda([SEEDS.solVault]),
-    destination: await ensureAta(),
-    tokenProgram: TOKEN_PROGRAM_ID,
-    rent: SYSVAR_RENT_PUBKEY,
-  });
-
-  const stake = () =>
-    run("Staked", async () => {
-      const raw = BigInt(Math.round(parseFloat(amount) * 10 ** TOKEN_DECIMALS));
-      const source = await ensureAta();
-      return program!.methods
-        .stake(new BN(raw.toString()), tier)
-        .accountsPartial({
-          owner: publicKey!,
-          config: pda([SEEDS.config]),
-          pool: pda([SEEDS.pool]),
-          position: pda([SEEDS.stake, publicKey!.toBuffer()]),
-          vault: pda([SEEDS.vault]),
-          source,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-    });
-
-  const claimRewards = () =>
-    run("Rewards claimed", async () =>
-      program!.methods.claimRewards().accountsPartial(await commonAccounts()).rpc()
-    );
-
-  const withdrawEscrow = () =>
-    run("Boost escrow released", async () =>
-      program!.methods.withdrawBoostEscrow().accountsPartial(await commonAccounts()).rpc()
-    );
-
-  const requestUnstake = () =>
-    run("Cooldown started", async () =>
-      program!.methods
-        .requestUnstake()
-        .accountsPartial({
-          owner: publicKey!,
-          position: pda([SEEDS.stake, publicKey!.toBuffer()]),
-        })
-        .rpc()
-    );
-
-  const unstake = () =>
-    run("Unstaked", async () =>
-      program!.methods
-        .unstake(new BN(position.amount.toString()))
-        .accountsPartial(await commonAccounts())
-        .rpc()
-    );
-
-  const emergencyExit = () =>
-    run("Exited early", async () =>
-      program!.methods.emergencyExit().accountsPartial(await commonAccounts()).rpc()
-    );
-
-  const now = Date.now() / 1000;
-  const lockLeft = position ? countdown(Number(position.lockEnd), now) : null;
+  const { publicKey } = useWallet();
+  const { pool } = useDistributor();
+  const { position } = useStakePosition(publicKey ?? null);
 
   return (
     <div className="stack">
       <section className="card">
-        <h2>Stake your tokens</h2>
+        <h2>Staking</h2>
         <p className="muted">
           Staking is how you earn from the community pool. Trading fees,
           donations and everything anyone forfeits are shared out among stakers
@@ -159,7 +37,7 @@ export function Staking() {
           yours to claim whenever you want, in every tier including Flexible.
           <br />
           <strong>Bonus</strong> (the <em>boost</em>) is the extra that a
-          multiplier earns you. A 3.0× stake earns three times the share of the
+          multiplier earns you. A 5.0× stake earns five times the share of the
           same tokens left flexible. The bonus is <em>held by the contract</em>{" "}
           until your lock matures, then paid in full.
           <br />
@@ -172,8 +50,8 @@ export function Staking() {
           </span>
         </div>
 
-        <h3 className="tiers-title">Choose a lock</h3>
-        <TierCards selected={tier} onSelect={setTier} />
+        <h3 className="tiers-title">The locks you can choose from</h3>
+        <TierCards selected={-1} onSelect={() => {}} />
 
         <p className="muted small">
           <strong>Is Flexible really a lockup?</strong> Partly, and it is fairer
@@ -196,76 +74,45 @@ export function Staking() {
           never really there.
         </p>
 
-        <div className="form-row">
-          <input
-            type="number"
-            min="0"
-            step="any"
-            placeholder="Amount to stake"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-          <button
-            className="primary"
-            disabled={busy || !amount || parseFloat(amount) <= 0}
-            onClick={stake}
-          >
-            Stake {TIERS[tier]?.name}
-          </button>
-        </div>
+        {!publicKey ? (
+          <ConnectToClaim question="Ready to stake?" />
+        ) : (
+          <div className="claim-cta">
+            <span>
+              {position
+                ? `You have ${fmtAmount(position.amount, true)} staked. Manage it, claim rewards, or add more on My Buddy.`
+                : "Staking itself happens on My Buddy, the page for everything your wallet can do."}
+            </span>
+            <button className="primary" onClick={() => goTo("my buddy")}>
+              {position ? "Manage my stake" : "Stake on My Buddy"}{" "}
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        )}
       </section>
 
-      {position && (
+      {pool && (
         <section className="card">
-          <h2>Your position</h2>
+          <h2>The pool, right now</h2>
           <div className="stat-row">
             <div className="stat">
-              <span className="stat-value">{fmtAmount(position.amount, true)}</span>
-              <span className="stat-label">Staked</span>
+              <span className="stat-value">{fmtAmount(pool.totalStaked, true)}</span>
+              <span className="stat-label">Total staked</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{fmtAmount(position.claimableToken, true)}</span>
-              <span className="stat-label">Base, claimable now</span>
-            </div>
-            <div className="stat">
-              <span className="stat-value">{fmtAmount(position.escrowToken, true)}</span>
-              <span className="stat-label">Boost, held to maturity</span>
-            </div>
-            <div className="stat">
-              <span className="stat-value">{fmtSol(position.claimableSol)} SOL</span>
-              <span className="stat-label">SOL rewards</span>
+              <span className="stat-value">
+                {fmtAmount(pool.lifetimeTokenRewards, true)}
+              </span>
+              <span className="stat-label">Token rewards paid to date</span>
             </div>
           </div>
-          {lockLeft && (
-            <p className="muted small">
-              Lock matures in {lockLeft}. Leaving before then forfeits the entire
-              boost escrow plus 15% of principal, both of which go to the stakers
-              who stay.
-            </p>
-          )}
-          <div className="button-row">
-            <button disabled={busy} onClick={claimRewards}>
-              Claim base rewards
-            </button>
-            <button disabled={busy || !!lockLeft} onClick={withdrawEscrow}>
-              Release boost escrow
-            </button>
-            <button disabled={busy} onClick={requestUnstake}>
-              Start cooldown
-            </button>
-            <button disabled={busy} onClick={unstake}>
-              Unstake all
-            </button>
-            {lockLeft && (
-              <button className="danger" disabled={busy} onClick={emergencyExit}>
-                Emergency exit (forfeit boost + 15%)
-              </button>
-            )}
-          </div>
+          <p className="muted small">
+            Live from the chain. The Dashboard tab breaks the same numbers down
+            further, and the Fund pool tab is where anyone can push waiting fees
+            in.
+          </p>
         </section>
       )}
-
-      {status && <div className="card status">{status}</div>}
     </div>
   );
 }
@@ -276,8 +123,11 @@ export function Staking() {
  * Each card carries both halves of the trade (what you gain and what it costs),
  * because the cost is a real lockup with a real penalty, and burying that in
  * a footnote is how people end up surprised.
+ *
+ * Shared with My Buddy, where the same cards are the live tier picker for the
+ * stake form; here they are display only.
  */
-function TierCards({
+export function TierCards({
   selected,
   onSelect,
 }: {

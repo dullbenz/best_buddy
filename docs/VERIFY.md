@@ -112,17 +112,18 @@ Reading source proves nothing unless that source is what actually got deployed.
 solana-verify verify-from-repo -um --program-id <PROGRAM_ID> https://github.com/dullbenz/best_buddy
 ```
 
-## 6. The developer cannot dump
+## 6. The team cannot dump
 
 ```bash
-solana account <DEV_STREAM_PDA>
+solana account <TEAM_STREAM_PDA>
 ```
 
-The dev's allocation exists only inside a vesting stream: a fixed total, a
+The team's allocation exists only inside a vesting stream: a fixed total, a
 cliff, and a linear release over twelve months that nobody can accelerate. The
-dev wallet itself holds none of it.
+beneficiary is the team's multisig vault, and neither it nor any team member's
+wallet holds the allocation itself.
 
-Check the dev wallet's token balance directly if you want to confirm that.
+Check the multisig vault's token balance directly if you want to confirm that.
 
 ## 7. The fee split is frozen, and most of it goes to the community
 
@@ -131,7 +132,7 @@ solana account <SHARING_CONFIG_PDA>
 ```
 
 Two things to confirm: the shareholder list reads **90% the SOL vault, 10% the
-dev wallet**, and the **admin is revoked**.
+team's multisig vault**, and the **admin is revoked**.
 
 The second matters more than the first. pump.fun lets a fee split be set exactly
 once and then permanently revokes the ability to change it. Until that flag is

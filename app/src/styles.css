@@ -135,6 +135,48 @@ header {
   gap: 10px;
 }
 
+/* The personal page, docked beside the wallet button it belongs to. Set in
+   the wallet button's own type so the pair reads as one unit, but outlined
+   rather than filled: the solid accent stays reserved for the connect action,
+   and this is a place, not an action. */
+.hub-btn {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  border: 1px solid var(--accent-dim);
+  background: var(--panel-2);
+  color: var(--accent);
+  padding: 12px 16px;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hub-btn:hover {
+  border-color: var(--accent);
+}
+
+.hub-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #17120a;
+}
+
+@media (max-width: 480px) {
+  .hub-btn {
+    padding: 10px 10px;
+  }
+}
+
+/* A quiet divider inside a card, between a position and the form below it. */
+.rule {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0 4px;
+}
+
 /* Replaces the full-width devnet banner. Same warning, carried in the title,
    but it costs no vertical space and vanishes entirely on mainnet, so what
    staging looks like is what production looks like. */
@@ -1979,17 +2021,20 @@ a.prov-value {
   color: var(--accent);
 }
 
-.l-route p {
+.l-route p,
+.l-route-body {
   margin: 0 0 10px;
   color: var(--muted);
   font-size: 14.5px;
 }
 
-.l-route > p:first-of-type {
+.l-route > p:first-of-type,
+.l-route > .l-route-body {
   flex: 1;
 }
 
-.l-route-primary > p:first-of-type {
+.l-route-primary > p:first-of-type,
+.l-route-primary > .l-route-body {
   color: var(--text);
 }
 
@@ -2062,6 +2107,22 @@ a.prov-value {
   font-size: 18px;
   letter-spacing: -0.015em;
   margin: 0 0 6px;
+}
+
+/* The bucket's slice of the initial distribution, set beside its name in the
+   data type rather than the prose type: it is a figure the pre-commitment
+   document publishes, and it should look like one. */
+.l-alloc-share {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-left: 10px;
+  vertical-align: 2px;
+  white-space: nowrap;
 }
 
 .l-alloc-main p {
@@ -2471,6 +2532,7 @@ footer .small {
 .l-index-text,
 .l-alloc-main p,
 .l-route p,
+.l-route-body,
 .l-proof-body,
 .l-rule-body {
   line-height: 1.62;

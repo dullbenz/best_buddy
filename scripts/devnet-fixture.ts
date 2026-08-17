@@ -32,12 +32,18 @@ const CLUSTER = process.env.CLUSTER ?? "devnet";
 const DECIMALS = 6;
 const UNIT = 10n ** BigInt(DECIMALS);
 
-/** The same 55/15/20/10 split the pre-commitment doc publishes. */
+/**
+ * The same 15/50/10/25 split the pre-commitment doc publishes.
+ *
+ * The 200M total is a fixture value, not the launch number: the real
+ * distributor total is however many tokens the launch buy actually acquires,
+ * decided and published on launch day (TO-THE-MOON §2.3).
+ */
 const DISTRIBUTOR_TOTAL = 200_000_000n * UNIT;
-const BUCKET_TWO = (DISTRIBUTOR_TOTAL * 55n) / 100n;
-const BUCKET_THREE = (DISTRIBUTOR_TOTAL * 15n) / 100n;
-const SIGNER_ALLOC = (DISTRIBUTOR_TOTAL * 20n) / 100n;
-const DEV_ALLOC = (DISTRIBUTOR_TOTAL * 10n) / 100n;
+const BUCKET_TWO = (DISTRIBUTOR_TOTAL * 15n) / 100n;
+const BUCKET_THREE = (DISTRIBUTOR_TOTAL * 50n) / 100n;
+const SIGNER_ALLOC = (DISTRIBUTOR_TOTAL * 10n) / 100n;
+const DEV_ALLOC = (DISTRIBUTOR_TOTAL * 25n) / 100n;
 
 /**
  * Filler wallets, derived rather than generated.
