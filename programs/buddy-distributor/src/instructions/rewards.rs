@@ -35,6 +35,9 @@ pub struct NotifyTokenRewards<'info> {
 /// tokens and want to donate them; use `sync_token_rewards` instead when tokens
 /// have already landed in the vault by some other route.
 pub fn notify_token_rewards(ctx: Context<NotifyTokenRewards>, amount: u64) -> Result<()> {
+    // Rewards only make sense once the pool is live. Gating this on the lock
+    // also keeps `reserved_token` from moving before `lock_config` reads it.
+    ctx.accounts.config.assert_locked()?;
     require!(amount > 0, DistributorError::ZeroAmount);
 
     ctx.accounts.pool.reserved_token = ctx
@@ -83,6 +86,7 @@ pub struct NotifySolRewards<'info> {
 /// The counterpart to `sync_sol_rewards`: this one moves lamports *and* books
 /// them in a single step, which is why it can only credit what it transfers.
 pub fn notify_sol_rewards(ctx: Context<NotifySolRewards>, amount: u64) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     require!(amount > 0, DistributorError::ZeroAmount);
 
     ctx.accounts.pool.reserved_sol = ctx
@@ -163,6 +167,7 @@ pub struct SyncSolRewards<'info> {
 
 /// Credit lamports sitting in the SOL vault that nobody has accounted for yet.
 pub fn sync_sol_rewards(ctx: Context<SyncSolRewards>) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     let info = ctx.accounts.sol_vault.to_account_info();
     // The rent-exempt floor keeps the vault alive and is never distributable.
     let floor = ctx.accounts.rent.minimum_balance(info.data_len());
@@ -198,6 +203,7 @@ pub struct SyncTokenRewards<'info> {
 
 /// Credit reward-mint tokens sitting in the vault that nobody has accounted for.
 pub fn sync_token_rewards(ctx: Context<SyncTokenRewards>) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     let untracked = ctx
         .accounts
         .vault
@@ -251,6 +257,7 @@ pub struct UnwrapWsol<'info> {
 /// Permissionless, and hard-wired to the wSOL mint so it can never be pointed
 /// at anything else.
 pub fn unwrap_wsol(ctx: Context<UnwrapWsol>) -> Result<()> {
+    ctx.accounts.config.assert_locked()?;
     let before = ctx.accounts.sol_vault.to_account_info().lamports();
 
     let sol_vault_bump = ctx.accounts.config.sol_vault_bump;

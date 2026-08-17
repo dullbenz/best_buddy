@@ -119,6 +119,10 @@ pub struct Stake<'info> {
 }
 
 pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
+    // The pool only opens once the config is locked. Before then, the only
+    // thing that may raise `reserved_token` is `fund_vault`, which is what
+    // lets `lock_config` treat `reserved_token` as an honest solvency proof.
+    ctx.accounts.config.assert_locked()?;
     require!(amount > 0, DistributorError::ZeroAmount);
     let now = Clock::get()?.unix_timestamp;
 
@@ -499,6 +503,9 @@ pub struct LockTokens<'info> {
 /// the counter, so the client supplies the index and it is pinned here; a
 /// stale or skipped value fails instead of fragmenting the sequence.
 pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, tier: u8, index: u64) -> Result<()> {
+    // Like `stake`: the pool is not open until the config is locked, so this
+    // cannot pre-inflate the `reserved_token` that `lock_config` proves against.
+    ctx.accounts.config.assert_locked()?;
     require!(amount > 0, DistributorError::ZeroAmount);
     let tier = Tier::from_u8(tier)?;
     // Flexible principal belongs in `stake`. A zero-duration lockup would be a
@@ -617,9 +624,20 @@ pub struct ClaimLockupRewards<'info> {
 /// Withdraw a lockup's settled base rewards, at any time. The escrowed boost
 /// is deliberately untouched here: it is only reachable through maturity.
 pub fn claim_lockup_rewards(ctx: Context<ClaimLockupRewards>) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp;
     let pool = &mut ctx.accounts.pool;
     let lockup = &mut ctx.accounts.lockup;
     lockup.settle(pool)?;
+
+    // If the lock has already matured, drop it to base weight here rather than
+    // waiting for a separate demote crank. The multiplier is meant to end with
+    // the commitment, so an owner claiming their base rewards after maturity
+    // should not keep carrying boosted weight into the next distribution. The
+    // permissionless `demote_matured` crank still exists for lockups whose
+    // owners never interact; this just means an active owner self-corrects.
+    if now >= lockup.lock_end && !lockup.demoted {
+        release_boost_and_demote(lockup, pool)?;
+    }
 
     let token_out = lockup.claimable_token;
     let sol_out = lockup.claimable_sol;

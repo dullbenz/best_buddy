@@ -46,18 +46,26 @@ pub const LOCK_FLEXIBLE: i64 = 0;
 // the `not(feature = "fast-clock")` branch is the deployed program.
 // ---------------------------------------------------------------------------
 
+// `#[constant]`-exported (like the cooldown) so the site's lock-length copy is
+// read from the deployed binary rather than restated by hand.
 #[cfg(not(feature = "fast-clock"))]
+#[constant]
 pub const LOCK_ONE_MONTH: i64 = 30 * ONE_DAY;
 #[cfg(not(feature = "fast-clock"))]
+#[constant]
 pub const LOCK_THREE_MONTH: i64 = 90 * ONE_DAY;
 #[cfg(not(feature = "fast-clock"))]
+#[constant]
 pub const LOCK_FIVE_MONTH: i64 = 150 * ONE_DAY;
 
 #[cfg(feature = "fast-clock")]
+#[constant]
 pub const LOCK_ONE_MONTH: i64 = 60; // 1 minute
 #[cfg(feature = "fast-clock")]
+#[constant]
 pub const LOCK_THREE_MONTH: i64 = 120; // 2 minutes
 #[cfg(feature = "fast-clock")]
+#[constant]
 pub const LOCK_FIVE_MONTH: i64 = 180; // 3 minutes
 
 /// Cooldown a flexible staker must wait between requesting an unstake and
@@ -65,9 +73,15 @@ pub const LOCK_FIVE_MONTH: i64 = 180; // 3 minutes
 /// large wallet could stake into a visibly fat pot, capture its share the
 /// moment it is synced, and leave in the same breath. A day makes that capture
 /// unpriceable in advance without turning flexible into a lock in disguise.
+// Exported into the IDL via `#[constant]` so the frontend reads whichever value
+// the deployed binary actually uses. Hard-coding 24h in the client made the
+// site contradict a fast-clock devnet deployment (chain unlocks in 60s, UI hid
+// the button for a day). Whatever is compiled here is what the app now shows.
 #[cfg(not(feature = "fast-clock"))]
+#[constant]
 pub const UNSTAKE_COOLDOWN: i64 = ONE_DAY;
 #[cfg(feature = "fast-clock")]
+#[constant]
 pub const UNSTAKE_COOLDOWN: i64 = 60; // 1 minute
 
 /// Penalty applied to *principal* when a locked position exits early, in bps.

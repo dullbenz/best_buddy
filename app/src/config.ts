@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+import idl from "./idl/buddy_distributor.json";
 import influencerTerms from "./generated/influencer-terms.txt?raw";
 
 /**
@@ -45,10 +46,40 @@ export const RPC_HOST = (() => {
 /** True when this page is going through our own keyed endpoint. */
 export const RPC_IS_KEYED = !servedFromLocalhost && !!KEYED_RPC;
 
-export const PROGRAM_ID = new PublicKey(
-  import.meta.env.VITE_PROGRAM_ID ??
-    "ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY",
-);
+/**
+ * The program id, taken from the IDL and nowhere else.
+ *
+ * Anchor builds the `Program` from `idl.address`, and every PDA derivation and
+ * explorer link on this page reads `PROGRAM_ID`. Making them one value means a
+ * freshly rebuilt IDL cannot leave the app deriving PDAs against one id while
+ * sending transactions to another. `VITE_PROGRAM_ID`, if set, is only allowed
+ * to confirm the IDL: a mismatch is a stale env against a new build, and it
+ * throws here at startup rather than failing silently deep in a signature.
+ */
+const ENV_PROGRAM_ID = import.meta.env.VITE_PROGRAM_ID as string | undefined;
+if (ENV_PROGRAM_ID && ENV_PROGRAM_ID !== idl.address) {
+  throw new Error(
+    `VITE_PROGRAM_ID (${ENV_PROGRAM_ID}) does not match the bundled IDL address ` +
+      `(${idl.address}). Clear the env override or rebuild the IDL; they must ` +
+      `name the same program.`,
+  );
+}
+export const PROGRAM_ID = new PublicKey(idl.address);
+
+/** Pull a numeric constant out of the bundled IDL, falling back if absent. */
+function idlConstant(name: string, fallback: number): number {
+  const raw = idl.constants.find((c) => c.name === name)?.value;
+  const value = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Flexible unstake cooldown, in seconds, read from the program's own constant
+ * rather than assumed. A fast-clock devnet build unlocks in seconds, so a
+ * hardcoded "24 hours" in the UI would lie about when a wallet can actually
+ * withdraw. 86400 is the mainnet value, used only if the IDL lacks the constant.
+ */
+export const UNSTAKE_COOLDOWN_SECONDS = idlConstant("UNSTAKE_COOLDOWN", 86400);
 
 /** Decimals of the new token; pump.fun mints use 6. */
 export const TOKEN_DECIMALS = 6;
@@ -71,19 +102,35 @@ export const repoPath = (path: string) => `${REPO_URL}/blob/main/${path}`;
 export const REPO_ACTIONS_URL = `${REPO_URL}/actions`;
 
 /**
- * Which chain this build talks to, inferred from the RPC URL rather than set
- * separately. One source of truth means a devnet build cannot accidentally
- * emit mainnet explorer links, which would send people to look at an address
- * that does not exist there and conclude the whole thing is fake.
+ * Which chain this build talks to.
+ *
+ * An explicit `VITE_CLUSTER` wins when set, and CI should set it per
+ * environment. The URL heuristic below is only the fallback, and it fails
+ * silently for exactly the case that matters: a keyed RPC behind a proxy domain
+ * with no "devnet" in the hostname classifies as mainnet, which would serve the
+ * devnet fixture at the bare published-mainnet proof paths. An invalid override
+ * throws rather than being ignored, because a typo that quietly falls through
+ * to the heuristic is the same silent misclassification in a different place.
  */
-export const CLUSTER: "mainnet" | "devnet" | "testnet" | "localnet" =
-  /devnet/.test(RPC_URL)
+const CLUSTERS = ["mainnet", "devnet", "testnet", "localnet"] as const;
+type Cluster = (typeof CLUSTERS)[number];
+
+const ENV_CLUSTER = import.meta.env.VITE_CLUSTER as string | undefined;
+if (ENV_CLUSTER && !CLUSTERS.includes(ENV_CLUSTER as Cluster)) {
+  throw new Error(
+    `VITE_CLUSTER is "${ENV_CLUSTER}"; it must be one of ${CLUSTERS.join(", ")}.`,
+  );
+}
+
+export const CLUSTER: Cluster =
+  (ENV_CLUSTER as Cluster | undefined) ??
+  (/devnet/.test(RPC_URL)
     ? "devnet"
     : /testnet/.test(RPC_URL)
       ? "testnet"
       : /localhost|127\.0\.0\.1/.test(RPC_URL)
         ? "localnet"
-        : "mainnet";
+        : "mainnet");
 
 export const IS_MAINNET = CLUSTER === "mainnet";
 

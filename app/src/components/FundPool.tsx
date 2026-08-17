@@ -308,7 +308,9 @@ export function FundPool() {
       }
 
       // 2. Pay the frozen shareholder list; our vault is one of them.
-      if ((pending?.bondingCurve ?? 0n) > 0n || (pending?.amm ?? 0n) > 0n) {
+      const distributed =
+        (pending?.bondingCurve ?? 0n) > 0n || (pending?.amm ?? 0n) > 0n;
+      if (distributed) {
         tx.add(distributeCreatorFeesIx(publicKey, mint, [solVault, config.devWallet]));
       }
 
@@ -329,18 +331,25 @@ export function FundPool() {
         );
       }
 
-      // 4. Book whatever is now sitting in the vault as staker rewards.
-      tx.add(
-        await program.methods
-          .syncSolRewards()
-          .accountsPartial({
-            config: pda([SEEDS.config]),
-            pool: pda([SEEDS.pool]),
-            solVault,
-            rent: SYSVAR_RENT_PUBKEY,
-          })
-          .instruction()
-      );
+      // 4. Book whatever is now sitting in the vault as staker rewards, but
+      //    only when there is something to book. unwrap_wsol self-credits its
+      //    released lamports via add_sol_rewards, so a wsol-only crank is just
+      //    [unwrapWsol]; appending sync there would revert with
+      //    NothingToWithdraw and take the unwrap down with it. Sync is only for
+      //    SOL that was already untracked or freshly distributed this tx.
+      if (untrackedSol > 0n || distributed) {
+        tx.add(
+          await program.methods
+            .syncSolRewards()
+            .accountsPartial({
+              config: pda([SEEDS.config]),
+              pool: pda([SEEDS.pool]),
+              solVault,
+              rent: SYSVAR_RENT_PUBKEY,
+            })
+            .instruction()
+        );
+      }
 
       const sig = await program.provider.sendAndConfirm!(tx);
       setStatus(`Done. ${sig}`);

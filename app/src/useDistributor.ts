@@ -164,6 +164,27 @@ export function useDistributor(): DistributorState {
   return ctx;
 }
 
+/**
+ * Whether a read error means the account is genuinely absent, as opposed to a
+ * transport failure.
+ *
+ * Anchor's `.fetch()` and `.all()` throw "Account does not exist ..." for a
+ * missing account, but a 429 or a dropped connection throws something else
+ * entirely. The two have to be told apart, because a refresh fired right after
+ * a successful transaction is exactly when the public endpoint rate-limits, and
+ * treating that 429 as "no account" would blank a live position, lock-up or
+ * stream the moment it changed. Missing is normal and resets to empty; anything
+ * else keeps whatever was already on screen.
+ */
+function isAccountMissing(e: unknown): boolean {
+  const msg = String((e as any)?.message ?? e).toLowerCase();
+  return (
+    msg.includes("account does not exist") ||
+    msg.includes("could not find") ||
+    msg.includes("not found")
+  );
+}
+
 export interface StakeInfo {
   position: any | null;
   loading: boolean;
@@ -191,9 +212,15 @@ export function useStakePosition(owner: PublicKey | null): StakeInfo {
           pda([SEEDS.stake, owner.toBuffer()])
         );
         if (!cancelled) setPosition(acct);
-      } catch {
-        // No position yet is the normal case, not an error worth surfacing.
-        if (!cancelled) setPosition(null);
+      } catch (e) {
+        // No position yet is the normal case, not an error worth surfacing. A
+        // transport error is different: keep the last good position rather than
+        // blank it on a 429 right after staking.
+        if (isAccountMissing(e)) {
+          if (!cancelled) setPosition(null);
+        } else {
+          console.debug("useStakePosition: keeping last state after read error", e);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -247,9 +274,15 @@ export function useLockups(owner: PublicKey | null): LockupsInfo {
           .map((l) => ({ pubkey: l.publicKey, account: l.account }))
           .sort((a, b) => Number(a.account.index) - Number(b.account.index));
         if (!cancelled) setLockups(sorted);
-      } catch {
-        // No lock-ups is the normal case, not an error worth surfacing.
-        if (!cancelled) setLockups([]);
+      } catch (e) {
+        // No lock-ups is the normal case, not an error worth surfacing. A
+        // transport error is different: keep the last good list rather than
+        // blank it on a 429 right after locking.
+        if (isAccountMissing(e)) {
+          if (!cancelled) setLockups([]);
+        } else {
+          console.debug("useLockups: keeping last state after read error", e);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -289,8 +322,16 @@ export function useAllMaturedLockups(): LockupsInfo {
           program.account as any
         ).lockup.all();
         const now = Math.floor(Date.now() / 1000);
+        // Two minutes of slack against client/cluster clock skew. The demote
+        // crank batches these into one atomic transaction, so a single lock-up
+        // the cluster clock still considers premature reverts the whole batch
+        // with EscrowNotMatured. Only count one as matured once it is clear of
+        // that margin.
+        const SKEW_MARGIN = 120;
         const due = all
-          .filter((l) => !l.account.demoted && Number(l.account.lockEnd) <= now)
+          .filter(
+            (l) => !l.account.demoted && Number(l.account.lockEnd) + SKEW_MARGIN <= now,
+          )
           .map((l) => ({ pubkey: l.publicKey, account: l.account }));
         if (!cancelled) setLockups(due);
       } catch {
@@ -326,8 +367,14 @@ export function useStream(beneficiary: PublicKey | null) {
           pda([SEEDS.stream, beneficiary.toBuffer()])
         );
         if (!cancelled) setStream(acct);
-      } catch {
-        if (!cancelled) setStream(null);
+      } catch (e) {
+        // No stream is the normal case; a transport error keeps the last good
+        // one rather than blanking it on a 429 right after a withdraw.
+        if (isAccountMissing(e)) {
+          if (!cancelled) setStream(null);
+        } else {
+          console.debug("useStream: keeping last state after read error", e);
+        }
       }
     })();
     return () => {

@@ -519,6 +519,87 @@ describe("buddy-distributor", () => {
         "ConfigLocked"
       );
     });
+
+    it("refuses to initialize from a caller who is not the upgrade authority", async () => {
+      // The config PDA is a singleton with no re-create path, so a front-runner
+      // who saw the freshly-deployed program id must not be able to seize it.
+      // Only the program's upgrade authority (the deployer) may initialize.
+      const env = await setupEnv();
+      const attacker = Keypair.generate();
+      await fundSol(env, attacker.publicKey, 5 * LAMPORTS_PER_SOL);
+      const tree = buildTree([
+        { address: attacker.publicKey.toBase58(), amount: "1" },
+      ]).tree;
+      await expectFailure(
+        env.program.methods
+          .initialize({
+            oldHolderRoot: tree.rootArray,
+            oldHolderAllocation: new BN(1),
+            influencerRoot: tree.rootArray,
+            influencerAllocation: new BN(1),
+            originalSignerPubkey: Array.from(makeBitcoinKey().publicKeyXY),
+            originalSignerAllocation: new BN(1),
+            devWallet: attacker.publicKey,
+            devAllocation: new BN(1),
+            devCliffSeconds: new BN(0),
+            claimsStart: new BN(BASE_TS),
+          })
+          .accountsPartial({
+            payer: attacker.publicKey,
+            authority: attacker.publicKey,
+            rewardMint: env.mint,
+            config: env.configPda,
+            pool: env.poolPda,
+            vault: env.vaultPda,
+            solVault: env.solVaultPda,
+            systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .signers([attacker])
+          .rpc(),
+        "Unauthorized"
+      );
+    });
+
+    it("refuses to stake, notify or sync before the config is locked", async () => {
+      // The reserved_token counter lock_config trusts as a solvency proof must
+      // be raisable only through fund_vault before the lock; otherwise staker
+      // principal or a synced donation could pre-satisfy the check and freeze
+      // an under-funded config.
+      const b = await bootstrap({ lock: false });
+      const { staker, acct } = await makeStaker(b.env, 10_000n * UNIT);
+      await expectFailure(stake(b.env, staker, acct, 1_000n * UNIT), "ConfigNotLocked");
+      await expectFailure(notifyTokens(b.env, staker, acct, 1_000n * UNIT), "ConfigNotLocked");
+      // A direct transfer then a sync attempt: the sync is refused pre-lock too.
+      await mintTo(b.env, b.env.vaultPda, 1_000n * UNIT);
+      await expectFailure(
+        b.env.program.methods
+          .syncTokenRewards()
+          .accountsPartial({ config: b.env.configPda, pool: b.env.poolPda, vault: b.env.vaultPda })
+          .rpc(),
+        "ConfigNotLocked"
+      );
+    });
+
+    it("refuses to lock a config whose claim window has already closed", async () => {
+      const b = await bootstrap({ lock: false });
+      // Warp past the 72-hour influencer window before locking.
+      await warpBy(b.env.context, 3 * DAY + 1);
+      await expectFailure(
+        b.env.program.methods
+          .lockConfig()
+          .accountsPartial({
+            authority: b.env.authority.publicKey,
+            config: b.env.configPda,
+            pool: b.env.poolPda,
+            vault: b.env.vaultPda,
+          })
+          .signers([b.env.authority])
+          .rpc(),
+        "ClaimWindowClosed"
+      );
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -1218,6 +1299,33 @@ describe("buddy-distributor", () => {
       assert.isAbove(Number(pool.accTokenPerWeight.toString()), 0);
     });
 
+    it("buffers a reward too small to move the accumulator instead of stranding it", async () => {
+      // total_weight = 5e12, so a reward below 5e12/ACC_PRECISION = 5 base
+      // units rounds the per-weight delta to zero. It must stay in pending (it
+      // was already booked into reserved_token) rather than be lost forever.
+      const b = await bootstrap({ fundExtra: 6_000_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 5_000_000n * UNIT);
+      await stake(b.env, staker, acct, 5_000_000n * UNIT); // weight 5e12
+
+      const donor = await makeStaker(b.env, 100n);
+      await notifyTokens(b.env, donor.staker, donor.acct, 3n); // rounds to 0
+
+      let pool = await fetchPool(b.env);
+      assert.equal(pool.accTokenPerWeight.toString(), "0", "3 units cannot move the accumulator");
+      assert.equal(pool.pendingTokenRewards.toString(), "3", "but they are buffered, not dropped");
+
+      // A larger reward folds the dust in and distributes whole units; the
+      // sub-unit remainder stays buffered. 13 total → 10 distributed, 3 kept.
+      await notifyTokens(b.env, donor.staker, donor.acct, 10n);
+      pool = await fetchPool(b.env);
+      assert.equal(pool.pendingTokenRewards.toString(), "3", "sub-unit remainder still buffered");
+
+      const before = await tokenBalance(b.env, acct);
+      await claimRewards(b.env, staker, acct);
+      const after = await tokenBalance(b.env, acct);
+      assert.equal((after - before).toString(), "10", "the distributable portion reaches the staker exactly");
+    });
+
     it("distributes SOL rewards alongside token rewards", async () => {
       const b = await bootstrap({ fundExtra: 10_000n * UNIT });
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
@@ -1426,6 +1534,37 @@ describe("buddy-distributor", () => {
       assert.equal((await tokenBalance(b.env, acct)).toString(), (1_000n * UNIT).toString(), "600 released + the full 400 at 1x");
       const after = await fetchLockup(b.env, staker.publicKey, 0);
       assert.equal(after.escrowToken.toString(), "0", "no boost accrues after demotion");
+    });
+
+    it("auto-demotes a matured lockup when its owner claims, so it stops carrying boosted weight", async () => {
+      const b = await bootstrap({ fundExtra: 100_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.OneMonth, 0); // 2x, weight 2000
+
+      const donor = await makeStaker(b.env, 1_000n * UNIT);
+      await notifyTokens(b.env, donor.staker, donor.acct, 600n * UNIT); // 300 base, 300 boost escrow
+
+      await warpBy(b.env.context, LOCK_DURATION[Tier.OneMonth] + 1);
+
+      // The owner claims their base rewards after maturity. No separate demote
+      // crank was run, but the claim itself must drop the lockup to 1x and
+      // release the escrow, rather than leave it earning 2x indefinitely.
+      const poolBefore = await fetchPool(b.env);
+      const before = await tokenBalance(b.env, acct);
+      await claimLockupRewards(b.env, staker, 0, acct);
+      const paid = (await tokenBalance(b.env, acct)) - before;
+      const poolAfter = await fetchPool(b.env);
+      const lockup = await fetchLockup(b.env, staker.publicKey, 0);
+
+      assert.equal(lockup.demoted, true, "claiming after maturity demotes");
+      assert.equal(lockup.weight.toString(), (1_000n * UNIT).toString(), "weight cut to 1x");
+      assert.equal(lockup.escrowToken.toString(), "0", "escrow released");
+      assert.equal(paid.toString(), (600n * UNIT).toString(), "300 base + 300 released boost paid out");
+      assert.equal(
+        (BigInt(poolBefore.totalWeight.toString()) - BigInt(poolAfter.totalWeight.toString())).toString(),
+        (1_000n * UNIT).toString(),
+        "the boost weight left the pool"
+      );
     });
 
     it("pays principal + base + boost in one unlock_tokens call on a never-demoted matured lockup", async () => {

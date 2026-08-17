@@ -323,6 +323,39 @@ export async function solBalance(
   return info ? BigInt(info.lamports) : 0n;
 }
 
+const BPF_LOADER_UPGRADEABLE = new PublicKey(
+  "BPFLoaderUpgradeab1e11111111111111111111111",
+);
+
+/**
+ * Inject the ProgramData account bankrun's `startAnchor` does not create.
+ *
+ * `initialize` now requires its caller to be the program's upgrade authority
+ * (so nobody can front-run the singleton config on a real deploy). bankrun
+ * loads the program without an upgradeable ProgramData account, so we forge one
+ * here with `payer` as the upgrade authority — exactly what `anchor deploy`
+ * produces on devnet/mainnet, where the deployer is that authority. Layout is
+ * the bincode `UpgradeableLoaderState::ProgramData`: u32 variant tag (3), u64
+ * slot, then Option<Pubkey> upgrade authority (1 tag byte + 32).
+ */
+function installProgramData(env: Env, upgradeAuthority: PublicKey) {
+  const [programData] = PublicKey.findProgramAddressSync(
+    [env.programId.toBuffer()],
+    BPF_LOADER_UPGRADEABLE,
+  );
+  const data = Buffer.alloc(45);
+  data.writeUInt32LE(3, 0); // ProgramData variant
+  data.writeBigUInt64LE(0n, 4); // slot
+  data.writeUInt8(1, 12); // Some(...)
+  upgradeAuthority.toBuffer().copy(data, 13);
+  env.context.setAccount(programData, {
+    lamports: 10 * LAMPORTS_PER_SOL,
+    data,
+    owner: BPF_LOADER_UPGRADEABLE,
+    executable: false,
+  });
+}
+
 /** Spin up a fresh bankrun environment with the program loaded. */
 export async function setupEnv(): Promise<Env> {
   const context = await startAnchor(".", [], []);
@@ -349,6 +382,10 @@ export async function setupEnv(): Promise<Env> {
     vaultPda: pda([VAULT_SEED], programId),
     solVaultPda: pda([SOL_VAULT_SEED], programId),
   };
+
+  // The payer is bankrun's default signer; make it the program's upgrade
+  // authority so `initialize` (which binds to that authority) is callable.
+  installProgramData(env, payer.publicKey);
 
   await fundSol(env, authority.publicKey, 10 * LAMPORTS_PER_SOL);
   env.mint = await createMint(env);

@@ -293,6 +293,14 @@ That is a **dry run**. It prints the full plan. Read every number against your
 published document, then re-run with `EXECUTE=1` to send the three
 transactions: `initialize`, `fund_vault`, `lock_config`.
 
+> **`initialize` is now bound to the program's upgrade authority.** Only the
+> wallet that deployed the program can run it, which closes the deploy→initialize
+> front-run: the config PDA is a singleton with no re-create path, so otherwise
+> anyone who saw the freshly-deployed program id could seize it with their own
+> Merkle roots before yours landed. Run `deploy-init.ts` with the same deploy
+> keypair, and note this is why the burn must wait until §2.6 — burning the
+> upgrade authority first would make `initialize` impossible.
+
 > `lock_config` is irreversible. After it, allocations, Merkle roots, deadlines
 > and the signer key can never change, including by you. That is the point.
 

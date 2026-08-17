@@ -1065,13 +1065,18 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const cPda = lockupPda(lockerC.publicKey, 0);
     const p0 = await account.stakePool.fetch(pool);
     const w = big(p0.totalWeight);
+    // Dust-buffering (finding #8): notify folds the reward into pending_token,
+    // then drains whole per-weight units, so the accumulator moves by
+    // (pending_before + R), not R alone. Earlier scenarios leave sub-unit dust
+    // carried in pending, so the expected delta must include it.
+    const pend0 = big(p0.pendingTokenRewards);
     const R = 20_000n * UNIT;
     const sig = await program.methods.notifyTokenRewards(new BN(R.toString())).accountsPartial({
       depositor: payer.publicKey, config, pool, vault, source: treasury, tokenProgram: TOKEN_PROGRAM_ID,
     }).rpc();
     const p1 = await account.stakePool.fetch(pool);
     const delta = big(p1.accTokenPerWeight) - big(p0.accTokenPerWeight);
-    if (delta !== (R * ACC) / w) throw new Error("accumulator delta does not match the distribution");
+    if (delta !== ((pend0 + R) * ACC) / w) throw new Error("accumulator delta does not match the distribution");
     const l = await account.lockup.fetch(cPda);
     const pend = pendingOf(l, p1);
     if (pend.token.boost !== 0n) throw new Error("boost accrued to a demoted lockup");
@@ -1301,7 +1306,7 @@ async function runA(ctx: Ctx, rep: Reporter) {
 }
 
 /* ================================================================== *
- * RUN B — nobody shows up (backdated claims_start, expired windows)
+ * RUN B — nobody shows up (windows open at lock, then waited out on chain)
  * ================================================================== */
 async function runB(ctx: Ctx, rep: Reporter) {
   const { program, account, payer, provider, connection } = ctx;
@@ -1339,10 +1344,13 @@ async function runB(ctx: Ctx, rep: Reporter) {
 
   await fundWallets(ctx, [...holders, ...influencers].map((h) => h.kp.publicKey).concat([staker.publicKey]), 0.025);
 
-  // Backdate claims_start so BOTH claim windows are already closed. Fast-clock
-  // v2: OLD window 6 min, INF window 4 min. Backdate by 50 min so both are
-  // long shut and every sweep deadline has passed.
-  const claimsStart = Math.floor(Date.now() / 1000) - (50 * 60);
+  // claims_start = 0 anchors both windows at the current block time, so they
+  // are still open when we lock. lock_config now refuses a config whose
+  // old-holder or influencer window has already closed (ClaimWindowClosed), so
+  // Run B can no longer back-date the start; instead it opens the windows for
+  // real, locks inside them, stakes, then waits them out on chain (fast-clock
+  // v2: OLD window 6 min, INF window 4 min) before the sweep scenarios.
+  const claimsStart = 0;
 
   const params = {
     oldHolderRoot: oldTree.rootArray,
@@ -1359,12 +1367,12 @@ async function runB(ctx: Ctx, rep: Reporter) {
   const rentSysvar = new PublicKey("SysvarRent111111111111111111111111111111111");
 
   // S12/S13: before lock, claims and sweeps are refused.
-  await scenario(rep, "S2b", "initialize (backdated claims_start)", async (r) => {
+  await scenario(rep, "S2b", "initialize with claims_start = now (0); both windows open", async (r) => {
     const sig = await program.methods.initialize(params).accountsPartial({
       payer: payer.publicKey, authority: payer.publicKey, rewardMint: mint.publicKey,
       config, pool, vault, solVault, systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID, rent: rentSysvar,
     }).rpc();
-    r.pass(`initialized with claims_start 50 min in the past`, sig);
+    r.pass(`initialized with claims_start = now; both claim windows open at lock`, sig);
   });
   await scenario(rep, "S12", "claims are refused before the config is locked (ConfigNotLocked)", async (r) => {
     const h = holders[0];
@@ -1400,6 +1408,16 @@ async function runB(ctx: Ctx, rep: Reporter) {
     owner: staker.publicKey, config, pool, position: pda("stake", staker.publicKey.toBuffer()), vault, source: stakerAta,
     tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
   }).signers([staker]).rpc();
+
+  // Both windows were open when we locked; now wait them out on chain so the
+  // sweeps below become reachable. Derive the wait from the deadlines the config
+  // reports — the old-holder window (6 min) closes after the influencer window
+  // (4 min), so waiting past the later of the two shuts both.
+  const cfgB = await account.config.fetch(config);
+  const nowS = () => Math.floor(Date.now() / 1000);
+  const windowsClose = Math.max(Number(cfgB.oldHolderDeadline), Number(cfgB.influencerDeadline));
+  const waitWindows = Math.max(0, windowsClose - nowS() + 3);
+  if (waitWindows > 0) await waitSeconds("both claim windows closing (fast-clock: 6 min)", waitWindows);
 
   // L6: claim after the window closed.
   await scenario(rep, "L6", "a legacy claim after the window fails (ClaimWindowClosed)", async (r) => {
@@ -1507,7 +1525,6 @@ async function runB(ctx: Ctx, rep: Reporter) {
   const csEnd = Number(cs.end);
   const csStart = Number(cs.start);
   const half = csStart + Math.floor((csEnd - csStart) / 2);
-  const nowS = () => Math.floor(Date.now() / 1000);
   const waitHalf = Math.max(0, half - nowS() + 3);
   if (waitHalf > 0) await waitSeconds("community stream half-vested (fast)", waitHalf);
   await scenario(rep, "W7", "release_community_stream credits roughly half at the halfway point", async (r) => {

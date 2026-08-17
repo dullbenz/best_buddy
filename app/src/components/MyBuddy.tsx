@@ -15,6 +15,7 @@ import {
 } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 import {
+  CLUSTER,
   INFLUENCER_PROOFS_URL,
   INFLUENCER_TERMS,
   OLD_HOLDER_PROOFS_URL,
@@ -23,6 +24,7 @@ import {
   TERMS_API,
   TIERS,
   TOKEN_DECIMALS,
+  UNSTAKE_COOLDOWN_SECONDS,
   btcTxUrl,
   ORIGINAL_MESSAGE,
   pda,
@@ -68,6 +70,55 @@ async function loadProofs(url: string): Promise<ProofFile> {
 }
 
 /**
+ * What a signed-terms cache entry records: the signature, and whether it
+ * actually reached the public register. `published` gates the "on the register"
+ * copy so a POST that failed is never asserted as succeeded.
+ */
+interface TermsRecord {
+  sig: string;
+  published: boolean;
+}
+
+/** Short, stable fingerprint of the terms text (FNV-1a, 32-bit, 8 hex). */
+function termsFingerprint(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+const TERMS_HASH = termsFingerprint(INFLUENCER_TERMS);
+
+/**
+ * localStorage key for a wallet's terms signature.
+ *
+ * Namespaced by cluster and by a fingerprint of the terms text, so agreeing to
+ * one version on one chain is never mistaken for agreeing to a different
+ * version or on a different chain. A terms edit or a cluster switch simply
+ * misses the old key and prompts a fresh signature, which is the correct
+ * outcome: the old signature attested to text that no longer applies.
+ */
+function termsKey(address: string): string {
+  return `buddy.terms.${CLUSTER}.${TERMS_HASH}.${address}`;
+}
+
+/** POST a signature to the public register; returns whether it was recorded. */
+async function publishTerms(address: string, signature: string): Promise<boolean> {
+  try {
+    const res = await fetch(TERMS_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, signature }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * My Buddy: everything the connected wallet can personally do, on one page.
  *
  * The site's other tabs describe the system: who is owed what, how the pool is
@@ -95,17 +146,51 @@ export function MyBuddy() {
   const [status, setStatus] = useState<{ text: string; signature?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Base58 of the wallet's signature over INFLUENCER_TERMS. Gates the claim.
+  // The wallet's signature over INFLUENCER_TERMS, plus whether it reached the
+  // public register. Gates the claim.
   //
   // Re-seeded from localStorage whenever the wallet changes, so someone who
   // signs, then reloads or comes back later, is not asked to sign the same
   // terms twice. The register is keyed by address, so a re-signature would be
   // a no-op server-side anyway.
-  const [termsSig, setTermsSig] = useState<string | null>(null);
+  const [terms, setTerms] = useState<TermsRecord | null>(null);
   const address = publicKey?.toBase58() ?? null;
   useEffect(() => {
-    setTermsSig(address ? localStorage.getItem(`buddy.terms.${address}`) : null);
+    if (!address) {
+      setTerms(null);
+      return;
+    }
+    const raw = localStorage.getItem(termsKey(address));
+    if (!raw) {
+      setTerms(null);
+      return;
+    }
+    try {
+      setTerms(JSON.parse(raw) as TermsRecord);
+    } catch {
+      // Corrupt entry: drop it and let the wallet sign again.
+      setTerms(null);
+    }
   }, [address]);
+
+  // A signature that never made it onto the register retries on mount. The
+  // register is transparency, not a gate, so this is quiet: success flips the
+  // stored flag, a failure just leaves it to try again next time.
+  useEffect(() => {
+    if (!address || !terms || terms.published) return;
+    let cancelled = false;
+    (async () => {
+      const ok = await publishTerms(address, terms.sig);
+      if (ok && !cancelled) {
+        const record: TermsRecord = { sig: terms.sig, published: true };
+        localStorage.setItem(termsKey(address), JSON.stringify(record));
+        setTerms(record);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [address, terms]);
 
   useEffect(() => {
     loadProofs(OLD_HOLDER_PROOFS_URL).then(setOldProofs).catch(() => setOldProofs({}));
@@ -182,28 +267,21 @@ export function MyBuddy() {
       const encoded = bs58.encode(raw);
       const signer = publicKey.toBase58();
 
-      setTermsSig(encoded);
-      localStorage.setItem(`buddy.terms.${signer}`, encoded);
-
       // Publishing is best-effort on purpose. The register is a transparency
-      // aid, not a gate: refusing to let someone claim their allocation
-      // because our own server was down would be the wrong failure.
-      try {
-        const res = await fetch(TERMS_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address: signer, signature: encoded }),
-        });
-        setStatus({
-          text: res.ok
-            ? "Terms signed and published to the public register. You can claim now."
-            : "Terms signed. The public register could not be reached, so it was not recorded there, but you can still claim.",
-        });
-      } catch {
-        setStatus({
-          text: "Terms signed. The public register could not be reached, so it was not recorded there, but you can still claim.",
-        });
-      }
+      // aid, not a gate: refusing to let someone claim their allocation because
+      // our own server was down would be the wrong failure. Record whether it
+      // actually landed, so the UI never claims "on the register" for a post
+      // that failed; an unpublished record retries on the next mount.
+      const published = await publishTerms(signer, encoded);
+      const record: TermsRecord = { sig: encoded, published };
+      localStorage.setItem(termsKey(signer), JSON.stringify(record));
+      setTerms(record);
+
+      setStatus({
+        text: published
+          ? "Terms signed and published to the public register. You can claim now."
+          : "Terms signed. The public register could not be reached, so it was not recorded there yet, but you can still claim and it will retry.",
+      });
     } catch (e: any) {
       setStatus({ text: `Not signed: ${e?.message ?? String(e)}` });
     } finally {
@@ -499,10 +577,12 @@ export function MyBuddy() {
     : 0;
   const withdrawable = stream ? Math.max(0, vested - Number(stream.withdrawn)) : 0;
 
-  // Flexible exits in two steps: request, wait 24 hours, withdraw.
+  // Flexible exits in two steps: request, wait out the cooldown, withdraw. The
+  // cooldown is the program's own constant, not a hardcoded day, so a fast-clock
+  // devnet build counts down the seconds the chain actually enforces.
   const requestedAt = position ? Number(position.unstakeRequestedAt) : 0;
   const cooldownLeft =
-    requestedAt > 0 ? countdown(requestedAt + 24 * 3600, now) : null;
+    requestedAt > 0 ? countdown(requestedAt + UNSTAKE_COOLDOWN_SECONDS, now) : null;
   const canUnstake = requestedAt > 0 && !cooldownLeft;
 
   /* ---- the page ---- */
@@ -632,19 +712,29 @@ export function MyBuddy() {
                   {infLeft ? `You have ${infLeft} left to claim.` : "The 72-hour window has closed."}
                 </p>
 
-                <details className="terms" open={!termsSig}>
+                <details className="terms" open={!terms}>
                   <summary>The terms you are agreeing to</summary>
                   <pre className="terms-body">{INFLUENCER_TERMS}</pre>
                 </details>
 
-                {termsSig ? (
-                  <p>
-                    ✓ Terms signed by this wallet, and added to the{" "}
-                    <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
-                      public register
-                    </a>
-                    .
-                  </p>
+                {terms ? (
+                  terms.published ? (
+                    <p>
+                      ✓ Terms signed by this wallet, and added to the{" "}
+                      <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
+                        public register
+                      </a>
+                      .
+                    </p>
+                  ) : (
+                    <p>
+                      ✓ Terms signed by this wallet. Not yet on the{" "}
+                      <a href={TERMS_API} target="_blank" rel="noreferrer noopener">
+                        public register
+                      </a>{" "}
+                      — it will retry. You can claim now regardless.
+                    </p>
+                  )
                 ) : (
                   <p>
                     Sign the terms before claiming. This costs nothing and is not a
@@ -655,14 +745,14 @@ export function MyBuddy() {
                 )}
 
                 <div className="button-row">
-                  {!termsSig && (
+                  {!terms && (
                     <button disabled={busy || !infLeft || !signMessage} onClick={signTerms}>
                       {signMessage ? "Sign the terms" : "Wallet cannot sign messages"}
                     </button>
                   )}
                   <button
                     className="primary"
-                    disabled={busy || !infLeft || !termsSig}
+                    disabled={busy || !infLeft || !terms}
                     onClick={claimInfluencer}
                   >
                     {infLeft ? "Claim and open stream" : "Window closed"}
@@ -909,11 +999,11 @@ function LockupRow({
   const escrowToken = BigInt(a.escrowToken.toString());
   const escrowSol = BigInt(a.escrowSol.toString());
 
-  // No principal leaves inside the first 24 hours, by any route (the program
-  // gates early exit on created_at + the same cooldown flexible unstaking
-  // uses). Surface the wait rather than let the button send a failing tx.
-  const EXIT_FLOOR = 24 * 60 * 60;
-  const exitUnlocksAt = Number(a.createdAt) + EXIT_FLOOR;
+  // No principal leaves inside the first cooldown window, by any route (the
+  // program gates early exit on created_at + the same cooldown flexible
+  // unstaking uses). Read from the constant so a fast-clock build agrees with
+  // the chain; surface the wait rather than let the button send a failing tx.
+  const exitUnlocksAt = Number(a.createdAt) + UNSTAKE_COOLDOWN_SECONDS;
   const floorLeft = countdown(exitUnlocksAt, now);
 
   const state = left

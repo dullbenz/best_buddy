@@ -89,6 +89,18 @@ out.push(`| B — nobody shows up | expired windows, all three sweeps, community
 out.push("");
 out.push(`📝 = documented behaviour (an edge worth noting for the security review), not a failure.`);
 out.push("");
+out.push(
+  `> **The single Run A ❌ (N19) is a corrected test-harness assertion, not a contract fault.** ` +
+    `N19 checks that rewards paid to a lockup *after* it demotes at maturity accrue at exactly 1x, ` +
+    `no boost. That on-chain behaviour is correct and is proven deterministically by the bankrun test ` +
+    `_"lets a stranger demote a matured lockup, exactly once, and it earns 1x thereafter"_ ` +
+    `(\`tests/buddy-distributor.ts\`). The scenario's *helper* check pre-dated the dust-buffering fix: it ` +
+    `expected the reward accumulator to move by exactly \`reward · ACC / weight\`, but that fix now folds ` +
+    `each reward into \`pending\` and drains only whole per-weight units, so the true delta is ` +
+    `\`(pending + reward) · ACC / weight\` — larger by the carried dust. The assertion was corrected in ` +
+    `\`scripts/e2e-campaign.ts\` to include the pending buffer; the program was not touched.`
+);
+out.push("");
 
 out.push(`## How this was tested, and how you can re-check it`);
 out.push("");
@@ -124,19 +136,21 @@ out.push(
 out.push("");
 out.push(`| Duration | Mainnet | fast-clock (tests) |`);
 out.push(`|----------|---------|--------------------|`);
-out.push(`| Legacy-holder claim window | 30 days | 45 min |`);
-out.push(`| Influencer claim window | 72 hours | 20 min |`);
-out.push(`| Influencer stream | 30 days | 15 min |`);
-out.push(`| Founder/signer stream | 365 days | 30 min |`);
-out.push(`| 1 / 3 / 12-month locks | 30 / 90 / 365 days | 5 / 8 / 12 min |`);
-out.push(`| Unstake cooldown | 3 days | 3 min |`);
+out.push(`| Legacy-holder claim window | 30 days | 6 min |`);
+out.push(`| Influencer claim window | 72 hours | 4 min |`);
+out.push(`| Influencer stream | 30 days | 3 min |`);
+out.push(`| Founder/signer stream | 365 days | 5 min |`);
+out.push(`| 1 / 3 / 5-month locks | 30 / 90 / 150 days | 1 / 2 / 3 min |`);
+out.push(`| Unstake cooldown | 24 hours | 1 min |`);
 out.push(`| 2014-signer deadline | 2030-12-31 | Run B build only: back-dated to 2025-01-01, so \`sweep_original_signer\` (gated \`now > deadline\`) is reachable |`);
 out.push("");
 out.push(
   `The claim windows also depend on \`claims_start\`, an \`initialize\` parameter: ` +
-    `Run A set it a few minutes in the future (to prove "window not open yet"), ` +
-    `Run B back-dated it ~50 min (so both windows are already closed and the ` +
-    `sweeps are reachable).`
+    `Run A sets it a few minutes in the future (to prove "window not open yet"). ` +
+    `Run B sets it to now (\`claims_start = 0\`) so both windows are open when it ` +
+    `locks — \`lock_config\` now refuses a config whose windows have already closed — ` +
+    `then waits them out on chain before the sweeps, deriving each wait from the ` +
+    `deadlines the config reports.`
 );
 out.push("");
 
@@ -188,25 +202,42 @@ if (final) {
 
 out.push(`## Findings for the security review`);
 out.push("");
-out.push(`Documented behaviours (📝 rows) worth an explicit look. None is a bug; each ` +
-  `is a design edge that an auditor should see stated plainly:`);
+out.push(`The staking redesign turned the old quirks into enforced properties. What ` +
+  `remains are design points an auditor should still see stated plainly — none a ` +
+  `bug, each backed by the scenario that exercises it:`);
 out.push("");
-out.push(`- **S8 / pre-lock staking:** \`stake()\` has no lock gate and increments ` +
-  `\`reserved_token\`, so staker principal could satisfy \`lock_config\`'s solvency ` +
-  `check. In practice the launch script funds and locks before any staking, but the ` +
-  `ordering is not enforced on chain.`);
-out.push(`- **K14 / flexible partial unstake:** \`unstake_requested_at\` is cleared only ` +
-  `on a *full* exit, so after one cooldown a flexible staker can make repeated ` +
-  `partial unstakes without a fresh cooldown.`);
-out.push(`- **K16 / zero-amount position:** after a full unstake the position account ` +
-  `survives with \`amount = 0\`, and the no-downgrade rule then blocks re-staking at a ` +
-  `lower tier until the account is closed via \`emergency_exit\` (unavailable post-maturity).`);
-out.push(`- **I6 / empty-remainder sweep:** \`sweep_influencers\` with nothing unclaimed ` +
-  `opens a \`total = 0\` community stream that can never be released (permanent ` +
-  `\`NothingToWithdraw\`). Harmless, but it is a dead account.`);
-out.push(`- **R9 / dust truncation:** a reward far smaller than \`total_weight\` truncates ` +
-  `to a zero accumulator delta while still counting in \`lifetime_*\`; the tokens stay ` +
-  `in the vault, recoverable only by a later, larger sync.`);
+out.push(`- **Everything runs after the lock.** \`stake\`, \`lock_tokens\`, the ` +
+  `\`notify_*\`/\`sync_*\` reward paths and \`unwrap_wsol\` all assert the config is ` +
+  `locked, so none can run before \`lock_config\` (S12/S13). That is what makes the ` +
+  `lock's solvency check real: before the lock \`reserved_token\` rises *only* through ` +
+  `\`fund_vault\`, so staker principal and stray donations cannot pre-satisfy it.`);
+out.push(`- **Per-lockup entities, no top-up.** Every locked commitment is its own ` +
+  `\`Lockup\` account created by \`lock_tokens(amount, tier, index)\` against an ` +
+  `owner-scoped counter. No instruction adds to an existing lockup, a closed lockup's ` +
+  `index cannot be reused, and re-locking is always a fresh entity with its own clock ` +
+  `(N15). Flexible \`stake\` is the only mutable position, at 1x.`);
+out.push(`- **Maturity is demoted by a permissionless crank.** A matured lockup keeps ` +
+  `its boosted weight in the pool until it is demoted to 1x; anyone can crank that ` +
+  `demotion — in a batch (N21) or inline when the owner unlocks or claims (N20) — and ` +
+  `an owner's own claim auto-demotes their matured lockups. A matured-but-un-cranked ` +
+  `lockup over-weights the pool only until the next crank, which is a public, ` +
+  `incentive-aligned action rather than a privileged one.`);
+out.push(`- **One 24-hour floor on every principal exit.** A flexible unstake (N4) and a ` +
+  `locked early exit (\`emergency_exit_lockup\`, N13) are gated by the same 24-hour ` +
+  `floor (\`CooldownActive\`), so no route pulls principal out inside a day. The early ` +
+  `exit keeps 85% of principal plus accrued base and forfeits the boost escrow plus a ` +
+  `15% slash, redistributed to the stakers who stayed. One edge survives: a *partial* ` +
+  `flexible unstake leaves \`unstake_requested_at\` set, so after one cooldown a ` +
+  `flexible staker can make repeated partial unstakes without waiting again.`);
+out.push(`- **Reward dust buffers instead of stranding.** Rewards that arrive with ` +
+  `nobody staked, or too small to move the per-weight accumulator, settle into ` +
+  `\`pending_*\` and are flushed to the next staker (N24/N24b) rather than left ` +
+  `stranded in the vault.`);
+out.push(`- **An empty influencer sweep opens a dead stream.** \`sweep_influencers\` ` +
+  `creates its community stream unconditionally, so sweeping with nothing unclaimed ` +
+  `would open a \`total = 0\` stream that can never release (permanent ` +
+  `\`NothingToWithdraw\`). Harmless, but a dead account; \`sweep_old_holders\` instead ` +
+  `guards on \`remaining > 0\`.`);
 out.push("");
 
 out.push(`## Verify it yourself, as a normal user`);
@@ -225,9 +256,12 @@ out.push(`3. **Claim (Phantom).** With a wallet that holds a legacy allocation, 
   `**My Buddy → Your claims** and claim; the tokens arrive instantly (this is the ` +
   `L1 path). An influencer wallet instead opens a stream (I1) and withdraws over ` +
   `time from the same page.`);
-out.push(`4. **Stake (Phantom).** **My Buddy → Your stake**: stake a small amount at a ` +
-  `locked tier, confirm base rewards are claimable while the boost stays escrowed ` +
-  `(K7/K8), and that an early exit forfeits the boost + 15% (K21).`);
+out.push(`4. **Stake (Phantom).** **My Buddy → Your stake**: open a lock-up at a ` +
+  `locked tier (each lock-up is its own entity), confirm base rewards are ` +
+  `claimable while the boost stays escrowed until maturity (N11), and that an ` +
+  `early exit forfeits the boost + 15% (N13). A second lock-up gets its own ` +
+  `independent clock (N7/N8). Nothing — flexible unstake or locked early exit — ` +
+  `can pull principal out inside the first 24 hours.`);
 out.push(`5. **Crank the pool (Phantom, permissionless).** **Fund pool**: after the ` +
   `windows close, run a sweep, then \`release\`/\`sync\` — anyone's wallet can, which ` +
   `is the W-series on this page.`);

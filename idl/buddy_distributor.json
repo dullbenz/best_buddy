@@ -1077,6 +1077,95 @@
           ]
         },
         {
+          "name": "program_data",
+          "docs": [
+            "This program's data account, which carries the upgrade authority set at",
+            "deploy. Requiring the payer to be that authority binds `initialize` to",
+            "whoever actually deployed the program, closing the front-run window: the",
+            "config PDA is a singleton with no re-create path, so without this an",
+            "attacker who saw the freshly-deployed program id could seize it with",
+            "their own Merkle roots before the deployer's own `initialize` landed."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  136,
+                  153,
+                  187,
+                  120,
+                  49,
+                  97,
+                  199,
+                  177,
+                  75,
+                  245,
+                  223,
+                  28,
+                  84,
+                  161,
+                  196,
+                  175,
+                  121,
+                  194,
+                  156,
+                  188,
+                  99,
+                  192,
+                  227,
+                  122,
+                  60,
+                  61,
+                  164,
+                  60,
+                  162,
+                  206,
+                  180,
+                  83
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                2,
+                168,
+                246,
+                145,
+                78,
+                136,
+                161,
+                176,
+                226,
+                16,
+                21,
+                62,
+                247,
+                99,
+                174,
+                43,
+                0,
+                194,
+                185,
+                61,
+                22,
+                193,
+                36,
+                210,
+                192,
+                83,
+                122,
+                16,
+                4,
+                128,
+                0,
+                0
+              ]
+            }
+          }
+        },
+        {
           "name": "reward_mint"
         },
         {
@@ -3665,9 +3754,36 @@
   ],
   "constants": [
     {
+      "name": "LOCK_FIVE_MONTH",
+      "type": "i64",
+      "value": "12960000"
+    },
+    {
+      "name": "LOCK_ONE_MONTH",
+      "type": "i64",
+      "value": "2592000"
+    },
+    {
+      "name": "LOCK_THREE_MONTH",
+      "type": "i64",
+      "value": "7776000"
+    },
+    {
       "name": "PROGRAM_VERSION",
       "type": "u8",
       "value": "1"
+    },
+    {
+      "name": "UNSTAKE_COOLDOWN",
+      "docs": [
+        "Cooldown a flexible staker must wait between requesting an unstake and",
+        "withdrawing. 24 hours: fee pots accrue in public view, so without a delay a",
+        "large wallet could stake into a visibly fat pot, capture its share the",
+        "moment it is synced, and leave in the same breath. A day makes that capture",
+        "unpriceable in advance without turning flexible into a lock in disguise."
+      ],
+      "type": "i64",
+      "value": "86400"
     }
   ]
 }

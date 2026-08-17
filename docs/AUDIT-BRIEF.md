@@ -133,24 +133,31 @@ team-withdraw already exercised against it.
 Edges we already know about, stated plainly so the review can confirm,
 sharpen, or escalate them rather than rediscover them.
 
-**(a) `stake()` has no config-lock gate.** Staking is open before
-`lock_config`, and staked principal increments `reserved_token` — so pre-lock
-staker deposits can satisfy `lock_config`'s solvency check
-(`pool.reserved_token >= committed`) with tokens that are not bucket backing.
-Mitigated operationally: the launch runbook funds and locks in one session,
-before the program is announced, so nobody stakes first. The ordering is not
-enforced on-chain. `instructions/staking.rs` (`stake`, `lock_tokens`),
-`instructions/admin.rs` (`lock_config`).
+**(a) The lock-solvency proof is now enforced on-chain (previously it was not).**
+`lock_config` trusts `pool.reserved_token >= committed` as proof the buckets
+are physically backed. Every instruction that raises `reserved_token` —
+`stake`, `lock_tokens`, `notify_token_rewards`, `sync_token_rewards` (and the
+SOL siblings, and `unwrap_wsol`) — now asserts `config.locked`, so before the
+lock the only thing that can move `reserved_token` is `fund_vault`. That makes
+the check an honest solvency proof: staker principal and stray donations can no
+longer pre-satisfy it. Relatedly, `initialize` is now bound to the program's
+upgrade authority via a `program_data` constraint, so only the deployer can
+create the singleton config PDA — closing the deploy→initialize front-run.
+Please confirm no `reserved_token`-mutating path lacks the gate, and that the
+`program_data` seeds/constraint are correct. `instructions/staking.rs`,
+`instructions/rewards.rs`, `instructions/admin.rs` (`lock_config`, `Initialize`).
 
-**(b) Matured lockups keep boosted weight until demoted.** The boost is meant
-to end at maturity, but nothing on-chain fires at `lock_end`; a
-matured-but-undemoted lockup keeps earning at its multiplier until the
-permissionless `demote_matured` crank (or the owner's own `unlock_tokens`)
-runs. The overhang is bounded — every other staker is paid less while it
-lasts, so every other staker has the incentive to crank, and the frontend
-exposes a demote-all button. Incentive-aligned, but it is a liveness
-assumption, not a guarantee. `instructions/staking.rs` (`demote_matured`,
-`claim_lockup_rewards`).
+**(b) Matured lockups keep boosted weight until demoted; softened by
+auto-demotion on interaction.** Nothing on-chain fires at `lock_end`, but the
+two ways an owner touches a matured lockup now both demote it in-line:
+`unlock_tokens` (always) and `claim_lockup_rewards` (added — it drops the
+lockup to 1.0x before paying, so an owner who claims their base rewards
+self-corrects). The residual is a lockup whose owner never interacts at all: it
+keeps boosted weight until the permissionless `demote_matured` crank runs.
+Bounded — every other staker is paid less meanwhile and has the incentive to
+crank, and the frontend exposes a demote-all button — but the fully-parked case
+is a liveness assumption, not a guarantee. `instructions/staking.rs`
+(`demote_matured`, `claim_lockup_rewards`, `unlock_tokens`).
 
 **(c) `emergency_exit_lockup` rejects post-maturity exits with `StillLocked`.**
 A matured lockup must exit through `unlock_tokens`, and the guard is
@@ -167,15 +174,19 @@ are bare Anchor constraints and surface the generic `ConstraintRaw`
 (campaign scenario N28). Diagnosability, not a vulnerability.
 `instructions/rewards.rs` (`RecoverForeignToken`).
 
-**(e) Dust rewards can strand value.** A reward smaller than
-`total_weight / ACC_PRECISION` produces a zero accumulator delta in
-`distribute_token` / `distribute_sol`, yet the amount was already counted into
-`lifetime_*` and `reserved_*` by the caller. Nothing can ever pay it out —
-payouts only release what the accumulator knows, and because `reserved_*`
-already includes it, a later `sync_*` will not re-credit it either. The value
-is effectively stranded in the vault. Amounts are tiny by construction, but on
-an immutable program an auditor should bound the worst case. `state.rs`
-(`add_token_rewards`, `add_sol_rewards`).
+**(e) Dust rewards are buffered, not stranded (previously they were lost).** A
+reward smaller than `total_weight / ACC_PRECISION` produces a zero accumulator
+delta, so it cannot be distributed the instant it arrives. Rather than lose it
+— it is already counted into `reserved_*` — `add_token_rewards` /
+`add_sol_rewards` now fold every reward into `pending_*` and drain only whole
+per-weight units into the accumulator; the sub-unit remainder stays buffered
+and is carried into the next, larger reward. This unifies the empty-pool buffer
+and the truncation remainder into one mechanism. Please confirm the carry
+arithmetic in `drain_token` / `drain_sol` cannot lose or double-count:
+`distributed = delta * total_weight / ACC_PRECISION`, which is `<= pending`, so
+the remainder is always non-negative and monotone. `state.rs`
+(`add_token_rewards`, `add_sol_rewards`, `drain_token`, `drain_sol`,
+`flush_pending`).
 
 **(f) `sweep_influencers` with a zero remainder creates a dead stream.** If
 the influencer bucket was fully claimed, the sweep still succeeds and opens a

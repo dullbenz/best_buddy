@@ -35,6 +35,21 @@ pub struct Initialize<'info> {
     /// CHECK: stored as a plain key; never signs after `lock_config`.
     pub authority: UncheckedAccount<'info>,
 
+    /// This program's data account, which carries the upgrade authority set at
+    /// deploy. Requiring the payer to be that authority binds `initialize` to
+    /// whoever actually deployed the program, closing the front-run window: the
+    /// config PDA is a singleton with no re-create path, so without this an
+    /// attacker who saw the freshly-deployed program id could seize it with
+    /// their own Merkle roots before the deployer's own `initialize` landed.
+    #[account(
+        seeds = [crate::ID.as_ref()],
+        bump,
+        seeds::program = anchor_lang::solana_program::bpf_loader_upgradeable::ID,
+        constraint = program_data.upgrade_authority_address == Some(payer.key())
+            @ DistributorError::Unauthorized,
+    )]
+    pub program_data: Account<'info, ProgramData>,
+
     pub reward_mint: Account<'info, Mint>,
 
     #[account(
@@ -263,10 +278,12 @@ pub fn lock_config(ctx: Context<LockConfig>) -> Result<()> {
         .ok_or_else(|| error!(DistributorError::MathOverflow))?;
 
     // Deliberately checks what arrived through `fund_vault`, not what the
-    // vault happens to hold. `reserved_token` rises only inside that
-    // instruction, so tokens that got here any other way cannot satisfy this:
-    // a donation to the vault address we publish, or the last tranche sent by
-    // an ordinary wallet transfer instead of the instruction.
+    // vault happens to hold. Before the lock `reserved_token` can rise *only*
+    // inside `fund_vault`: every other instruction that touches it
+    // (`stake`, `lock_tokens`, `notify_*`, `sync_*`, `unwrap_wsol`) asserts the
+    // config is already locked, so none of them can run yet. That is what
+    // makes this a real solvency proof rather than a number anyone could
+    // inflate: staker principal and stray donations cannot pre-satisfy it.
     //
     // The distinction decides whether this contract can end up insolvent.
     // Anything the vault holds beyond `reserved_token` is untracked, and
@@ -278,6 +295,23 @@ pub fn lock_config(ctx: Context<LockConfig>) -> Result<()> {
     require!(
         ctx.accounts.pool.reserved_token >= committed,
         DistributorError::InsufficientBucketBalance
+    );
+
+    // The claim windows are anchored to `claims_start` (fixed at initialize),
+    // but every claim is gated on this lock. If initialize-to-lock ever slips
+    // past a window, locking would freeze a config whose bucket is already
+    // dead on arrival: no one could claim it and the first sweep would divert
+    // the whole allocation to stakers. Refuse to lock a config whose windows
+    // have already closed, while there is still a chance to redeploy. The 2030
+    // signer deadline is decades out and needs no check.
+    let now = Clock::get()?.unix_timestamp;
+    require!(
+        now < config.old_holder_deadline,
+        DistributorError::ClaimWindowClosed
+    );
+    require!(
+        now < config.influencer_deadline,
+        DistributorError::ClaimWindowClosed
     );
 
     // Implied by the line above, since the vault can never hold less than is

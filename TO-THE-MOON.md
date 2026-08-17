@@ -458,6 +458,14 @@ like an outsider sniping your own launch.
 
 ### 4.4 Initialize, fund, lock
 
+> **`initialize` is now bound to the program's upgrade authority.** Only the
+> wallet that deployed the program can run it, which closes the deploy→initialize
+> front-run: the config PDA is a singleton with no re-create path, so otherwise
+> anyone who saw the freshly-deployed program id could seize it with their own
+> Merkle roots before yours landed. Sign this step with the same deploy keypair,
+> and note this is why the burn must wait until 4.7 — burning the upgrade
+> authority first would make `initialize` impossible.
+
 Dry run first — it prints the whole plan and sends nothing:
 
 ```bash

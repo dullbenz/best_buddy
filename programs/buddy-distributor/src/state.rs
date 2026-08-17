@@ -135,83 +135,116 @@ pub struct StakePool {
 }
 
 impl StakePool {
-    /// Fold any rewards that accrued while the pool was empty into the
-    /// accumulator. Safe to call at any time; a no-op unless there is both
-    /// something pending and someone to pay.
+    /// Drain the pending buffers into the accumulator as far as whole
+    /// per-weight units allow. Safe to call at any time; a no-op unless there
+    /// is both something pending and someone to pay.
+    ///
+    /// The buffer is not only "rewards that arrived while nobody staked"; it is
+    /// also the truncation remainder. `distribute_*` can only move an integer
+    /// number of `ACC_PRECISION` units per weight into the accumulator, so a
+    /// reward smaller than `total_weight / ACC_PRECISION` would round to zero.
+    /// Rather than lose it (it was already booked into `reserved_*`, so it
+    /// would be stranded forever in an immutable vault), the sub-unit remainder
+    /// stays in `pending_*` and is folded in by the next, larger reward. One
+    /// buffer, two jobs: nothing credited to the pool is ever undistributable.
     pub fn flush_pending(&mut self) -> Result<()> {
         if self.total_weight == 0 {
             return Ok(());
         }
-        if self.pending_token_rewards > 0 {
-            let amount = self.pending_token_rewards;
-            self.pending_token_rewards = 0;
-            self.distribute_token(amount)?;
-        }
-        if self.pending_sol_rewards > 0 {
-            let amount = self.pending_sol_rewards;
-            self.pending_sol_rewards = 0;
-            self.distribute_sol(amount)?;
-        }
+        self.pending_token_rewards = self.drain_token(self.pending_token_rewards)?;
+        self.pending_sol_rewards = self.drain_sol(self.pending_sol_rewards)?;
         Ok(())
     }
 
-    /// Add `amount` of token rewards to the pool, buffering if nobody is staked.
+    /// Move as many whole per-weight units of `pending` into the token
+    /// accumulator as it holds, returning the sub-unit remainder to re-buffer.
+    fn drain_token(&mut self, pending: u64) -> Result<u64> {
+        if pending == 0 {
+            return Ok(0);
+        }
+        let delta = (pending as u128)
+            .checked_mul(ACC_PRECISION)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?
+            .checked_div(self.total_weight)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        if delta == 0 {
+            return Ok(pending);
+        }
+        self.acc_token_per_weight = self
+            .acc_token_per_weight
+            .checked_add(delta)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        // The whole tokens actually reflected in the accumulator; the rest is
+        // sub-unit dust that stays buffered for next time. delta*weight can
+        // never exceed pending*ACC_PRECISION, so this cannot underflow.
+        let distributed = (delta
+            .checked_mul(self.total_weight)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?
+            / ACC_PRECISION) as u64;
+        Ok(pending.saturating_sub(distributed))
+    }
+
+    fn drain_sol(&mut self, pending: u64) -> Result<u64> {
+        if pending == 0 {
+            return Ok(0);
+        }
+        let delta = (pending as u128)
+            .checked_mul(ACC_PRECISION)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?
+            .checked_div(self.total_weight)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        if delta == 0 {
+            return Ok(pending);
+        }
+        self.acc_sol_per_weight = self
+            .acc_sol_per_weight
+            .checked_add(delta)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        let distributed = (delta
+            .checked_mul(self.total_weight)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?
+            / ACC_PRECISION) as u64;
+        Ok(pending.saturating_sub(distributed))
+    }
+
+    /// Add `amount` of token rewards to the pool.
+    ///
+    /// Everything routes through `pending_token_rewards`: fold the new amount
+    /// in, then drain whole per-weight units into the accumulator. When nobody
+    /// is staked it simply stays buffered; when the amount is smaller than one
+    /// per-weight unit the sub-unit remainder stays buffered. Either way the
+    /// full `amount` is accounted and none of it can be stranded.
     pub fn add_token_rewards(&mut self, amount: u64) -> Result<()> {
         self.lifetime_token_rewards = self
             .lifetime_token_rewards
             .checked_add(amount)
             .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        self.pending_token_rewards = self
+            .pending_token_rewards
+            .checked_add(amount)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
         if self.total_weight == 0 {
-            self.pending_token_rewards = self
-                .pending_token_rewards
-                .checked_add(amount)
-                .ok_or_else(|| error!(DistributorError::MathOverflow))?;
             return Ok(());
         }
-        self.flush_pending()?;
-        self.distribute_token(amount)
+        self.pending_token_rewards = self.drain_token(self.pending_token_rewards)?;
+        Ok(())
     }
 
-    /// Add `amount` lamports of rewards to the pool, buffering if nobody is staked.
+    /// Add `amount` lamports of rewards to the pool. Same buffering as
+    /// `add_token_rewards`.
     pub fn add_sol_rewards(&mut self, amount: u64) -> Result<()> {
         self.lifetime_sol_rewards = self
             .lifetime_sol_rewards
             .checked_add(amount)
             .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        self.pending_sol_rewards = self
+            .pending_sol_rewards
+            .checked_add(amount)
+            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
         if self.total_weight == 0 {
-            self.pending_sol_rewards = self
-                .pending_sol_rewards
-                .checked_add(amount)
-                .ok_or_else(|| error!(DistributorError::MathOverflow))?;
             return Ok(());
         }
-        self.flush_pending()?;
-        self.distribute_sol(amount)
-    }
-
-    fn distribute_token(&mut self, amount: u64) -> Result<()> {
-        let delta = (amount as u128)
-            .checked_mul(ACC_PRECISION)
-            .ok_or_else(|| error!(DistributorError::MathOverflow))?
-            .checked_div(self.total_weight)
-            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-        self.acc_token_per_weight = self
-            .acc_token_per_weight
-            .checked_add(delta)
-            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-        Ok(())
-    }
-
-    fn distribute_sol(&mut self, amount: u64) -> Result<()> {
-        let delta = (amount as u128)
-            .checked_mul(ACC_PRECISION)
-            .ok_or_else(|| error!(DistributorError::MathOverflow))?
-            .checked_div(self.total_weight)
-            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
-        self.acc_sol_per_weight = self
-            .acc_sol_per_weight
-            .checked_add(delta)
-            .ok_or_else(|| error!(DistributorError::MathOverflow))?;
+        self.pending_sol_rewards = self.drain_sol(self.pending_sol_rewards)?;
         Ok(())
     }
 }
