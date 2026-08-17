@@ -36,7 +36,7 @@ system.
 
 - Source: `programs/buddy-distributor/src/`
 - Current devnet deployment (normal constants, launch-realistic):
-  [`ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY`](https://solscan.io/account/ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY?cluster=devnet)
+  [`5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp`](https://solscan.io/account/5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp?cluster=devnet)
 - Immutability plan: `README.md` § Upgrade authority, `docs/DEPLOY.md` step 2.6
 
 ## 2. Architecture in one page

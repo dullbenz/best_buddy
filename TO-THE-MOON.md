@@ -40,7 +40,7 @@ This file is your contract's identity. It lives in `target/`, a build folder
 that `anchor clean` wipes without asking. Put a copy in a password manager or
 an encrypted drive. Never in Git, never in Google Drive, never in a chat.
 
-Current program ID: `ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY`
+Current program ID: `5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp`
 
 > **This is a devnet identity, not the launch one.** The roots a claim is
 > checked against can only be set at `initialize`, and only once, so putting
@@ -135,7 +135,7 @@ Set these in **Settings → Secrets and variables → Actions**:
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | the service-account JSON |
 | Variable | `FIREBASE_PROJECT_ID` | your Firebase project ID |
 | Variable | `VITE_RPC_URL` | your Helius RPC URL |
-| Variable | `VITE_PROGRAM_ID` | `ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY` |
+| Variable | `VITE_PROGRAM_ID` | `5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp` |
 | Secret | `STAGING_PASSWORD` | the staging basic-auth password |
 | Variable | `STAGING_RPC_URL` | a devnet RPC endpoint |
 
@@ -212,7 +212,7 @@ Full guide, including how to re-run it: [docs/DEVNET-REHEARSAL.md](docs/DEVNET-R
 Locally:
 
 ```bash
-cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY npm run dev
+cd app && VITE_RPC_URL=https://api.devnet.solana.com VITE_PROGRAM_ID=5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp npm run dev
 ```
 
 Or push to `develop` and use `staging.mybestbuddy.fun`, which is the same build
@@ -540,7 +540,7 @@ becomes the eighth check on the Verify page.
 **Point of no return. Do the checks first.**
 
 ```bash
-solana program show ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY
+solana program show 5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp
 ```
 
 Confirm, one by one:
@@ -560,11 +560,11 @@ Anything wrong? Fix it now — you can still redeploy for ~4 SOL. After the next
 command you cannot.
 
 ```bash
-solana program set-upgrade-authority ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY --final
+solana program set-upgrade-authority 5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp --final
 ```
 
 ```bash
-solana program show ACEQhGpWU8Y8QfbxL5LGL8dmj59TKRxnrPkDaWKhQiVY
+solana program show 5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp
 ```
 
 `Authority` must read **`none`**. Save that transaction signature — it leads the
