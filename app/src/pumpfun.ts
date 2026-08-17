@@ -216,31 +216,31 @@ export async function readPendingFees(
 /** Read the shareholder list and admin state, for the Verify page. */
 export interface SharingConfigView {
   exists: boolean;
-  /** Base58 admin. All-zeros is how a revoked admin appears on chain. */
+  /** Base58 admin. Stays set even after revocation — see `adminRevoked`. */
   admin: string | null;
   adminRevoked: boolean;
   status: "Paused" | "Active" | "unknown";
   shareholders: { address: string; shareBps: number }[];
 }
 
-const ZERO_PUBKEY = PublicKey.default.toBase58();
-
 /**
  * Decode pump.fun's `SharingConfig`.
  *
  * Borsh layout after the 8-byte discriminator, taken field-for-field from
- * `idl/pumpfun/pump_fees.json` → `accounts.SharingConfig`:
+ * `idl/pumpfun/pump_fees.json` → `types.SharingConfig`:
  *
- *   timestamp            i64
- *   mint                 pubkey
- *   bonding_curve        pubkey
- *   pool                 Option<pubkey>        1-byte tag, +32 when Some
- *   sharing_config       pubkey
- *   admin                pubkey
- *   initial_shareholders Vec<Shareholder>      u32 length, then n × 34
- *   status               ConfigStatus          0 = Paused, 1 = Active
+ *   bump          u8
+ *   version       u8
+ *   status        ConfigStatus      1 byte: 0 = Paused, 1 = Active
+ *   mint          pubkey
+ *   admin         pubkey
+ *   admin_revoked bool              1 byte
+ *   shareholders  Vec<Shareholder>  u32 length, then n × 34
  *
- * `Shareholder` is `{ address: pubkey, share_bps: u16 }`.
+ * `Shareholder` is `{ address: pubkey, share_bps: u16 }`. When
+ * `update_fee_shares_v2` revokes the admin it sets `admin_revoked`; the
+ * `admin` pubkey itself is left in place, so a set admin plus a true flag is
+ * the normal shape of a frozen config.
  */
 export async function readSharingConfig(
   connection: Connection,
@@ -259,14 +259,17 @@ export async function readSharingConfig(
 
   const d = info.data;
   let o = 8;
-  o += 8; // timestamp
+  o += 1; // bump
+  o += 1; // version
+  const statusByte = d[o];
+  const status =
+    statusByte === 0 ? "Paused" : statusByte === 1 ? "Active" : "unknown";
+  o += 1;
   o += 32; // mint
-  o += 32; // bonding_curve
-  const hasPool = d[o] === 1;
-  o += 1 + (hasPool ? 32 : 0);
-  o += 32; // sharing_config
   const admin = new PublicKey(d.subarray(o, o + 32)).toBase58();
   o += 32;
+  const adminRevoked = d[o] === 1;
+  o += 1;
 
   const count = d.readUInt32LE(o);
   o += 4;
@@ -280,20 +283,10 @@ export async function readSharingConfig(
     o += 34;
   }
 
-  const statusByte = o < d.length ? d[o] : -1;
-  const status =
-    statusByte === 0 ? "Paused" : statusByte === 1 ? "Active" : "unknown";
-
-  // There is no explicit `admin_revoked` flag. pump.fun's docs say
-  // `update_fee_shares_v2` "revokes further admin updates", and clearing the
-  // admin to the default pubkey is the conventional way to express that — but
-  // we have not confirmed the mechanism against a live account. The Verify page
-  // therefore shows the actual admin rather than asserting a verdict it cannot
-  // justify, and the throwaway-coin rehearsal is where this gets settled.
   return {
     exists: true,
     admin,
-    adminRevoked: admin === ZERO_PUBKEY,
+    adminRevoked,
     status,
     shareholders,
   };
