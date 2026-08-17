@@ -209,11 +209,9 @@ export const NEW_TOKEN_INFO = {
       url: "https://pump.fun/coin/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
     },
     {
-      // Stays pending until DexScreener has indexed the market; a dead chart
-      // link on launch day reads worse than a visibly-coming one.
       label: "DexScreener",
       note: "the price chart",
-      url: null as string | null,
+      url: "https://dexscreener.com/solana/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
     },
     {
       label: "Solscan",
@@ -243,11 +241,10 @@ export const SOCIAL_LINKS = [
     url: "https://pump.fun/coin/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
   },
   {
-    // Pending until DexScreener indexes the market.
     id: "dexscreener",
     label: "DexScreener",
     title: "Price chart",
-    url: null as string | null,
+    url: "https://dexscreener.com/solana/G93spDaBFKHEjjURJ38uGoXwD7Wpfv5inihDLhybpump" as string | null,
   },
   {
     id: "solscan",
