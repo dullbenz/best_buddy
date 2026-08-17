@@ -1480,6 +1480,9 @@ describe("buddy-distributor", () => {
       assert.equal(lockBefore.escrowToken.toString(), (4_000n * UNIT).toString(), "the 4x above base is escrowed");
 
       const poolBefore = await fetchPool(b.env);
+      // Past the 24h floor: the reward was already captured above, so the
+      // forfeit is unchanged; the exit is just no longer inside the cooldown.
+      await warpBy(b.env.context, UNSTAKE_COOLDOWN + 1);
       await emergencyExitLockup(b.env, attacker.staker, 0, attacker.acct);
 
       const finalBalance = await tokenBalance(b.env, attacker.acct);
@@ -1514,6 +1517,7 @@ describe("buddy-distributor", () => {
       const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
       await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.ThreeMonth, 0);
 
+      await warpBy(b.env.context, UNSTAKE_COOLDOWN + 1);
       await emergencyExitLockup(b.env, staker, 0, acct);
       assert.equal((await tokenBalance(b.env, acct)).toString(), (850n * UNIT).toString(), "85% of principal back");
 
@@ -1525,6 +1529,21 @@ describe("buddy-distributor", () => {
         "the slash waits for the next staker instead of dividing by zero weight"
       );
       assert.equal(pool.accTokenPerWeight.toString(), "0");
+    });
+
+    it("refuses an early exit inside the 24h floor, then allows it after (no sub-day unstake by any route)", async () => {
+      const b = await bootstrap({ fundExtra: 10_000n * UNIT });
+      const { staker, acct } = await makeStaker(b.env, 1_000n * UNIT);
+      await lockTokens(b.env, staker, acct, 1_000n * UNIT, Tier.OneMonth, 0);
+
+      // A one-month lockup must not become a way to unstake in minutes: the
+      // same floor the flexible tier enforces applies before any early exit.
+      await warpBy(b.env.context, UNSTAKE_COOLDOWN - 60);
+      await expectFailure(emergencyExitLockup(b.env, staker, 0, acct), "CooldownActive");
+
+      await warpBy(b.env.context, 120);
+      await emergencyExitLockup(b.env, staker, 0, acct);
+      assert.equal((await tokenBalance(b.env, acct)).toString(), (850n * UNIT).toString(), "85% back once past the floor");
     });
   });
 
@@ -1784,6 +1803,7 @@ describe("buddy-distributor", () => {
       const donor = await makeStaker(b.env, 6_000n * UNIT);
       await notifyTokens(b.env, donor.staker, donor.acct, 6_000n * UNIT);
 
+      await warpBy(b.env.context, UNSTAKE_COOLDOWN + 1);
       await emergencyExitLockup(b.env, quitter.staker, 0, quitter.acct);
 
       // The slash and forfeited boost stayed in the vault and are already

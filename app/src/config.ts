@@ -480,6 +480,7 @@ export const TIERS = [
     costs: [
       "Locked for 30 days",
       "Leaving early forfeits the entire bonus plus 15% of your stake",
+      "Even an early exit is impossible in the first 24 hours",
       "After day 30 it keeps earning at 1× until you withdraw",
     ],
   },
@@ -498,6 +499,7 @@ export const TIERS = [
     costs: [
       "Locked for 90 days",
       "Leaving early forfeits the entire bonus plus 15% of your stake",
+      "Even an early exit is impossible in the first 24 hours",
       "After day 90 it keeps earning at 1× until you withdraw",
     ],
   },
@@ -517,6 +519,7 @@ export const TIERS = [
     costs: [
       "Locked for 150 days",
       "Leaving early forfeits the entire bonus plus 15% of your stake",
+      "Even an early exit is impossible in the first 24 hours",
       "After day 150 it keeps earning at 1× until you withdraw",
     ],
   },

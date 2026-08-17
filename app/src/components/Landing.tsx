@@ -470,7 +470,7 @@ export function Landing({
             glyph="stake"
             title="I want to earn from this coin"
             body="Staking means locking your tokens into the contract. While they sit there you earn a share of everything the project takes in: trading fees from pump.fun, plus every allocation nobody else claimed. Longer locks earn a bigger share, up to five times."
-            note="Breaking a lock early costs the whole bonus plus 15% of your stake, and it goes to the stakers who stayed. There is also a no-lock option with no penalty at all, where leaving takes 24 hours from the moment you ask."
+            note="Breaking a lock early costs the whole bonus plus 15% of your stake, and it goes to the stakers who stayed — and even that early exit is barred for the first 24 hours. There is also a no-lock option with no penalty at all, where leaving takes 24 hours from the moment you ask. Nothing leaves inside a day, whichever route you take."
             cta="See the staking terms"
             onClick={() => go("staking")}
           />

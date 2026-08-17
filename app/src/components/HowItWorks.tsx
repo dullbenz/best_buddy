@@ -169,7 +169,10 @@ export function HowItWorks() {
         <p>
           <strong>Your base rewards are claimable at any time, in every tier.</strong>{" "}
           The extra your multiplier earns is held until your lock matures, and is
-          forfeited if you leave early, along with 15% of your stake.
+          forfeited if you leave early, along with 15% of your stake. And no
+          matter the tier, staked principal cannot leave in the first 24 hours:
+          the flexible unstake and a locked tier's early exit obey the same
+          one-day floor.
         </p>
         <p className="muted">
           Without that, someone could take the 5× rate, collect five times the rewards

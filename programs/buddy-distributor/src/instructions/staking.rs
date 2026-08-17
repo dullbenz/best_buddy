@@ -841,6 +841,16 @@ pub fn emergency_exit_lockup(ctx: Context<EmergencyExitLockup>) -> Result<()> {
 
     require!(now < lockup.lock_end, DistributorError::StillLocked);
 
+    // No route pulls staked principal back out inside the first 24 hours. The
+    // flexible tier enforces that through the unstake cooldown; a locked tier
+    // must honour the same floor before an early exit, or a one-month lockup
+    // would be a way to unstake within minutes and sidestep the flash-stake
+    // protection the cooldown exists for. Same window, same reason, every tier.
+    require!(
+        now >= lockup.created_at + UNSTAKE_COOLDOWN,
+        DistributorError::CooldownActive
+    );
+
     lockup.settle(pool)?;
 
     let principal = lockup.amount;

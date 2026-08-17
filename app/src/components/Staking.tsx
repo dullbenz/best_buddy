@@ -87,6 +87,16 @@ export function Staking() {
           on the Fund pool tab); withdrawing does it automatically.
         </p>
 
+        <p className="muted small">
+          <strong>The 24-hour floor is universal.</strong> The delay above is
+          not just a flexible-tier rule — <em>no</em> route pulls staked
+          principal back out inside the first 24 hours. Breaking a lock early
+          already costs the bonus plus 15%, and on top of that it is simply not
+          possible until the stake is a day old. So a locked tier can never be
+          used as a way to unstake in minutes and dodge the protection the
+          cooldown exists for: every tier, in and out, obeys the same day.
+        </p>
+
         {!publicKey ? (
           <ConnectToClaim question="Ready to stake?" />
         ) : (

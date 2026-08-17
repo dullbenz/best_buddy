@@ -831,6 +831,15 @@ async function runA(ctx: Ctx, rep: Reporter) {
     const sib1 = await account.lockup.fetch(lockupPda(lockerA.publicKey, 1));
     const poolB = await account.stakePool.fetch(pool);
     const tokB = await tokenBalance(ctx, ataFor(lockerA));
+    // Early exit is gated by the same 24h floor as flexible unstaking (fast:
+    // 60s), so nothing can pull principal out inside a day by any route.
+    const tooEarly = await expectError(
+      program.methods.emergencyExitLockup().accountsPartial(lockupAccts(lockerA, 3)).signers([lockerA]).rpc(),
+      "CooldownActive"
+    );
+    if (!tooEarly.ok) throw new Error(`expected CooldownActive inside the floor, got ${tooEarly.observed}`);
+    // The reward is already captured above, so the forfeit is unchanged.
+    await waitSeconds("emergency-exit 24h floor (fast: 60s)", 65);
     const sig = await program.methods.emergencyExitLockup().accountsPartial(lockupAccts(lockerA, 3)).signers([lockerA]).rpc();
     const tokA = await tokenBalance(ctx, ataFor(lockerA));
     const poolA = await account.stakePool.fetch(pool);

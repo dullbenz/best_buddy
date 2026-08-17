@@ -909,6 +909,13 @@ function LockupRow({
   const escrowToken = BigInt(a.escrowToken.toString());
   const escrowSol = BigInt(a.escrowSol.toString());
 
+  // No principal leaves inside the first 24 hours, by any route (the program
+  // gates early exit on created_at + the same cooldown flexible unstaking
+  // uses). Surface the wait rather than let the button send a failing tx.
+  const EXIT_FLOOR = 24 * 60 * 60;
+  const exitUnlocksAt = Number(a.createdAt) + EXIT_FLOOR;
+  const floorLeft = countdown(exitUnlocksAt, now);
+
   const state = left
     ? `matures in ${left}`
     : a.demoted
@@ -936,8 +943,15 @@ function LockupRow({
           Claim rewards
         </button>
         {left ? (
-          <button className="danger" disabled={busy} onClick={onExit}>
-            Emergency exit (forfeit boost + 15%)
+          <button
+            className="danger"
+            disabled={busy || !!floorLeft}
+            onClick={onExit}
+            title={floorLeft ? "Early exit unlocks 24 hours after you locked" : undefined}
+          >
+            {floorLeft
+              ? `Emergency exit in ${floorLeft}`
+              : "Emergency exit (forfeit boost + 15%)"}
           </button>
         ) : (
           <button className="primary" disabled={busy} onClick={onUnlock}>
