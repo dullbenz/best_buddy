@@ -1,0 +1,40 @@
+# Dependency updates.
+#
+# Weekly rather than daily, and grouped, because this repository's dependency
+# churn is not the interesting risk: the on-chain program is immutable and its
+# dependencies are frozen into bytecode that can never be rebuilt into the
+# deployed contract. What these updates actually protect is the *site* and the
+# tooling — the parts a visitor's browser runs and the parts that sign
+# transactions — so those are what is watched here.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-tooling:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      app-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

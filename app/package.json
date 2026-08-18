@@ -2,6 +2,7 @@
   "name": "buddy-claim-app",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "copy-idl": "node scripts/copy-idl.mjs",
