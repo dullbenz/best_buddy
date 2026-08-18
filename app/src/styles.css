@@ -3145,3 +3145,54 @@ a.ho-link:hover {
 .terms-inner {
   padding: 6px 14px 14px;
 }
+
+/* Sortable column headers on the published lists. A button so it is keyboard
+   operable, styled to disappear into the header it lives in. */
+.th-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.th-sort:hover {
+  color: var(--fg);
+}
+
+/* The direct-donation fallback: two addresses side by side, each locked to
+   one asset. Side by side so the pairing reads as one decision, not a
+   scrolling list; single column again once the addresses would wrap badly. */
+.donate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 12px 0;
+}
+@media (max-width: 900px) {
+  .donate-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.donate-cell {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.donate-cell .signer-message code {
+  word-break: break-all;
+}
+.only-tag {
+  display: inline-block;
+  font-family: var(--mono, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: 8px;
+}

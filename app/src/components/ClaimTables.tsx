@@ -60,23 +60,58 @@ export const ClaimTables = memo(function ClaimTables({
   const [which, setWhich] = useState<Which>("influencers");
   const [query, setQuery] = useState("");
   const search = useDebounced(query.trim().toLowerCase());
+  // Column sorting and the claimed/unclaimed filter run entirely on the
+  // already-loaded list — the published file plus one receipts scan — so they
+  // cost nothing and need nothing extra from the RPC.
+  const [sortKey, setSortKey] = useState<"legacy" | "allocation" | null>(null);
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [statusFilter, setStatusFilter] = useState<"all" | "claimed" | "unclaimed">("all");
 
   const rows = which === "influencers" ? influencers : legacy;
 
   const filtered = useMemo(() => {
-    if (!search) return rows;
-    return rows.filter(
-      (r) =>
-        r.address.toLowerCase().includes(search) ||
-        (r.handle ?? "").toLowerCase().includes(search)
-    );
-  }, [rows, search]);
+    let out = rows;
+    if (search) {
+      out = out.filter(
+        (r) =>
+          r.address.toLowerCase().includes(search) ||
+          (r.handle ?? "").toLowerCase().includes(search)
+      );
+    }
+    if (statusKnown && statusFilter !== "all") {
+      out = out.filter((r) =>
+        statusFilter === "claimed" ? r.claimedAt !== null : r.claimedAt === null
+      );
+    }
+    if (sortKey) {
+      const val = (r: LedgerRow) =>
+        sortKey === "legacy" ? (r.legacyBalance ?? 0n) : r.allocation;
+      out = [...out].sort((a, b) => {
+        const d = val(a) < val(b) ? -1 : val(a) > val(b) ? 1 : 0;
+        return sortDir === "asc" ? d : -d;
+      });
+    }
+    return out;
+  }, [rows, search, statusKnown, statusFilter, sortKey, sortDir]);
 
   const claimed = rows.filter((r) => r.claimedAt !== null).length;
 
+  const toggleSort = (key: "legacy" | "allocation") => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("desc");
+    } else if (sortDir === "desc") {
+      setSortDir("asc");
+    } else {
+      setSortKey(null); // third click restores the published order
+    }
+  };
+  const arrow = (key: "legacy" | "allocation") =>
+    sortKey !== key ? "" : sortDir === "desc" ? " ↓" : " ↑";
+
   const paged = usePaged(filtered, 25);
-  // Both a new search and a switch between lists start over at page one.
-  useEffect(() => paged.reset(), [search, which]);
+  // A new search, list switch, sort or filter starts over at page one.
+  useEffect(() => paged.reset(), [search, which, sortKey, sortDir, statusFilter]);
 
   return (
     <section className="card">
@@ -117,6 +152,21 @@ export const ClaimTables = memo(function ClaimTables({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+
+        {statusKnown && (
+          <div className="seg">
+            {(["all", "unclaimed", "claimed"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={statusFilter === f ? "seg-btn is-active" : "seg-btn"}
+                onClick={() => setStatusFilter(f)}
+              >
+                {f === "all" ? "All" : f === "claimed" ? "Claimed" : "Unclaimed"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {error ? (
@@ -148,10 +198,26 @@ export const ClaimTables = memo(function ClaimTables({
               <th>Wallet</th>
               {which === "legacy" ? (
                 <th className="num">
-                  Legacy $Buddy at snapshot
+                  <button
+                    type="button"
+                    className="th-sort"
+                    onClick={() => toggleSort("legacy")}
+                    title="Sort by legacy balance"
+                  >
+                    Legacy $Buddy at snapshot{arrow("legacy")}
+                  </button>
                 </th>
               ) : null}
-              <th className="num">Allocation ({TOKEN_SYMBOL})</th>
+              <th className="num">
+                <button
+                  type="button"
+                  className="th-sort"
+                  onClick={() => toggleSort("allocation")}
+                  title="Sort by allocation"
+                >
+                  Allocation ({TOKEN_SYMBOL}){arrow("allocation")}
+                </button>
+              </th>
               <th>Status</th>
               {which === "influencers" ? <th className="num">Withdrawn</th> : null}
             </tr>
