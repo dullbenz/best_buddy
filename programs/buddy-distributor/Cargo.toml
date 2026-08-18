@@ -23,7 +23,7 @@ fast-clock = []
 
 [dependencies]
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
-anchor-spl = "0.31.1"
+anchor-spl = "1.1.2"
 
 # Anchor's `#[program]` and `#[derive(Accounts)]` macros expand to code guarded
 # by cfgs that belong to anchor-lang, not to this crate — so cargo's check-cfg
