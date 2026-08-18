@@ -1,6 +1,7 @@
 {
   "name": "buddy-distributor",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Four-bucket community distributor for the Buddy relaunch",
   "scripts": {
