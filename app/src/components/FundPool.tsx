@@ -440,7 +440,7 @@ export function FundPool() {
               {somethingToDo
                 ? "Credit these fees to the stakers"
                 : feesBelowMinimum
-                  ? "Accrued fees still below pump.fun's minimum"
+                  ? "Accrued fees below threshold"
                   : "Everything is already credited"}
             </button>
             <button disabled={busy} onClick={load}>

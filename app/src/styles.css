@@ -852,7 +852,10 @@ button.danger {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 14px;
+  /* Symmetric, for the same reason as .note: paragraphs carry only a bottom
+     margin, so a top-only margin here left anything that followed (a status
+     line, a below-threshold note) flush against the buttons. */
+  margin: 14px 0;
 }
 
 .form-row {

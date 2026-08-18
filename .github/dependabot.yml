@@ -28,11 +28,19 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  - package-ecosystem: cargo
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
+  # No cargo entry, deliberately.
+  #
+  # The program's Rust dependencies are frozen into bytecode that is already
+  # deployed and can never be rebuilt into the running contract — its upgrade
+  # authority is burned. Bumping them cannot improve what is on mainnet, and it
+  # would break `solana-verify verify-from-repo`, which rebuilds this source and
+  # compares the hash to the deployed program. That check is the whole point of
+  # publishing the source, so the dependency tree stays exactly as it was built.
+  #
+  # Cargo advisories against the deployed program are therefore reported, not
+  # patched: see SECURITY.md. Watching them still has value — the community
+  # deserves to know — but the response is disclosure and mitigation, never a
+  # version bump. Dependabot alerts remain enabled repo-wide for that.
 
   - package-ecosystem: github-actions
     directory: /
