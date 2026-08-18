@@ -27,6 +27,8 @@ import {
   PublicKey,
   SystemProgram,
   TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { sha256 } from "@noble/hashes/sha256";
 
@@ -211,6 +213,69 @@ export async function readPendingFees(
       : 0n;
 
   return { bondingCurve: bonding, amm };
+}
+
+export interface DistributableFee {
+  /** pump.fun's enforced floor: distributions below this revert. */
+  minimumRequired: bigint;
+  /** What pump considers distributable right now. */
+  distributableFees: bigint;
+  canDistribute: boolean;
+}
+
+/**
+ * Ask pump.fun itself whether a distribution would succeed.
+ *
+ * The program enforces a minimum distributable fee, and a distribute sent
+ * below it reverts — which a wallet's simulation then paints as a malicious
+ * transaction. So the crank button must arm on this answer, not on
+ * "the vault holds more than zero". `get_minimum_distributable_fee` is a view:
+ * it runs through simulation and returns
+ * `{ minimum_required, distributable_fees, can_distribute }` without costing
+ * anything. `payer` is only the simulated fee payer; any funded wallet works
+ * and nothing is signed or sent.
+ */
+export async function readDistributableFee(
+  connection: Connection,
+  mint: PublicKey,
+  payer: PublicKey
+): Promise<DistributableFee | null> {
+  try {
+    const sharingConfig = sharingConfigPda(mint);
+    const ix = new TransactionInstruction({
+      programId: PUMP_PROGRAM_ID,
+      keys: [
+        meta(mint),
+        meta(bondingCurvePda(mint)),
+        meta(sharingConfig),
+        meta(creatorVaultPda(sharingConfig)),
+      ],
+      data: discriminator("get_minimum_distributable_fee"),
+    });
+    const { blockhash } = await connection.getLatestBlockhash();
+    const msg = new TransactionMessage({
+      payerKey: payer,
+      recentBlockhash: blockhash,
+      instructions: [ix],
+    }).compileToV0Message();
+    const sim = await connection.simulateTransaction(new VersionedTransaction(msg), {
+      sigVerify: false,
+      replaceRecentBlockhash: true,
+    });
+    const data = sim.value.returnData?.data?.[0];
+    if (!data) return null;
+    const buf = Buffer.from(data, "base64");
+    if (buf.length < 17) return null;
+    return {
+      minimumRequired: buf.readBigUInt64LE(0),
+      distributableFees: buf.readBigUInt64LE(8),
+      canDistribute: buf[16] === 1,
+    };
+  } catch {
+    // The view is advisory; on any failure the caller falls back to its own
+    // conservative threshold rather than arming a button blind.
+    return null;
+  }
 }
 
 /** Read the shareholder list and admin state, for the Verify page. */

@@ -14,11 +14,13 @@ import {
 } from "../config";
 import { countdown, fmtAmount, fmtDate, fmtSol } from "../format";
 import {
+  DistributableFee,
   NATIVE_MINT,
   PendingFees,
   TOKEN_PROGRAM_ID,
   associatedTokenAddress,
   distributeCreatorFeesIx,
+  readDistributableFee,
   readPendingFees,
   transferCreatorFeesToPumpIx,
   sharingConfigPda,
@@ -47,6 +49,7 @@ export function FundPool() {
   } = useAllMaturedLockups();
 
   const [pending, setPending] = useState<PendingFees | null>(null);
+  const [distributable, setDistributable] = useState<DistributableFee | null>(null);
   const [communityStreams, setCommunityStreams] = useState<
     Array<{
       kind: number;
@@ -71,6 +74,12 @@ export function FundPool() {
     } catch {
       setPending(null);
     }
+    // pump.fun's own answer to "would a distribution succeed right now".
+    // Sent below its minimum, distribute reverts, and the wallet's failed
+    // simulation reads as a scam warning — so the button arms on this.
+    setDistributable(
+      await readDistributableFee(connection, config.rewardMint, config.authority)
+    );
     try {
       // Fees may also be sitting as wrapped SOL owned by our vault.
       const ata = associatedTokenAddress(solVault, NATIVE_MINT);
@@ -124,11 +133,19 @@ export function FundPool() {
       </div>
     );
 
-  const somethingToDo =
-    (pending?.bondingCurve ?? 0n) > 0n ||
-    (pending?.amm ?? 0n) > 0n ||
-    wsolBalance > 0n ||
-    untrackedSol > 0n;
+  // The pump.fun legs only run when pump itself says a distribution would
+  // succeed: it enforces a minimum distributable fee, and below it the
+  // instruction reverts — which a wallet's failed simulation then shows the
+  // signer as a scam warning. When the view is unreadable, fall back to a
+  // conservative floor rather than arming blind.
+  const FALLBACK_MIN_LAMPORTS = 1_000_000n; // 0.001 SOL
+  const feesAccrued = (pending?.bondingCurve ?? 0n) + (pending?.amm ?? 0n);
+  const feesReady = distributable
+    ? distributable.canDistribute
+    : feesAccrued >= FALLBACK_MIN_LAMPORTS;
+  const feesBelowMinimum = feesAccrued > 0n && !feesReady;
+
+  const somethingToDo = feesReady || wsolBalance > 0n || untrackedSol > 0n;
 
   /** Mirror of CommunityStream::releasable, so the button can say the number. */
   function releasableNow(cs: (typeof communityStreams)[number]): bigint {
@@ -303,14 +320,14 @@ export function FundPool() {
       const mint: PublicKey = config.rewardMint;
 
       // 1. If the coin has graduated, sweep AMM fees back to the curve vault.
-      if ((pending?.amm ?? 0n) > 0n) {
+      //    Gated, like the distribute below, on pump.fun confirming the total
+      //    clears its minimum — below it these legs revert in simulation.
+      if (feesReady && (pending?.amm ?? 0n) > 0n) {
         tx.add(transferCreatorFeesToPumpIx(publicKey, sharingConfigPda(mint)));
       }
 
       // 2. Pay the frozen shareholder list; our vault is one of them.
-      const distributed =
-        (pending?.bondingCurve ?? 0n) > 0n || (pending?.amm ?? 0n) > 0n;
-      if (distributed) {
+      if (feesReady && feesAccrued > 0n) {
         tx.add(distributeCreatorFeesIx(publicKey, mint, [solVault, config.devWallet]));
       }
 
@@ -337,7 +354,7 @@ export function FundPool() {
       //    [unwrapWsol]; appending sync there would revert with
       //    NothingToWithdraw and take the unwrap down with it. Sync is only for
       //    SOL that was already untracked or freshly distributed this tx.
-      if (untrackedSol > 0n || distributed) {
+      if (untrackedSol > 0n || (feesReady && feesAccrued > 0n)) {
         tx.add(
           await program.methods
             .syncSolRewards()
@@ -422,12 +439,24 @@ export function FundPool() {
             <button className="primary" disabled={busy || !somethingToDo} onClick={run}>
               {somethingToDo
                 ? "Credit these fees to the stakers"
-                : "Everything is already credited"}
+                : feesBelowMinimum
+                  ? "Accrued fees still below pump.fun's minimum"
+                  : "Everything is already credited"}
             </button>
             <button disabled={busy} onClick={load}>
               Refresh
             </button>
           </div>
+        )}
+
+        {feesBelowMinimum && (
+          <p className="muted small">
+            pump.fun refuses distributions below its minimum
+            {distributable ? ` of ${fmtSol(distributable.minimumRequired)} SOL` : ""},
+            and a transaction sent anyway would fail — which wallets then flag
+            as suspicious. Nothing is lost: fees keep accruing with every trade,
+            and this button arms itself the moment they clear the bar.
+          </p>
         )}
 
         <div className="note">
