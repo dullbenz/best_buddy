@@ -136,7 +136,7 @@ export function MyBuddy() {
   const { config, pool, rewardTokenProgram, refresh } = useDistributor();
   const { stream, refresh: refreshStream } = useStream(publicKey ?? null);
   const receipts = useClaimReceipts(publicKey ?? null);
-  const { position, refresh: refreshPosition } = useStakePosition(publicKey ?? null);
+  const { position, loading: positionLoading, refresh: refreshPosition } = useStakePosition(publicKey ?? null);
   const { lockups, loading: lockupsLoading, refresh: refreshLockups } = useLockups(
     publicKey ?? null
   );
@@ -844,7 +844,7 @@ export function MyBuddy() {
 
             <div className="button-row">
               <button
-                disabled={busy || nothingToClaimRewards}
+                disabled={busy || positionLoading || nothingToClaimRewards}
                 title={nothingToClaimRewards ? "Nothing has accrued yet" : undefined}
                 onClick={claimRewards}
               >
@@ -945,7 +945,7 @@ export function MyBuddy() {
                 key={l.pubkey.toBase58()}
                 lockup={l}
                 now={now}
-                busy={busy}
+                busy={busy || lockupsLoading}
                 onClaim={() => claimLockup(l)}
                 onUnlock={() => unlock(l)}
                 onExit={() => exitLockup(l)}

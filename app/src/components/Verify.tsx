@@ -42,6 +42,15 @@ interface Check {
   command?: string;
   link?: string;
   linkLabel?: string;
+  /**
+   * Decoded on-chain facts rendered as labeled rows. Exists because explorers
+   * show some accounts as raw bytes: sending a reader to Solscan to "verify"
+   * data Solscan cannot parse verifies nothing. The card decodes the account
+   * itself and each row links to the address it names.
+   */
+  rows?: { address: string; label: string; value: string }[];
+  /** Additional links after the primary one. */
+  links?: { href: string; label: string }[];
 }
 
 /**
@@ -215,7 +224,10 @@ export function Verify() {
       "The contract stores one 32-byte fingerprint per list: a Merkle root. The verifier rebuilds that fingerprint from the published CSV and compares it to the one on chain. Change a single digit in the file and the fingerprint no longer matches.",
     why:
       "The eligibility list was produced off-chain, because Solana programs cannot enumerate token holders. That is only trustworthy if anyone can regenerate the identical result, which they can, because the input is public chain history. The fingerprint is what makes the published file binding rather than decorative: the contract pays against the root, so a list that does not reproduce it is not the list being paid.",
-    command: `RPC_URL=<your-rpc> npx ts-node scripts/verify-snapshot.ts --onchain`,
+    // Runnable as pasted: clone, install, verify. The public RPC is enough —
+    // the on-chain half of this check reads a single account, well inside its
+    // limits for a one-off run from a home connection.
+    command: `git clone https://github.com/dullbenz/best_buddy && cd best_buddy && npm install && RPC_URL=https://api.mainnet-beta.solana.com npx ts-node scripts/verify-snapshot.ts --onchain`,
   });
 
   // 6: the fee split is out of our hands and points at the community.
@@ -245,10 +257,36 @@ export function Verify() {
         }. Status: ${sharing.status}.`,
     why:
       "pump.fun lets a fee split be set exactly once, after which it revokes the admin and no instruction of the creator's can ever touch the shares again. That is what stops a team quietly redirecting the community's fees to themselves once a token has traction, so the thing to check is not just the percentage but that the admin really is revoked. One asterisk, stated plainly: a revoked admin proves we can never change the split, not that nobody can. pump.fun's own fee program retains a reset authority of its own, presumably the machinery behind their CTO fee-redirect process, so this guarantee is about us, not about pump.fun.",
+    // Solscan cannot parse this account — it shows the config as unlabeled
+    // bytes — so the card decodes the shareholder list itself, live from
+    // chain, and labels each recipient by comparing it to addresses this page
+    // derives independently. A row this page cannot identify would say so.
+    rows: sharing?.exists
+      ? sharing.shareholders.map((s) => ({
+          address: s.address,
+          label:
+            s.address === solVaultPda
+              ? "The community vault. A program-owned address only the immutable contract controls; what lands here belongs to the stakers."
+              : config && s.address === config.devWallet.toBase58()
+                ? "The team's Squads multisig. Moving anything from it takes more than one member's signature."
+                : "Unrecognized address — this page cannot vouch for it.",
+          value: `${(s.shareBps / 100).toFixed(0)}%`,
+        }))
+      : undefined,
     link: solscanAccount(
       config ? sharingConfigPda(config.rewardMint).toBase58() : ""
     ),
-    linkLabel: "Inspect the fee-sharing config on Solscan",
+    linkLabel:
+      "The raw config account on Solscan (it shows as unparsed bytes there — the table above is that account, decoded by this page)",
+    links: config
+      ? [
+          {
+            href: `https://pump.fun/coin/${config.rewardMint.toBase58()}`,
+            label:
+              "Cross-check on pump.fun: the coin's page shows the same split under Creator Rewards",
+          },
+        ]
+      : undefined,
   });
 
   // 7: there is nothing between you and the chain.
@@ -277,7 +315,7 @@ export function Verify() {
       "Every line of this project is public: the Solana program, this website, the snapshot scripts and the runbooks. Build the repository yourself and compare the hash to the bytecode on chain.",
     why:
       "Open source on its own proves nothing: reading code is only meaningful if that code is what actually got deployed. solana-verify rebuilds the program in a fixed container and compares the resulting hash to the bytecode the chain is executing. If they match, the program you can read is the program that holds the tokens.",
-    command: `solana-verify verify-from-repo -um --program-id ${programId} <repo-url>`,
+    command: `solana-verify verify-from-repo -um --program-id ${programId} https://github.com/dullbenz/best_buddy`,
   });
 
   return (
@@ -314,6 +352,29 @@ export function Verify() {
             <h2>{check.title}</h2>
           </div>
           <p>{check.detail}</p>
+          {check.rows && check.rows.length > 0 && (
+            <div className="files">
+              {check.rows.map((row) => (
+                <div className="file-row" key={row.address}>
+                  <div className="file-meta">
+                    <span className="mono file-name">
+                      <a
+                        href={solscanAccount(row.address)}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                      >
+                        {row.address}
+                      </a>
+                    </span>
+                    <span className="file-desc">{row.label}</span>
+                  </div>
+                  <div className="file-actions">
+                    <strong>{row.value}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <p className="muted small">{check.why}</p>
           {check.command && (
             <div className="cmd">
@@ -330,6 +391,13 @@ export function Verify() {
               </a>
             </p>
           )}
+          {check.links?.map((l) => (
+            <p className="small" style={{ marginTop: 8, marginBottom: 0 }} key={l.href}>
+              <a href={l.href} target="_blank" rel="noreferrer noopener">
+                {l.label}
+              </a>
+            </p>
+          ))}
         </section>
       ))}
 
