@@ -1034,7 +1034,9 @@ footer {
   border-left: 3px solid var(--accent);
   border-radius: 8px;
   padding: 12px 14px;
-  margin-top: 12px;
+  /* Symmetric: paragraphs only carry bottom margins, so without a bottom
+     margin of its own the note crushes whatever follows it. */
+  margin: 12px 0;
   font-size: 13px;
   line-height: 1.55;
   color: var(--muted);
