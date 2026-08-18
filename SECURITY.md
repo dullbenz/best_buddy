@@ -43,3 +43,23 @@ demonstrates the issue is worth more than any amount of prose.
 Please don't exploit an issue beyond the minimum needed to demonstrate it,
 don't test against other people's funds, and don't disclose publicly before a
 mitigation plan exists. The staking pool holds community money.
+
+## Known, permanent findings in the deployed program
+
+Because the program cannot be patched, some advisories against it can only ever
+be disclosed and mitigated, never fixed. Listing them here is the honest
+alternative to a clean-looking dashboard.
+
+- **`rand` (low severity, via the Anchor/Solana dependency tree, `Cargo.lock`).**
+  Present in the dependency graph of the deployed bytecode. The program does no
+  randomness of its own — every path is deterministic given its accounts and
+  the cluster clock — so there is no code path in this contract that consumes
+  it. It is listed because it is real and permanent, not because it is
+  exploitable here.
+
+Dependency updates are deliberately **not** proposed for the program
+(`.github/dependabot.yml` has no cargo entry). Changing its dependency tree
+cannot alter the deployed bytecode and would break
+`solana-verify verify-from-repo`, the check that proves this source is what is
+running. If you believe an advisory in that tree *is* reachable in this
+program, that is exactly the kind of report this policy exists for.
