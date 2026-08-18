@@ -94,78 +94,19 @@ export function Donate() {
   return (
     <div className="stack">
       <section className="card highlight">
-        <h2>Donate to the community pool</h2>
+        <h2>Donate with your wallet — the recommended way</h2>
         <p className="muted">
-          Donating needs no wallet connection and no permission from anyone.
-          The pool lives at two addresses the contract owns, printed in full
-          below; you can simply send. Whatever arrives is shared out among
-          the stakers, and no wallet, including ours, can move it anywhere
-          else.
-        </p>
-      </section>
-
-      <section className="card">
-        <h2>SOL donations</h2>
-        <p className="muted small">
-          The contract's SOL vault, the same account every trading fee lands
-          in. Send SOL here from any wallet or exchange.
-        </p>
-        <div className="signer-message">
-          <code>{solVault}</code>
-          <Copy text={solVault} />
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>{TOKEN_SYMBOL} donations</h2>
-        <p className="muted small">
-          The contract's token vault, which holds every unclaimed allocation
-          and pays every staking reward. Send {TOKEN_SYMBOL} here.
-        </p>
-        <div className="signer-message">
-          <code>{vault}</code>
-          <Copy text={vault} />
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>What happens after you send</h2>
-        <p className="muted">
-          A direct send sits in the vault safely but uncredited, because a
-          Solana program cannot notice a balance changing; it only runs when
-          a transaction calls it. Your donation starts counting for the
-          stakers the moment anyone presses sync on the{" "}
-          <TabLink tab="fund pool">Fund pool</TabLink> tab, and that anyone
-          can be you. Nothing is ever lost in the meantime.
-        </p>
-        <p className="muted small">
-          Wrapped SOL works too. wSOL sent to the vault's token account is
-          turned back into plain SOL by the same permissionless crank, then
-          credited with the rest.
-        </p>
-        <p className="muted small">
-          <strong>Only {TOKEN_SYMBOL}, SOL or wSOL count.</strong> The
-          contract cannot price any other token, so anything else sent to the
-          vault is forwarded to the team multisig by a permissionless
-          recovery instruction, converted by hand, and donated back. That is
-          the one step that runs on trust rather than code, which is why it
-          is disclosed here, and why the three assets above are the better
-          way to give.
-        </p>
-      </section>
-
-      <section className="card">
-        <h2>Donate with your wallet, credited instantly</h2>
-        <p className="muted">
-          Connected wallets get a shortcut. One instruction,{" "}
-          <code>notify_sol_rewards</code> or <code>notify_token_rewards</code>
-          , moves the amount out of your wallet and credits it to the stakers
-          in the same transaction. No sync needed, nothing sits uncredited.
+          One instruction, <code>notify_sol_rewards</code> or{" "}
+          <code>notify_token_rewards</code>, moves the amount out of your
+          wallet and credits it to the stakers in the same transaction.
+          Nothing sits uncredited, and — the reason this way is recommended —{" "}
+          <strong>nothing can be sent to the wrong place</strong>: the
+          instruction routes the asset itself, so the mistake the direct
+          addresses below allow is impossible here.
         </p>
         {!publicKey ? (
           <p className="muted small">
-            Connect a wallet to use it. Entirely optional: the addresses
-            above work without one.
+            Connect a wallet (top right) to donate this way.
           </p>
         ) : (
           <div className="form-row">
@@ -212,6 +153,60 @@ export function Donate() {
         <p className="muted small">
           A donation is a donation: it entitles the sender to nothing back,
           from the contract or from us.
+        </p>
+      </section>
+
+      <section className="card">
+        <h2>Don't want to connect a wallet? Send directly</h2>
+        <p className="muted small">
+          The pool lives at two contract-owned addresses, and you can simply
+          send from any wallet or exchange. But the two are different kinds
+          of account, and <strong>each accepts exactly one asset</strong>:
+        </p>
+
+        <div className="donate-grid">
+          <div className="donate-cell">
+            <span className="only-tag">Only SOL to this address</span>
+            <p className="muted small">
+              The contract's SOL vault — the account every trading fee lands
+              in. wSOL also ends up here safely, via the unwrap crank.
+            </p>
+            <div className="signer-message">
+              <code>{solVault}</code>
+              <Copy text={solVault} />
+            </div>
+          </div>
+          <div className="donate-cell">
+            <span className="only-tag">Only {TOKEN_SYMBOL} to this address</span>
+            <p className="muted small">
+              The contract's token vault — it holds every unclaimed
+              allocation and pays every staking reward.
+            </p>
+            <div className="signer-message">
+              <code>{vault}</code>
+              <Copy text={vault} />
+            </div>
+          </div>
+        </div>
+
+        <div className="note">
+          <strong>Cross them and the donation is gone, permanently.</strong>{" "}
+          SOL sent to the token vault, or {TOKEN_SYMBOL} sent to the SOL
+          vault, cannot be recovered by anyone — the contract is immutable
+          and has no instruction for it, and that includes us. Double-check
+          the asset against the label before sending, and if you are not
+          certain, use the wallet flow above: it cannot be mis-sent.
+        </div>
+
+        <p className="muted small">
+          A correct direct send sits in the vault safely but uncredited until
+          anyone presses sync on the{" "}
+          <TabLink tab="fund pool">Fund pool</TabLink> tab — that anyone can
+          be you, and nothing is lost in the meantime. Only {TOKEN_SYMBOL},
+          SOL or wSOL count: the contract cannot price any other token, so
+          anything else is forwarded to the team multisig by a disclosed,
+          permissionless recovery instruction, converted by hand, and donated
+          back.
         </p>
       </section>
 

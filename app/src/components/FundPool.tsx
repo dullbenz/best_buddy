@@ -430,7 +430,7 @@ export function FundPool() {
         </div>
 
         {!publicKey ? (
-          <p className="muted small">
+          <p className="muted small" style={{ marginTop: 16 }}>
             Connect a wallet to sign it. You pay only the network fee, a fraction
             of a cent, and none of the amounts below pass through your wallet.
           </p>
