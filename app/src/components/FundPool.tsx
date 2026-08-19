@@ -135,9 +135,10 @@ export function FundPool() {
 
   // The pump.fun legs only run when pump itself says a distribution would
   // succeed: it enforces a minimum distributable fee, and below it the
-  // instruction reverts — which a wallet's failed simulation then shows the
-  // signer as a scam warning. When the view is unreadable, fall back to a
-  // conservative floor rather than arming blind.
+  // instruction reverts. Very small amounts are also what wallets object to —
+  // Phantom flagged them in testing rather than sending them — so arming on
+  // pump's real minimum keeps the signer out of a scam warning. When the view
+  // is unreadable, fall back to a conservative floor rather than arming blind.
   const FALLBACK_MIN_LAMPORTS = 1_000_000n; // 0.001 SOL
   const feesAccrued = (pending?.bondingCurve ?? 0n) + (pending?.amm ?? 0n);
   const feesReady = distributable
@@ -451,11 +452,13 @@ export function FundPool() {
 
         {feesBelowMinimum && (
           <p className="muted small">
-            pump.fun refuses distributions below its minimum
-            {distributable ? ` of ${fmtSol(distributable.minimumRequired)} SOL` : ""},
-            and a transaction sent anyway would fail — which wallets then flag
-            as suspicious. Nothing is lost: fees keep accruing with every trade,
-            and this button arms itself the moment they clear the bar.
+            pump.fun enforces a minimum
+            {distributable ? ` of ${fmtSol(distributable.minimumRequired)} SOL` : ""}{" "}
+            before it will distribute, and the instruction reverts below it.
+            Wallets are unforgiving about amounts that small too — in testing,
+            Phantom flagged the transaction as suspicious instead of sending it. Nothing is lost: fees keep
+            accruing with every trade, and this button arms itself the moment
+            they clear the bar.
           </p>
         )}
 
