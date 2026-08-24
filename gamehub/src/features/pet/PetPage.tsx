@@ -221,7 +221,7 @@ export default function PetPage() {
       hud={
         <>
           <HudItem label="your pets" value={commas(yourPets)} />
-          <HudItem label="today" value={commas(signedIn ? sessionPets : guestPets)} />
+          <HudItem label="this session" value={commas(signedIn ? sessionPets : guestPets)} />
           <HudItem
             label="global"
             value={displayTotal === null ? "…" : commas(displayTotal)}
@@ -237,7 +237,7 @@ export default function PetPage() {
               <LeaderboardTable
                 board={board.data}
                 you={me?.wallet}
-                unit="pets"
+                unit="points"
                 emptyMessage="No pets yet today. Someone has to go first."
               />
             </div>

@@ -153,7 +153,13 @@ export async function submitRun(cluster, { wallet, uid, requestId, runId, inputs
       points,
       boards: [boardId("runner", "weekly", week), boardId("runner", "daily", dayId(new Date(now)))],
       feed: isPersonalBest
-        ? { type: "runner", text: `set a new personal best of ${result.score}`, points }
+        ? {
+            type: "runner",
+            // Names the game. Sitting next to "pet Buddy ×10", a bare "personal
+            // best of 71" reads as a number of pets.
+            text: `got ${result.score} past the rugs — a new personal best`,
+            points,
+          }
         : null,
     });
 
