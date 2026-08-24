@@ -243,6 +243,12 @@ export const api = {
 
   summary: () => request<Summary>("/summary", { auth: false }),
 
+  names: (wallets: string[]) =>
+    request<{ names: Record<string, { username: string; image: string | null }> }>(
+      `/names?wallets=${wallets.join(",")}`,
+      { auth: false },
+    ),
+
   me: () => request<Me>("/me"),
 
   challenge: (wallet: string) =>

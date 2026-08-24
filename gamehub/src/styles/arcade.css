@@ -451,6 +451,19 @@
   color: var(--text);
 }
 
+/* The pump.fun name leads; the address stays beside it, quieter, so the chip
+   still carries the identifier anyone can actually check. */
+.wallet-chip-name {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.wallet-chip-address-dim {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .wallet-chip-you {
   font-size: 9px;
   letter-spacing: 0.12em;

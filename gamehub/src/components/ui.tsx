@@ -11,6 +11,7 @@ import { RANKS, STAKING_URL, rankFor } from "../config";
 import { countdown, commas, shortAddress } from "../lib/format";
 import { navigate } from "../router";
 import { useClock } from "../lib/poll";
+import { useName } from "../lib/names";
 import { BONE_PATH } from "./buddy/poses";
 
 /* ----------------------------------------------------------------- bone */
@@ -62,12 +63,26 @@ export function WalletChip({
   you?: boolean;
   link?: boolean;
 }) {
+  // Hooks run before the early return below, so this is declared unconditionally.
+  const name = useName(address);
+
   if (!address) return <span className="muted">—</span>;
 
   const inner = (
     <>
       {rank && <span className="rank-dot" style={{ ["--rank-color" as any]: `var(--rank-${rank})` }} />}
-      <span className="wallet-chip-address">{shortAddress(address)}</span>
+      {name ? (
+        <>
+          {/* The address stays. A pump.fun username is a self-chosen label on
+              someone else's service — it can change, and it can imitate. */}
+          <span className="wallet-chip-name">{name.username}</span>
+          <span className="wallet-chip-address wallet-chip-address-dim">
+            {shortAddress(address, 4, 4)}
+          </span>
+        </>
+      ) : (
+        <span className="wallet-chip-address">{shortAddress(address)}</span>
+      )}
       {you && <span className="wallet-chip-you">you</span>}
     </>
   );

@@ -452,3 +452,19 @@ test("the public summary renders without a wallet", async () => {
   assert.ok(Array.isArray(body.feed));
   assert.ok(body.boards.fetchWeekly.startsWith("fetch:weekly:"));
 });
+
+test("the names endpoint is public and tolerates junk", async () => {
+  // Outbound lookups are disabled under the emulator, so this checks the shape
+  // and the input filtering rather than pump.fun's data.
+  const good = await call("/names?wallets=C2k9kzjnENFEb47wGcFKsxEWM42xuCuQQov8xY8euxqo");
+  assert.equal(good.status, 200);
+  assert.equal(typeof good.body.names, "object");
+
+  const junk = await call("/names?wallets=not-an-address,,%20,0OIl");
+  assert.equal(junk.status, 200);
+  assert.deepEqual(junk.body.names, {});
+
+  const empty = await call("/names");
+  assert.equal(empty.status, 200);
+  assert.deepEqual(empty.body.names, {});
+});

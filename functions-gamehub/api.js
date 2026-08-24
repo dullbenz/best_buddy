@@ -23,6 +23,7 @@ import { mountTournamentRoutes } from "./games/tournament.js";
 import { mountHuntRoutes, mountHuntPublicRoutes } from "./games/hunt.js";
 import { mountReputationRoutes, profileFor } from "./games/reputation.js";
 import { mountAdminRoutes } from "./admin.js";
+import { mountNameRoutes } from "./names.js";
 import { getStakeStatus } from "./stake.js";
 import { runDailyRollover, runWeeklyRollover } from "./jobs.js";
 
@@ -211,6 +212,7 @@ export function makeApi(cluster) {
   mountReputationRoutes(router, cluster);
   mountHuntPublicRoutes(router, cluster);
   mountPetPublicRoutes(router, cluster);
+  mountNameRoutes(router);
 
   // Everything past here needs a signed-in wallet.
   const guarded = express.Router();

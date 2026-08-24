@@ -13,6 +13,7 @@ import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adap
 
 import App from "./App";
 import { SessionProvider } from "./lib/auth";
+import { NamesProvider } from "./lib/names";
 import { RPC_URL, TEST_WALLET_ENABLED } from "./config";
 
 import "./styles/tokens.css";
@@ -31,7 +32,9 @@ function Root() {
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <SessionProvider>
-            <App />
+            <NamesProvider>
+              <App />
+            </NamesProvider>
           </SessionProvider>
         </WalletModalProvider>
       </WalletProvider>
