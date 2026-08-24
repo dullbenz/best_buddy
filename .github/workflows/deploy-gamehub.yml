@@ -139,9 +139,16 @@ jobs:
           echo "$body" | grep -q "${{ github.sha }}" || {
             echo "::warning::healthz did not report this commit yet; the function may still be rolling out."
           }
-          # The devnet-only test routes must not exist here.
+          # The devnet-only test routes must not be usable here. They are not
+          # mounted at all on the mainnet function, so the request falls through
+          # to the session gate and is answered 401 — which is the correct
+          # response and also declines to say whether the route exists. Only a
+          # 200 would mean they had shipped.
           code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$host/api/test/force-daily-rollover")
-          if [ "$code" != "404" ]; then
-            echo "::error::/api/test/* answered $code in production; it must be absent."
-            exit 1
-          fi
+          case "$code" in
+            401|403|404) echo "test routes are absent (answered $code)" ;;
+            *)
+              echo "::error::/api/test/* answered $code in production; it must not be reachable."
+              exit 1
+              ;;
+          esac
