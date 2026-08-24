@@ -83,9 +83,14 @@ setting it in a deployed environment does nothing.
 Three layers, cheapest first:
 
 ```bash
-npm run gamehub:test    # simulation fixtures + backend unit tests (no emulator)
-npm run gamehub:e2e     # the browser suite against the emulators
+npm run gamehub:test      # simulation fixtures only — pure, no emulator needed
+npm run gamehub:test:api  # the API suite, under the emulators
+npm run gamehub:e2e       # the browser suite, under the emulators
 ```
+
+The split matters: `gamehub:test` is what the deploy workflows run as a
+pre-flight, so it must not need anything running. The other two drive real HTTP
+against the Functions emulator and start it themselves.
 
 and, against the real deployment:
 
