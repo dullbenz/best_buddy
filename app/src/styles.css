@@ -2365,6 +2365,22 @@ a.prov-value {
   border-top: none;
 }
 
+/* The game hub link. Same 32px pill as its neighbours, but amber-outlined:
+   it is the one control in the header that leaves the document, and a visitor
+   who came for the games should be able to find it without reading the page. */
+.hub-btn-play {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+  /* Its siblings are <button>s; this one is an anchor, so it would otherwise
+     pick up the document's link underline and break the row. */
+  text-decoration: none;
+}
+
+.hub-btn-play:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 /* --- wallet adapter, retuned to the document palette ---------------- */
 /*
  * The library ships a purple pill on a blue-grey chrome, which is the single

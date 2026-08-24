@@ -1,0 +1,66 @@
+name: Game hub end-to-end (staging)
+
+# The full suite against the deployed devnet hub: real Cloud Functions, real
+# Firestore, real on-chain stake reads, real basic-auth gate.
+#
+# This is the gate the launch runbook waits on. The post-deploy smoke job covers
+# the handful of checks worth blocking a deploy over; this covers everything.
+on:
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: "Only run tests matching this (optional)"
+        required: false
+        default: ""
+  schedule:
+    # 06:00 UTC daily, to catch a staging environment that has rotted overnight.
+    - cron: "0 6 * * *"
+
+concurrency:
+  group: gamehub-staging-e2e
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Full end-to-end suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: (cd gamehub && npm install --legacy-peer-deps)
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: gamehub
+
+      - name: Run against staging
+        working-directory: gamehub
+        env:
+          E2E_BASE_URL: https://${{ vars.GAMEHUB_STAGING_CANONICAL_HOST || 'gamehub-staging.mybestbuddy.fun' }}
+          E2E_BASIC_USER: ${{ secrets.STAGING_USER || 'buddy' }}
+          E2E_BASIC_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+          GAMEHUB_TEST_KEY: ${{ secrets.GAMEHUB_TEST_KEY }}
+          # A devnet wallet that already holds a stake, for the perk-gate tests.
+          # Everything else signs with a throwaway key generated in the page.
+          E2E_STAKED_WALLET_SECRET: ${{ secrets.E2E_STAKED_WALLET_SECRET }}
+        run: |
+          if [ -n "${{ inputs.grep }}" ]; then
+            npx playwright test --project=staging --grep "${{ inputs.grep }}"
+          else
+            npm run e2e:staging
+          fi
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gamehub-e2e-report
+          path: gamehub/playwright-report/
+          retention-days: 14

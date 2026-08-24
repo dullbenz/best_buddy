@@ -1,0 +1,23 @@
+{
+  "name": "buddy-gamehub-functions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Game hub API, auth, and scheduled jobs for gamehub.mybestbuddy.fun",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "_comment_test": "Requires the Firebase emulators. Run via `npm run gamehub:test:api` from the repo root, which starts them; running this directly will fail with fetch errors."
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.4",
+    "bs58": "^5.0.0",
+    "express": "^4.21.1",
+    "firebase-admin": "^13.0.1",
+    "firebase-functions": "^6.1.0",
+    "tweetnacl": "^1.0.3"
+  }
+}

@@ -1,0 +1,63 @@
+/*
+ * Design tokens, copied verbatim from app/src/styles.css.
+ *
+ * The hub is a different app on a different subdomain, but it has to look like
+ * the same project — same warm charcoal, same amber, same type. Copying the
+ * token block (rather than sharing a stylesheet) is deliberate: it is forty
+ * lines, it changes almost never, and it keeps the claim site free to be edited
+ * without a game page shifting underneath it.
+ *
+ * Source of truth for the palette: app/src/styles.css.
+ */
+:root {
+  --bg: #0d0c0a;
+  --panel: #151310;
+  --panel-2: #1c1915;
+  --border: #2a2620;
+  --text: #ece5d8;
+  --muted: #948a78;
+  --accent: #ffb84d;
+  --accent-dim: #5c441d;
+  --rust: #d2764c;
+  --good: #6fcf8f;
+  --bad: #f0776b;
+  --radius: 14px;
+
+  /* System serifs only: this project ships no webfonts and the hub does not
+     get to be the exception. */
+  --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Rank colours. Defined once here so a badge, a leaderboard row and a feed
+     entry can never disagree about what "Legendary Dog" looks like. */
+  --rank-stray: #948a78;
+  --rank-puppy: #b8865f;
+  --rank-goodboy: #6fcf8f;
+  --rank-bestbuddy: #ffb84d;
+  --rank-legendary: #d2764c;
+  --rank-immortal: #f5e3b3;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f3efe6;
+    --panel: #fbf8f2;
+    --panel-2: #ece7db;
+    --border: #ddd5c6;
+    --text: #2a231a;
+    --muted: #6f6353;
+    --accent: #9a6415;
+    --accent-dim: #e6d5b4;
+    --rust: #a8542c;
+    --good: #2f7d4f;
+    --bad: #b2402f;
+
+    --rank-stray: #6f6353;
+    --rank-puppy: #8a5c33;
+    --rank-goodboy: #2f7d4f;
+    --rank-bestbuddy: #9a6415;
+    --rank-legendary: #a8542c;
+    --rank-immortal: #7a6220;
+  }
+}

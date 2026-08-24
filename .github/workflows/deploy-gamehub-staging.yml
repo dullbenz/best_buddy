@@ -1,0 +1,185 @@
+name: Deploy game hub (staging)
+
+# develop -> gamehub-staging.mybestbuddy.fun, pointed at devnet, behind basic auth.
+#
+# Separate from deploy-staging.yml on purpose. That workflow fires on every push
+# to develop with no path filter; folding the hub into it would redeploy six
+# functions and two sites every time someone tweaks the claim app, and one
+# broken pipeline would block the other.
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "gamehub/**"
+      - "functions-gamehub/**"
+      - "game-core/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - "firestore.indexes.json"
+      - ".github/workflows/deploy-gamehub-staging.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-gamehub-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy the game hub to staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          (cd gamehub && npm install --legacy-peer-deps)
+          (cd functions-gamehub && npm install)
+
+      # The server's copy of the simulations has to match the browser's exactly,
+      # or honest scores get rejected as cheating.
+      - name: Sync the shared game core
+        run: node scripts/gamehub-sync.mjs
+
+      - name: Check the simulations still agree with their fixtures
+        run: npm run gamehub:test
+
+      - name: Build against devnet
+        working-directory: gamehub
+        env:
+          VITE_CLUSTER: devnet
+          VITE_RPC_URL: ${{ vars.STAGING_RPC_URL || 'https://api.devnet.solana.com' }}
+          VITE_LOCAL_RPC_URL: https://api.devnet.solana.com
+          # NOT STAGING_PROGRAM_ID. That one is pinned to the mainnet id because
+          # the claim site throws at startup if it disagrees with its bundled
+          # IDL. The hub actually reads devnet accounts, so it needs the devnet
+          # program or every wallet looks unstaked and no perk can be tested.
+          VITE_PROGRAM_ID: ${{ vars.DEVNET_PROGRAM_ID }}
+          VITE_CANONICAL_HOST: ${{ vars.GAMEHUB_STAGING_CANONICAL_HOST || 'gamehub-staging.mybestbuddy.fun' }}
+          VITE_FIREBASE_API_KEY: ${{ vars.FIREBASE_WEB_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          # Staging ships the end-to-end wallet so Playwright can sign in against
+          # the real deployment. It stays inert unless a test injects a key, the
+          # site is behind basic auth, and it is devnet only.
+          VITE_ENABLE_TEST_WALLET: "true"
+        run: |
+          case "$VITE_RPC_URL" in
+            *devnet*|*testnet*|*localhost*) ;;
+            *)
+              echo "::error::STAGING_RPC_URL points at '$VITE_RPC_URL', which is not a devnet endpoint. Staging must never read mainnet."
+              exit 1
+              ;;
+          esac
+          npm run build
+
+      # The gate function serves the app itself, so the build has to travel
+      # inside the function bundle rather than being served by Hosting.
+      - name: Stage the build inside the auth gate
+        run: |
+          rm -rf functions-gamehub/public
+          cp -r gamehub/dist functions-gamehub/public
+          echo "staged $(find functions-gamehub/public -type f | wc -l) files"
+
+      - name: Write function environment
+        env:
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+          STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+          GAMEHUB_SERVER_RPC_URL: ${{ secrets.GAMEHUB_SERVER_RPC_URL }}
+          GAMEHUB_TEST_KEY: ${{ secrets.GAMEHUB_TEST_KEY }}
+          GAMEHUB_ADMIN_WALLETS: ${{ vars.GAMEHUB_ADMIN_WALLETS }}
+          PROGRAM_ID: ${{ vars.DEVNET_PROGRAM_ID }}
+        run: |
+          if [ -z "$STAGING_PASSWORD" ]; then
+            echo "::error::Secret STAGING_PASSWORD is not set. The gate fails closed, so staging would return 503."
+            exit 1
+          fi
+          if [ -z "$GAMEHUB_SERVER_RPC_URL" ]; then
+            echo "::error::Secret GAMEHUB_SERVER_RPC_URL is not set. Stake-gated perks would be unreadable."
+            exit 1
+          fi
+          if [ -z "$PROGRAM_ID" ]; then
+            echo "::error::Variable DEVNET_PROGRAM_ID is not set. Stake reads would target the wrong program."
+            exit 1
+          fi
+          # The backend reads the chain itself and must not be pointed at mainnet
+          # from a devnet deployment. Checked without echoing the URL: it carries
+          # an API key.
+          case "$GAMEHUB_SERVER_RPC_URL" in
+            *devnet*|*testnet*|*localhost*) ;;
+            *)
+              echo "::error::GAMEHUB_SERVER_RPC_URL (staging) is not a devnet endpoint."
+              exit 1
+              ;;
+          esac
+          {
+            printf 'STAGING_USER=%s\n' "${STAGING_USER:-buddy}"
+            printf 'STAGING_PASSWORD=%s\n' "$STAGING_PASSWORD"
+            printf 'GAMEHUB_SERVER_RPC_URL=%s\n' "$GAMEHUB_SERVER_RPC_URL"
+            printf 'GAMEHUB_PROGRAM_ID=%s\n' "$PROGRAM_ID"
+            printf 'GAMEHUB_ADMIN_WALLETS=%s\n' "$GAMEHUB_ADMIN_WALLETS"
+            printf 'GAMEHUB_TEST_KEY=%s\n' "$GAMEHUB_TEST_KEY"
+            printf 'COMMIT_SHA=%s\n' "${{ github.sha }}"
+          } > functions-gamehub/.env
+
+      - name: Authenticate to Firebase
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # Every function is named explicitly. The production instances share this
+      # project, and an unqualified deploy would overwrite them.
+      - name: Deploy hosting, gate, API and jobs
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only "hosting:gamehub-staging,functions:gamehub:gamehubApiStaging,functions:gamehub:gamehubStagingGate,functions:gamehub:gamehubPetAggregateStaging,functions:gamehub:gamehubDailyStaging,functions:gamehub:gamehubWeeklyStaging,functions:gamehub:gamehubStakeSnapshotStaging,functions:gamehub:gamehubHuntLifecycleStaging,firestore:indexes" \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" \
+            --non-interactive
+
+      - name: Scrub the credential file
+        if: always()
+        run: rm -f functions-gamehub/.env
+
+  smoke:
+    name: Smoke test the deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: (cd gamehub && npm install --legacy-peer-deps)
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: gamehub
+
+      # A staging deploy that cannot be signed into is not a deploy worth
+      # promoting, so this failing fails the run.
+      - name: Run the smoke subset
+        working-directory: gamehub
+        env:
+          E2E_BASE_URL: https://${{ vars.GAMEHUB_STAGING_CANONICAL_HOST || 'gamehub-staging.mybestbuddy.fun' }}
+          E2E_BASIC_USER: ${{ secrets.STAGING_USER || 'buddy' }}
+          E2E_BASIC_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+          GAMEHUB_TEST_KEY: ${{ secrets.GAMEHUB_TEST_KEY }}
+        run: npm run e2e:smoke
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: gamehub-smoke-report
+          path: gamehub/playwright-report/
+          retention-days: 7

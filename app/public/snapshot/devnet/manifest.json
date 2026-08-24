@@ -2,10 +2,10 @@
   "FIXTURE": "fabricated devnet test data, not a real snapshot",
   "oldTokenMint": "7MYegHoqDGhWdvrnxeuiAEndgG6qcs1N3W5v6SXspump",
   "slot": 0,
-  "takenAt": "2026-08-17T13:39:01.139Z",
+  "takenAt": "2026-08-24T09:23:10.456Z",
   "bucketTwoAllocation": "30000000000000",
   "eligibleWallets": 10,
-  "merkleRoot": "2e0d2ef0db9180673bd534e96bcf5f33cbcc49e06ea986dafb2db83b3851854e",
+  "merkleRoot": "9a936d148c8658786d55b74e4548fdd3994a2630028161188299612a11687879",
   "exclusions": [
     {
       "address": "BdUdM9wiEPa4QeZTSu38xSdRVcevFAqkmkVU5nNpn2Kj",

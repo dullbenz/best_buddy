@@ -1,7 +1,7 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useEffect, useRef, useState } from "react";
-import { CLUSTER, IS_MAINNET } from "./config";
+import { CLUSTER, GAMEHUB_URL, IS_MAINNET } from "./config";
 import { NAVIGATE_EVENT, type NavigateDetail } from "./nav";
 import { onRouteChange, parseLocation, pushRoute, replaceRoute } from "./router";
 import { Claims } from "./components/Claims";
@@ -202,6 +202,17 @@ export function App() {
 
         <div className="header-right">
           <ClusterBadge />
+          {/* Leftmost of the controls: it leaves the site, so it should not sit
+              between the wallet button and the page that button belongs to.
+              Mirrors the "← main site" pill in the hub's own header, so the two
+              read as one round trip rather than two unrelated links. */}
+          <a
+            className="hub-btn hub-btn-play"
+            href={GAMEHUB_URL}
+            title="Play fetch, pet the dog, and earn a rank"
+          >
+            Game hub ↗
+          </a>
           {/* The personal page sits beside the wallet button because they are
               about the same thing: this button is where "your wallet" lives on
               screen. Rendered only while connected; the page itself still

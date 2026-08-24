@@ -14,7 +14,15 @@
     "init": "ts-node scripts/deploy-init.ts",
     "create-dev-stream": "ts-node scripts/create-dev-stream.ts",
     "team-withdraw": "ts-node scripts/team-withdraw.ts",
-    "sign-claim": "ts-node scripts/sign-claim.ts"
+    "sign-claim": "ts-node scripts/sign-claim.ts",
+    "gamehub:sync": "node scripts/gamehub-sync.mjs",
+    "gamehub:dev": "npm --prefix gamehub run dev",
+    "gamehub:build": "npm --prefix gamehub run build",
+    "gamehub:test": "node --test \"game-core/test/**/*.test.js\"",
+    "gamehub:payout": "ts-node scripts/gamehub-payout.ts",
+    "emulators": "firebase emulators:start --only auth,functions,firestore --project demo-gamehub",
+    "gamehub:e2e": "firebase emulators:exec --only auth,functions,firestore --project demo-gamehub \"npm --prefix gamehub run e2e:local\"",
+    "gamehub:test:api": "firebase emulators:exec --only auth,functions,firestore --project demo-gamehub \"npm --prefix functions-gamehub test\""
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

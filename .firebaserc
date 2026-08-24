@@ -10,6 +10,12 @@
         ],
         "production": [
           "mybestbuddy"
+        ],
+        "gamehub": [
+          "mybestbuddy-gamehub"
+        ],
+        "gamehub-staging": [
+          "mybestbuddy-gamehub-staging"
         ]
       }
     }

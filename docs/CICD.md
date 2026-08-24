@@ -14,6 +14,9 @@ Total time: about 30 minutes. Nothing here touches mainnet or costs money.
 | `deploy-staging.yml` | push to `develop` | devnet build → `staging.mybestbuddy.fun`, behind basic auth |
 | `deploy.yml` | push to `main` touching `app/` | mainnet build → `mybestbuddy.fun` |
 | `preview.yml` | every PR touching `app/` | temporary preview URL, expires after 7 days |
+| `deploy-gamehub-staging.yml` | push to `develop` touching `gamehub/`, `functions-gamehub/`, `game-core/` | devnet build → `gamehub-staging.mybestbuddy.fun`, then a smoke suite against it |
+| `deploy-gamehub.yml` | push to `main`, same paths | mainnet build → `gamehub.mybestbuddy.fun` |
+| `gamehub-staging-e2e.yml` | manually, and nightly | the full browser suite against deployed staging |
 
 Branching, the staging auth gate and the Blaze requirement are covered in
 [ENVIRONMENTS.md](./ENVIRONMENTS.md). This file covers the Firebase and GitHub
@@ -106,8 +109,12 @@ This is the credential GitHub uses to publish. Do it in **Cloud Shell** (the
 console's own IAM form is easy to get wrong:
 
 ```bash
-P=influential-bit-411408; SA=github-deploy@$P.iam.gserviceaccount.com; gcloud iam service-accounts create github-deploy --display-name="GitHub Actions deploy" --project=$P; for R in firebase.admin cloudfunctions.admin iam.serviceAccountUser artifactregistry.admin run.admin cloudbuild.builds.editor; do gcloud projects add-iam-policy-binding $P --member="serviceAccount:$SA" --role="roles/$R" --condition=None -q >/dev/null; done; gcloud iam service-accounts keys create ~/sa-key.json --iam-account=$SA && cloudshell download ~/sa-key.json
-```
+P=influential-bit-411408; SA=github-deploy@$P.iam.gserviceaccount.com; gcloud iam service-accounts create github-deploy --display-name="GitHub Actions deploy" --project=$P; for R in firebase.admin cloudfunctions.admin iam.serviceAccountUser artifactregistry.admin run.admin cloudbuild.builds.editor cloudscheduler.admin; do gcloud projects add-iam-policy-binding $P --member="serviceAccount:$SA" --role="roles/$R" --condition=None -q >/dev/null; done; gcloud iam service-accounts keys create ~/sa-key.json --iam-account=$SA && cloudshell download ~/sa-key.json
+`cloudscheduler.admin` is the one that is easy to miss, and it fails late: the
+functions themselves deploy fine and only the scheduled ones fall over, with a
+403 on `cloudscheduler.jobs.update`. The game hub's five jobs need it. It was
+added after the fact on 2026-08-24; a service account created before then will
+not have it.```
 
 Then, locally:
 
@@ -144,9 +151,13 @@ action instead — see [ENVIRONMENTS.md](./ENVIRONMENTS.md) §2.
 
 Under **Secrets** (encrypted, never printed in logs):
 
-| Name | Value |
-|---|---|
-| `FIREBASE_SERVICE_ACCOUNT` | the full service-account JSON |
+| Name | Value | Scope |
+|---|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | the full service-account JSON | both |
+| `STAGING_USER` / `STAGING_PASSWORD` | the basic-auth credentials for both staging sites | staging |
+| `GAMEHUB_SERVER_RPC_URL` | the game hub backend's own RPC endpoint — see the note below | both, different values |
+| `GAMEHUB_TEST_KEY` | guards the devnet-only `/api/test/*` routes | staging |
+| `E2E_STAKED_WALLET_SECRET` | base58 devnet keypair holding a stake, for the perk-gate tests | staging |
 
 Under **Variables** (visible in logs — never put a secret here):
 
@@ -156,6 +167,11 @@ Under **Variables** (visible in logs — never put a secret here):
 | `VITE_RPC_URL` | your Helius/Triton RPC URL, used whenever the page is served from a real domain |
 | `STAGING_RPC_URL` | the same key against `devnet.helius-rpc.com`, so staging exercises the real endpoint rather than the public one |
 | `VITE_PROGRAM_ID` | `6gXQUJ8WQWZjhvNWPqDNMYk185hQyZyn3yTEAwkx6qHM` (mainnet) |
+| `FIREBASE_WEB_API_KEY` | the Firebase **web** API key — public by design; it identifies the project and authorises nothing |
+| `GAMEHUB_ADMIN_WALLETS` | comma-separated wallets allowed to reach `/api/admin/*` |
+| `GAMEHUB_STAGING_PROGRAM_ID` | the **devnet** distributor program — see the note below |
+| `GAMEHUB_CANONICAL_HOST` | `gamehub.mybestbuddy.fun` |
+| `GAMEHUB_STAGING_CANONICAL_HOST` | `gamehub-staging.mybestbuddy.fun` |
 
 > **On `VITE_RPC_URL`:** anything in a frontend build is public by definition —
 > anyone can read the key out of the JavaScript bundle. That is normal and
@@ -163,7 +179,8 @@ Under **Variables** (visible in logs — never put a secret here):
 >
 > Done, for this project: Helius → RPCs → **RPC Access Control Rules** →
 > Allowed Domains is `mybestbuddy.fun`, `www.mybestbuddy.fun`,
-> `staging.mybestbuddy.fun` and the ngrok dev domain. Any other Origin, and any
+> `staging.mybestbuddy.fun`, `gamehub.mybestbuddy.fun`,
+> `gamehub-staging.mybestbuddy.fun` and the ngrok dev domain. Any other Origin, and any
 > request with no Origin at all, gets `Forbidden`. Verify in one line:
 >
 > ```bash
@@ -172,6 +189,29 @@ Under **Variables** (visible in logs — never put a secret here):
 >
 > That must print `Forbidden`. If it prints `ok`, the lock is off and the key is
 > free for anyone to spend.
+
+> **On `GAMEHUB_SERVER_RPC_URL`:** this is the opposite case, and the distinction
+> matters. The game hub's backend reads stake accounts from a Cloud Function, and
+> a request from a server carries no Origin at all — which the lock above rejects.
+> So the backend needs a **second key with no domain restriction**, and because
+> nothing else protects it, that one is a real secret. It lives only in GitHub
+> Secrets and in the function's deploy-time `.env`, and it must never be given a
+> `VITE_` name, because that would compile it into the public bundle.
+>
+> Both deploy workflows check it points at the right chain before deploying,
+> without echoing it.
+
+> **On `GAMEHUB_STAGING_PROGRAM_ID`:** it exists because `STAGING_PROGRAM_ID`
+> cannot be reused. That variable is pinned to the **mainnet** id, and has to be:
+> `app/src/config.ts` throws at startup if `VITE_PROGRAM_ID` disagrees with the
+> IDL bundled into the claim site, and the bundled IDL is the mainnet one. The
+> claim site can live with that because staging only ever reads accounts that do
+> not exist.
+>
+> The game hub cannot. It reads real stake positions to decide who gets Golden
+> Bone, Super Pet and extra shovels, so pointing it at the mainnet program while
+> talking to devnet would make every wallet look unstaked and no perk would ever
+> be testable. This variable holds the devnet program instead.
 
 ### What the access controls can and cannot do
 
@@ -188,12 +228,23 @@ list — which is every real user.
 Two limits worth knowing, both established by testing rather than from the
 docs:
 
-- **Allowed Domains is not enforced on the devnet endpoint.** The rules are
-  shared across networks in the dashboard, but `devnet.helius-rpc.com` answers
-  any Origin, and answers requests with no Origin header at all. Only
-  `mainnet.helius-rpc.com` enforces. Treat the key as public on devnet and
-  assume anyone can spend credits against it there; the mainnet lock is the one
-  that matters, and it does work.
+- **Allowed Domains IS enforced on devnet.** This entry previously said the
+  opposite; re-tested on 2026-08-24, `devnet.helius-rpc.com` rejects any
+  non-allowlisted Origin and any request with no Origin header, exactly as
+  mainnet does. Both locks work.
+
+  Two traps in testing this. `getHealth` answers *without* checking the
+  allowlist, so probing with it suggests the key is wide open when it is not —
+  use `getSlot` or an account read. And the two networks report a rejection
+  differently: mainnet returns the bare string `Forbidden`, devnet returns a
+  JSON-RPC error `-32401 Unauthorized`, which reads like a dead or wrong key
+  rather than a blocked Origin.
+
+  The practical consequence is that **no server-side caller can use this key**,
+  because a request from a server carries no Origin at all. That is what
+  `GAMEHUB_SERVER_RPC_URL` exists for. Note also that an Origin header is
+  trivially forged by anything that is not a browser, so this lock stops casual
+  reuse of a key lifted from the bundle — it is not a security boundary.
 - **`localhost` is rejected as an allowlist entry** — the dashboard says so
   explicitly. That is why the app picks its RPC by hostname at runtime
   (`VITE_RPC_URL` for real domains, `VITE_LOCAL_RPC_URL` for localhost) instead

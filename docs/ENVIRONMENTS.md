@@ -1,6 +1,8 @@
 # Environments and branching
 
-Two environments, two branches, and one rule that keeps them apart.
+Two branches, four sites, and one rule that keeps them apart.
+
+The claim site:
 
 | | Staging | Production |
 |---|---|---|
@@ -11,11 +13,45 @@ Two environments, two branches, and one rule that keeps them apart.
 | Indexed | never (`X-Robots-Tag: noindex`) | yes |
 | Workflow | `deploy-staging.yml` | `deploy.yml` |
 
+The game hub ([GAMEHUB.md](./GAMEHUB.md)):
+
+| | Staging | Production |
+|---|---|---|
+| Branch | `develop` | `main` |
+| URL | `gamehub-staging.mybestbuddy.fun` | `gamehub.mybestbuddy.fun` |
+| Chain | **devnet** | **mainnet** |
+| Access | basic auth (same credentials) | public |
+| Indexed | never | yes |
+| Workflow | `deploy-gamehub-staging.yml` | `deploy-gamehub.yml` |
+
+The hub's workflows carry path filters, so a change to the claim app does not
+redeploy the games and vice versa.
+
 **The rule: staging never reads mainnet, production never reads devnet.** Both
 pipelines enforce it and fail the build rather than shipping a site pointed at
 the wrong chain. A devnet build quietly serving real balances — or worse, a
 mainnet build offered as a safe place to click around — is the failure mode
 worth spending CI checks on.
+
+### The game hub shares this gate
+
+`gamehub-staging.mybestbuddy.fun` is protected the same way, by its own
+`gamehubStagingGate` function serving its own bundle, using the same
+`STAGING_USER` / `STAGING_PASSWORD`. Two gates rather than one because each
+serves a different build — sharing a function would mean a game hub deploy could
+ship whichever claim-site build happened to be lying around.
+
+Verify a hub deploy the same way:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://gamehub-staging.mybestbuddy.fun          # 401
+curl -sS -o /dev/null -w '%{http_code}\n' -u buddy:<password> https://gamehub-staging.mybestbuddy.fun   # 200
+curl -sS -u buddy:<password> https://gamehub-staging.mybestbuddy.fun/api/healthz            # {"cluster":"devnet",...}
+```
+
+`/api/**` is rewritten ahead of the gate, so the hub's API is reachable without
+basic auth and is protected by its own wallet sign-in instead. That is deliberate:
+the end-to-end suite and the browser both talk to it the same way.
 
 ---
 

@@ -1,0 +1,11 @@
+{
+  "name": "buddy-game-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic game simulations shared byte-for-byte by the game hub client and the server that validates its scores.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

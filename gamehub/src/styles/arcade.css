@@ -1,0 +1,1035 @@
+/*
+ * The arcade layer: Buddy, game frames, badges, podiums, celebrations.
+ *
+ * The chrome stays as sober as the claim site. This is where the hub is allowed
+ * to be loud, and only at the moments that earn it — a perfect catch, a rank
+ * up, a community milestone. Everything animated here is switched off wholesale
+ * by prefers-reduced-motion at the bottom of the file.
+ */
+
+/* ------------------------------------------------------------------ buddy */
+
+.buddy {
+  overflow: visible;
+}
+
+.buddy path,
+.buddy circle {
+  transform-box: fill-box;
+}
+
+.buddy .buddy-body,
+.buddy .buddy-legs-front path,
+.buddy .buddy-legs-back path,
+.buddy .buddy-tail path,
+.buddy .buddy-ear path {
+  fill: var(--rust);
+  stroke: color-mix(in srgb, var(--rust) 60%, #000);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.buddy .buddy-legs-back path {
+  fill: color-mix(in srgb, var(--rust) 78%, #000);
+}
+
+.buddy .buddy-ear path {
+  fill: color-mix(in srgb, var(--rust) 72%, #000);
+}
+
+.buddy .buddy-snout {
+  fill: color-mix(in srgb, var(--text) 88%, var(--rust));
+}
+
+.buddy .buddy-eye {
+  fill: #17130a;
+}
+
+.buddy .buddy-collar {
+  fill: var(--accent);
+}
+
+.buddy-golden .buddy-collar,
+.buddy-golden .face-nose {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* Idle: a slow breath and an occasional tail sway. */
+.buddy-idle .buddy-tail {
+  transform-origin: 24px 48px;
+  animation: tail-sway 2.4s ease-in-out infinite;
+}
+
+.buddy-run .buddy-legs-front {
+  transform-origin: 60px 70px;
+  animation: leg-cycle 0.26s linear infinite;
+}
+
+.buddy-run .buddy-legs-back {
+  transform-origin: 45px 70px;
+  animation: leg-cycle 0.26s linear infinite reverse;
+}
+
+.buddy-run .buddy-tail {
+  transform-origin: 24px 48px;
+  animation: tail-sway 0.4s ease-in-out infinite;
+}
+
+.buddy-run .buddy-ear {
+  transform-origin: 74px 24px;
+  animation: ear-flap 0.32s ease-in-out infinite;
+}
+
+.buddy-jump {
+  transform: rotate(-12deg);
+}
+
+.buddy-jump .buddy-legs-front,
+.buddy-jump .buddy-legs-back {
+  transform: translateY(-3px) rotate(-14deg);
+}
+
+.buddy-slide {
+  transform: rotate(6deg) scaleY(0.72);
+  transform-origin: 50% 88px;
+}
+
+.buddy-catch {
+  transform: rotate(-20deg) translateY(-6px);
+}
+
+.buddy-miss .buddy-ear,
+.buddy-defeat .buddy-ear {
+  transform: rotate(28deg);
+  transform-origin: 74px 24px;
+}
+
+.buddy-miss .buddy-tail,
+.buddy-defeat .buddy-tail {
+  transform: rotate(26deg);
+  transform-origin: 24px 48px;
+}
+
+.buddy-victory {
+  animation: victory-bounce 0.5s ease-in-out infinite;
+}
+
+.buddy-victory .buddy-tail {
+  transform-origin: 24px 48px;
+  animation: tail-helicopter 0.22s linear infinite;
+}
+
+.buddy-dig .buddy-legs-front {
+  transform-origin: 60px 70px;
+  animation: dig-scratch 0.18s ease-in-out infinite;
+}
+
+@keyframes tail-sway {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(16deg); }
+}
+
+@keyframes tail-helicopter {
+  0% { transform: rotate(-24deg); }
+  50% { transform: rotate(24deg); }
+  100% { transform: rotate(-24deg); }
+}
+
+@keyframes leg-cycle {
+  0% { transform: rotate(-18deg); }
+  50% { transform: rotate(18deg); }
+  100% { transform: rotate(-18deg); }
+}
+
+@keyframes ear-flap {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(10deg); }
+}
+
+@keyframes victory-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes dig-scratch {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  50% { transform: translateX(-3px) rotate(-16deg); }
+}
+
+/* ------------------------------------------------------- buddy, front view */
+
+/* Round the focus ring: the shared square outline drew a hard box tight around
+   Buddy's head and read as the artwork being cropped. */
+.pet-zone button:focus-visible {
+  outline-offset: 8px;
+  border-radius: 999px;
+}
+
+.buddy-face {
+  display: block;
+  overflow: visible;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.buddy-face path {
+  transform-box: fill-box;
+}
+
+.face-head {
+  fill: var(--rust);
+  stroke: color-mix(in srgb, var(--rust) 55%, #000);
+  stroke-width: 1.6;
+}
+
+.face-patch {
+  fill: color-mix(in srgb, var(--rust) 74%, #000);
+}
+
+.face-ear path {
+  fill: color-mix(in srgb, var(--rust) 70%, #000);
+  stroke: color-mix(in srgb, var(--rust) 50%, #000);
+  stroke-width: 1.4;
+}
+
+.face-ear-left {
+  transform-origin: 24px 24px;
+  animation: ear-twitch-left 6s ease-in-out infinite;
+}
+
+.face-ear-right {
+  transform-origin: 76px 24px;
+  animation: ear-twitch-right 7.3s ease-in-out infinite;
+}
+
+.face-muzzle {
+  fill: color-mix(in srgb, var(--text) 86%, var(--rust));
+}
+
+.face-nose {
+  fill: #17130a;
+}
+
+.face-eye {
+  fill: #17130a;
+  transform-origin: center;
+  animation: blink 5.5s ease-in-out infinite;
+}
+
+.face-tongue {
+  fill: #e8737f;
+  /* Percentages, not pixels: `transform-box: fill-box` above measures the
+     origin from this path's own bounding box, so a user-space coordinate like
+     "50px 66px" lands far below the chin and the tongue floats off the face. */
+  transform-origin: 50% 0%;
+  /* Rises with the happiness value the page passes in. */
+  transform: scaleY(calc(0.25 + var(--happy, 0) * 0.75));
+  opacity: calc(0.25 + var(--happy, 0) * 0.75);
+  transition: transform 180ms ease-out, opacity 180ms ease-out;
+}
+
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+@keyframes ear-twitch-left {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  92% { transform: rotate(-12deg); }
+}
+
+@keyframes ear-twitch-right {
+  0%, 90%, 100% { transform: rotate(0deg); }
+  94% { transform: rotate(12deg); }
+}
+
+/* -------------------------------------------------------------- game shell */
+
+.game-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.game-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-bar h1 {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin: 0;
+  margin-right: auto;
+}
+
+.icon-btn {
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.icon-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.hud {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hud-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  min-width: 74px;
+}
+
+.hud-item .label {
+  font-size: 9px;
+}
+
+.hud-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stage {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.stage-note {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Daily throw pips. */
+.pips {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+}
+
+.pip-used {
+  background: var(--accent);
+}
+
+/* --------------------------------------------------------------- verdicts */
+
+.verdict {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.verdict span {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(34px, 9vw, 62px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  animation: stamp 420ms cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.verdict-perfect span { color: var(--accent); text-shadow: 0 0 24px var(--accent-dim); }
+.verdict-good span { color: var(--good); }
+.verdict-okay span { color: var(--muted); }
+.verdict-miss span { color: var(--rust); }
+
+@keyframes stamp {
+  0% { transform: scale(1.9) rotate(-9deg); opacity: 0; }
+  60% { transform: scale(0.94) rotate(-3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-3deg); opacity: 1; }
+}
+
+/* ------------------------------------------------------------ rank badges */
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--rank-color, var(--muted));
+  background: var(--panel-2);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rank-color, var(--muted));
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+.rank-badge svg {
+  fill: var(--rank-color, var(--muted));
+  flex: none;
+}
+
+.rank-badge-lg {
+  font-size: 12px;
+  padding: 6px 16px 6px 10px;
+  gap: 9px;
+}
+
+.rank-immortal {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--rank-immortal) 40%, transparent);
+}
+
+.rank-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--rank-color, var(--muted));
+  flex: none;
+}
+
+/* --------------------------------------------------------- wallet chips */
+
+.wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.wallet-chip:hover .wallet-chip-address {
+  color: var(--accent);
+}
+
+.wallet-chip-address {
+  color: var(--text);
+}
+
+/* The pump.fun name leads; the address stays beside it, quieter, so the chip
+   still carries the identifier anyone can actually check. */
+.wallet-chip-name {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.wallet-chip-address-dim {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.wallet-chip-you {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+/* --------------------------------------------------------------- podium */
+
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.podium-slot {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.podium-1 {
+  border-color: var(--accent);
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.podium-2 { border-color: color-mix(in srgb, var(--text) 35%, var(--border)); }
+.podium-3 { border-color: var(--rust); }
+
+.podium-place {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.podium-1 .podium-place { color: var(--accent); font-size: 30px; }
+.podium-3 .podium-place { color: var(--rust); }
+
+/* --------------------------------------------------------- game cards */
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.game-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+
+.game-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.game-card-art {
+  height: 76px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
+}
+
+.game-card h3 {
+  font-family: var(--serif);
+  font-size: 19px;
+  margin: 0;
+}
+
+.game-card p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+  flex: 1;
+}
+
+.game-card-stat {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-dim);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------- prize banner */
+
+.prize-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.prize-banner:hover {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+.prize-banner-urgent {
+  border-left-color: var(--rust);
+}
+
+/* --------------------------------------------------------- points delta */
+
+.points-delta {
+  position: absolute;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+  pointer-events: none;
+  animation: float-up 900ms ease-out forwards;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes float-up {
+  0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+  20% { transform: translate(-50%, -8px) scale(1.1); opacity: 1; }
+  100% { transform: translate(-50%, -64px) scale(1); opacity: 0; }
+}
+
+/* ------------------------------------------------------------- particles */
+
+.heart {
+  position: absolute;
+  pointer-events: none;
+  animation: heart-rise 1100ms ease-out forwards;
+}
+
+@keyframes heart-rise {
+  0% { transform: translate(-50%, 0) scale(0.4) rotate(var(--spin, 0deg)); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--drift, 0px)), -90px) scale(1) rotate(var(--spin, 0deg)); opacity: 0; }
+}
+
+/* --------------------------------------------------------- cooldown ring */
+
+.pet-zone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  /* Shrink to Buddy. As a full-width grid container the staker ring below drew
+     a stadium around the entire stage instead of a halo around the dog. */
+  width: fit-content;
+  margin-inline: auto;
+}
+
+.cooldown-ring {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: rotate(-90deg);
+}
+
+.cooldown-ring circle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 0.65;
+  stroke-linecap: round;
+}
+
+.pet-zone-golden::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------- milestone bar */
+
+.milestone-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.milestone-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  transition: width 600ms ease-out;
+}
+
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--rank-color, var(--accent));
+  transition: width 400ms ease-out;
+}
+
+/* ------------------------------------------------------------ celebration */
+
+.celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(2px);
+  animation: fade-in 220ms ease-out;
+}
+
+.celebration-card {
+  text-align: center;
+  padding: 32px 40px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  max-width: 90vw;
+}
+
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 12px;
+  animation: confetti-fall 1600ms ease-in forwards;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(90vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ------------------------------------------------------------- perk lock */
+
+.perk-lock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  font-size: 13px;
+}
+
+.perk-lock strong {
+  color: var(--accent);
+}
+
+.perk-lock a {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* -------------------------------------------------------------- feed */
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.feed li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  animation: feed-in 240ms ease-out;
+}
+
+.feed li:last-child {
+  border-bottom: 0;
+}
+
+.feed-text {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "×7" after a collapsed run of identical events. */
+.feed-run {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  margin-left: 6px;
+}
+
+.feed-points {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+@keyframes feed-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ------------------------------------------------------------ empty state */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 20px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.empty .label {
+  letter-spacing: 0.18em;
+}
+
+.loading-caption::after {
+  content: "…";
+  animation: ellipsis 1.4s steps(4, end) infinite;
+}
+
+@keyframes ellipsis {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+}
+
+/* ----------------------------------------------------------- hunt bones */
+
+.hidden-bone {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0.16;
+  transition: opacity 200ms ease, transform 200ms ease;
+  line-height: 0;
+}
+
+.hidden-bone:hover,
+.hidden-bone:focus-visible {
+  opacity: 1;
+  transform: rotate(-12deg) scale(1.15);
+}
+
+.hidden-bone svg {
+  fill: var(--accent);
+}
+
+.clue-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.clue-card-found {
+  border-color: var(--good);
+}
+
+.clue-riddle {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+}
+
+.shovels {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.shovel {
+  font-size: 15px;
+  filter: grayscale(1);
+  opacity: 0.3;
+}
+
+.shovel-ready {
+  filter: none;
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------- runner */
+
+.runner-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+}
+
+.runner-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: space-between;
+  padding: 0 12px;
+  pointer-events: none;
+}
+
+.runner-controls button {
+  pointer-events: auto;
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel-2) 82%, transparent);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .runner-controls {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------ streak */
+
+.streak-flame {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.streak-warning {
+  color: var(--rust);
+}
+
+/* ------------------------------------------------------------ banners */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--accent-dim);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-size: 13.5px;
+}
+
+.banner-bad {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+
+.banner button {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .game-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .podium {
+    gap: 6px;
+  }
+}
+
+/* ------------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .buddy *,
+  .buddy-face *,
+  .points-delta,
+  .heart,
+  .confetti,
+  .feed li,
+  .verdict span,
+  .celebration {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .game-card:hover {
+    transform: none;
+  }
+
+  /* The information still has to arrive, it just arrives without motion. */
+  .points-delta {
+    opacity: 1;
+    animation: none;
+  }
+
+  .heart,
+  .confetti {
+    display: none;
+  }
+}

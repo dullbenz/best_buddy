@@ -1,0 +1,147 @@
+name: Deploy game hub (production)
+
+# main -> gamehub.mybestbuddy.fun, pointed at mainnet, public.
+#
+# Mirrors deploy.yml's posture: every function named explicitly so a hub deploy
+# can never touch the claim site's `terms` or either staging gate, and a build
+# that looks like it is reading the wrong chain fails rather than ships.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gamehub/**"
+      - "functions-gamehub/**"
+      - "game-core/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - "firestore.indexes.json"
+      - ".github/workflows/deploy-gamehub.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-gamehub-production
+  # Never cancel a production deploy mid-flight.
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy the game hub to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          (cd gamehub && npm install --legacy-peer-deps)
+          (cd functions-gamehub && npm install)
+
+      - name: Sync the shared game core
+        run: node scripts/gamehub-sync.mjs
+
+      - name: Check the simulations still agree with their fixtures
+        run: npm run gamehub:test
+
+      - name: Build against mainnet
+        working-directory: gamehub
+        env:
+          VITE_CLUSTER: mainnet-beta
+          VITE_RPC_URL: ${{ vars.VITE_RPC_URL }}
+          VITE_PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID }}
+          VITE_CANONICAL_HOST: ${{ vars.GAMEHUB_CANONICAL_HOST || 'gamehub.mybestbuddy.fun' }}
+          VITE_FIREBASE_API_KEY: ${{ vars.FIREBASE_WEB_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          # Deliberately unset: see the purity guard below.
+        run: |
+          if [ -z "$VITE_RPC_URL" ]; then
+            echo "::error::Variable VITE_RPC_URL is not set. Production must not fall back to a public endpoint."
+            exit 1
+          fi
+          case "$VITE_RPC_URL" in
+            *devnet*|*testnet*|*localhost*)
+              echo "::error::VITE_RPC_URL points at a test endpoint. Production must read mainnet."
+              exit 1
+              ;;
+          esac
+          npm run build
+
+      # The end-to-end wallet can sign for any account in the page. It is
+      # compiled in only when VITE_ENABLE_TEST_WALLET is set at build time, which
+      # this workflow never does — this proves it.
+      - name: Refuse to ship the test wallet
+        run: |
+          if grep -rl "TEST_WALLET_ADAPTER" gamehub/dist/ 2>/dev/null; then
+            echo "::error::The end-to-end test wallet is present in a production build. Refusing to deploy."
+            exit 1
+          fi
+          echo "production bundle is clean"
+
+      - name: Write function environment
+        env:
+          GAMEHUB_SERVER_RPC_URL: ${{ secrets.GAMEHUB_SERVER_RPC_URL }}
+          GAMEHUB_ADMIN_WALLETS: ${{ vars.GAMEHUB_ADMIN_WALLETS }}
+          PROGRAM_ID: ${{ vars.VITE_PROGRAM_ID }}
+        run: |
+          if [ -z "$GAMEHUB_SERVER_RPC_URL" ]; then
+            echo "::error::Secret GAMEHUB_SERVER_RPC_URL is not set. Stake-gated perks would be unreadable."
+            exit 1
+          fi
+          case "$GAMEHUB_SERVER_RPC_URL" in
+            *devnet*|*testnet*|*localhost*)
+              echo "::error::GAMEHUB_SERVER_RPC_URL (production) points at a test endpoint."
+              exit 1
+              ;;
+          esac
+          # No GAMEHUB_TEST_KEY here: the /api/test/* routes are only mounted on
+          # the devnet function, and without a key they 404 regardless.
+          {
+            printf 'GAMEHUB_SERVER_RPC_URL=%s\n' "$GAMEHUB_SERVER_RPC_URL"
+            printf 'GAMEHUB_PROGRAM_ID=%s\n' "$PROGRAM_ID"
+            printf 'GAMEHUB_ADMIN_WALLETS=%s\n' "$GAMEHUB_ADMIN_WALLETS"
+            printf 'COMMIT_SHA=%s\n' "${{ github.sha }}"
+          } > functions-gamehub/.env
+
+      - name: Authenticate to Firebase
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # The staging instances are excluded by name, exactly as deploy.yml
+      # excludes stagingGate.
+      - name: Deploy hosting, API and jobs
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only "hosting:gamehub,functions:gamehub:gamehubApi,functions:gamehub:gamehubPetAggregate,functions:gamehub:gamehubDaily,functions:gamehub:gamehubWeekly,functions:gamehub:gamehubStakeSnapshot,functions:gamehub:gamehubHuntLifecycle,firestore:indexes" \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" \
+            --non-interactive
+
+      - name: Scrub the credential file
+        if: always()
+        run: rm -f functions-gamehub/.env
+
+      - name: Verify what went live
+        run: |
+          host="https://${{ vars.GAMEHUB_CANONICAL_HOST || 'gamehub.mybestbuddy.fun' }}"
+          echo "checking $host/api/healthz"
+          body=$(curl -fsS "$host/api/healthz")
+          echo "$body"
+          echo "$body" | grep -q '"cluster":"mainnet-beta"' || {
+            echo "::error::The deployed API is not reporting mainnet."
+            exit 1
+          }
+          echo "$body" | grep -q "${{ github.sha }}" || {
+            echo "::warning::healthz did not report this commit yet; the function may still be rolling out."
+          }
+          # The devnet-only test routes must not exist here.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$host/api/test/force-daily-rollover")
+          if [ "$code" != "404" ]; then
+            echo "::error::/api/test/* answered $code in production; it must be absent."
+            exit 1
+          fi

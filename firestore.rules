@@ -1,14 +1,48 @@
 rules_version = '2';
 
-// No client touches this database directly.
+// Writes are function-only. Reads are closed by default, and opened by name.
 //
 // The influencer register is written only by the `terms` Cloud Function, which
 // verifies an ed25519 signature before storing anything, and read only through
 // that same function's GET endpoint. The Admin SDK bypasses these rules, so
 // closing the client door costs nothing and removes an entire class of
 // tampering: nobody can insert, edit or delete a row from a browser.
+//
+// The game hub adds the one exception: a short list of collections the hub
+// reads live from the browser, so the pet counter, the activity feed and the
+// leaderboards update without polling a function. Every one of them is already
+// public information, and every one of them is still written only by the hub's
+// own functions. Anything not named here — the hunt answer key, per-player
+// state, sign-in nonces, stake caches, rate-limit counters — stays unreadable.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    match /gamehub/{cluster} {
+      // Tunable game config: point values, milestones, prize table.
+      allow read: if true;
+
+      // Rank, points and badges, shown next to wallets all over the hub.
+      match /profiles/{wallet} { allow read: if true; }
+
+      // The global pet counter, sharded, summed in the browser.
+      match /petShards/{shard} { allow read: if true; }
+      match /counters/{counter} { allow read: if true; }
+
+      // The live activity feed.
+      match /feed/{event} { allow read: if true; }
+
+      // Hunt clues and how many claims are left. The answers live in
+      // huntsPrivate, which no rule below opens.
+      match /hunts/{hunt} { allow read: if true; }
+
+      // Leaderboards and their sealed final standings.
+      match /leaderboardMeta/{board} { allow read: if true; }
+      match /leaderboards/{board}/entries/{wallet} { allow read: if true; }
+
+      // Published payout receipts.
+      match /payouts/{cycle} { allow read: if true; }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -12,5 +12,10 @@ Pointing staging at an empty directory means no request can ever match a static
 file, so all of them fall through to the `stagingGate` function, which checks
 credentials and then serves its own bundled copy of the build.
 
+The game hub's staging site (`gamehub-staging.mybestbuddy.fun`) points here too,
+for the same reason — it falls through to `gamehubStagingGate`, which serves the
+hub's own bundle. One empty directory is enough for both: the whole point is
+that it contains nothing.
+
 This README is excluded from the deploy by the `**/*.md` ignore rule in
 `firebase.json`, so the deployed directory really does contain zero files.
