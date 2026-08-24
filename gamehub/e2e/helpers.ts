@@ -70,8 +70,21 @@ export async function connect(page: Page) {
  */
 export async function signIn(page: Page) {
   await connect(page);
-  await page.getByRole("button", { name: /^sign in$/i }).first().click();
-  await expect(page.locator("header .rank-badge")).toBeVisible({ timeout: 25_000 });
+
+  const button = page.getByRole("button", { name: /^sign in$/i }).first();
+  await button.click();
+
+  // Against a deployed environment the first call of the day pays a cold start
+  // on both the API and Firebase Auth, and the click can land before the
+  // handler is wired. Retry the click while waiting rather than failing the
+  // whole suite on a slow first request; a genuinely broken sign-in still fails,
+  // it just takes the full timeout to say so.
+  await expect(async () => {
+    if (await button.isVisible().catch(() => false)) {
+      await button.click({ timeout: 5_000 }).catch(() => {});
+    }
+    await expect(page.locator("header .rank-badge")).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 60_000 });
 }
 
 /** The devnet-only test routes, for rolling time forward. */
