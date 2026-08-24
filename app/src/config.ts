@@ -134,6 +134,17 @@ export const CLUSTER: Cluster =
 
 export const IS_MAINNET = CLUSTER === "mainnet";
 
+/**
+ * The game hub, which is its own app on its own subdomain.
+ *
+ * Cluster-scoped for the same reason the proof paths are: a devnet build must
+ * never link somewhere that keeps a real leaderboard, or a staging click would
+ * write points against the live pack.
+ */
+export const GAMEHUB_URL = IS_MAINNET
+  ? "https://gamehub.mybestbuddy.fun"
+  : "https://gamehub-staging.mybestbuddy.fun";
+
 /** Solscan needs an explicit cluster for anything that is not mainnet. */
 const clusterQuery = IS_MAINNET ? "" : `?cluster=${CLUSTER}`;
 

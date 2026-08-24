@@ -8,6 +8,7 @@ import {
   SEEDS,
   btcTxUrl,
   pda,
+  GAMEHUB_URL,
 } from "../config";
 import { countdown, fmtAmount, fmtTokens } from "../format";
 import { useDistributor, useStream } from "../useDistributor";
@@ -716,6 +717,51 @@ export function Landing({
       </Section>
 
       {/* ---- disclosure ------------------------------------------ */}
+      {/* Deliberately the second-to-last section. The disclosure below it is
+          the note the page should end on, and a games pitch is not allowed to
+          bury it. */}
+      <Section
+        label="Game hub"
+        title="There is also a dog to play with"
+        intro="Everything above is the serious half. The other half is a good boy who wants you to throw something."
+      >
+        <p>
+          <a href={GAMEHUB_URL}>gamehub.mybestbuddy.fun</a> has six games: throw
+          a ball for Buddy, pet him, hunt for bones hidden in this site's own
+          history, outrun the rugs, and challenge someone to a match. Playing
+          earns Good Boy Points and a rank, from Stray up to Immortal Dog.
+        </p>
+
+        <ol className="l-index l-index-tight">
+          <IndexRow
+            when="Free"
+            title="Every game is playable without connecting anything."
+            body="Connect a wallet only when you want a score to count. Signing in costs one signature, moves no funds, and pays no fee."
+          />
+          <IndexRow
+            when="Off chain"
+            title="Points are a scoreboard, not a token."
+            body="They are kept in an ordinary database. They are not a coin, they are not tradeable, and they are not a claim on anything. The contract above does not know they exist."
+          />
+          <IndexRow
+            when="Prizes"
+            title="Paid by hand from the team vault, with receipts."
+            body="Each week's leaderboards are frozen and the winners published before anyone is paid. Payment goes through the same 2-of-3 multisig as everything else, and every prize row on the hub links to the transaction that settled it. There is no automatic payout and no hot wallet holding a prize pool."
+          />
+          <IndexRow
+            when="Staking"
+            title="Staking unlocks the extras."
+            body="A live stake turns on the Golden Bone, the Super Pet and a couple more shovels for the bone hunt. The hub reads that from the chain; it is the same stake as the one on this site."
+          />
+        </ol>
+
+        <div className="l-actions">
+          <a className="l-btn l-btn-solid" href={GAMEHUB_URL}>
+            Open the game hub
+          </a>
+        </div>
+      </Section>
+
       <Section
         label="Disclosure"
         title="What we're not going to pretend"

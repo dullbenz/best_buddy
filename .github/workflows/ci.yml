@@ -160,3 +160,117 @@ jobs:
               || { echo "::error::$f is not valid JSON"; exit 1; }
           done
           echo "Proof files parse cleanly."
+
+  gamehub:
+    name: Game hub build and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          (cd gamehub && npm install --legacy-peer-deps)
+          (cd functions-gamehub && npm install)
+
+      - name: Sync the shared game core
+        run: node scripts/gamehub-sync.mjs
+
+      # The client and the server run the same simulations. If a change moves a
+      # fixture, rounds already issued to players would replay to a different
+      # score than the one they watched.
+      - name: Simulation fixtures
+        run: node --test "game-core/test/**/*.test.js"
+
+      - name: Backend unit tests
+        run: npm --prefix functions-gamehub test
+
+      - name: Typecheck and build
+        working-directory: gamehub
+        env:
+          VITE_CLUSTER: devnet
+          VITE_RPC_URL: https://api.devnet.solana.com
+          VITE_PROGRAM_ID: ${{ vars.DEVNET_PROGRAM_ID || '5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp' }}
+          VITE_FIREBASE_API_KEY: ci-placeholder
+          VITE_FIREBASE_PROJECT_ID: demo-gamehub
+        run: npm run build
+
+      # Belt and braces on top of the production deploy's own check: a build
+      # without the flag must never contain the test wallet.
+      - name: The test wallet must not survive a default build
+        run: |
+          if grep -rl "TEST_WALLET_ADAPTER" gamehub/dist/ 2>/dev/null; then
+            echo "::error::The end-to-end test wallet leaked into a build made without VITE_ENABLE_TEST_WALLET."
+            exit 1
+          fi
+          echo "clean"
+
+  gamehub-e2e:
+    name: Game hub end-to-end (emulators)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          (cd gamehub && npm install --legacy-peer-deps)
+          (cd functions-gamehub && npm install)
+
+      - name: Sync the shared game core
+        run: node scripts/gamehub-sync.mjs
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: gamehub
+
+      # Emulator-only values. The demo- project id keeps the emulators from
+      # reaching for any real Google service.
+      - name: Write emulator environment
+        run: |
+          {
+            echo "GAMEHUB_SERVER_RPC_URL=https://api.devnet.solana.com"
+            echo "GAMEHUB_PROGRAM_ID=5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp"
+            echo "GAMEHUB_ADMIN_WALLETS="
+            echo "GAMEHUB_TEST_KEY=ci-test-key"
+            echo "COMMIT_SHA=${{ github.sha }}"
+            echo "GAMEHUB_STAKE_STUB=*"
+            echo "STAGING_USER=buddy"
+            echo "STAGING_PASSWORD=ci"
+          } > functions-gamehub/.env.local
+          {
+            echo "VITE_CLUSTER=devnet"
+            echo "VITE_RPC_URL=https://api.devnet.solana.com"
+            echo "VITE_LOCAL_RPC_URL=https://api.devnet.solana.com"
+            echo "VITE_PROGRAM_ID=5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp"
+            echo "VITE_FIREBASE_API_KEY=fake-api-key"
+            echo "VITE_FIREBASE_PROJECT_ID=demo-gamehub"
+            echo "VITE_ENABLE_TEST_WALLET=true"
+          } > gamehub/.env.local
+
+      - name: Run the browser suite against the emulators
+        env:
+          GAMEHUB_TEST_KEY: ci-test-key
+        run: |
+          npx --yes firebase-tools@13 emulators:exec \
+            --only auth,functions,firestore --project demo-gamehub \
+            "npm --prefix gamehub run e2e:local"
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: gamehub-e2e-local-report
+          path: gamehub/playwright-report/
+          retention-days: 7
