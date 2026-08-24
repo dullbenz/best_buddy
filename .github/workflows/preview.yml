@@ -48,4 +48,10 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          # Only the claim site. firebase.json now also defines the two game hub
+          # targets, and without naming one this deploys every target — which
+          # fails on gamehub/dist (this job only builds app/) and, if it did not,
+          # would put an ungated pre-launch hub on a public preview URL. The hub
+          # is reviewed on gamehub-staging, behind its own basic auth.
+          target: production
           expires: 7d
