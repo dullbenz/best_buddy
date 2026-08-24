@@ -16,7 +16,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { assertCluster, col, doc, dayId, weekId, boardId, readConfig } from "./db.js";
 import { errorHandler, handler, rateLimit } from "./middleware.js";
 import { mountAuthRoutes, requireAdmin, requireSession } from "./auth.js";
-import { mountPetRoutes } from "./games/pet.js";
+import { mountPetRoutes, mountPetPublicRoutes } from "./games/pet.js";
 import { mountFetchRoutes } from "./games/fetch.js";
 import { mountRunnerRoutes } from "./games/runner.js";
 import { mountTournamentRoutes } from "./games/tournament.js";
@@ -210,6 +210,7 @@ export function makeApi(cluster) {
   router.use(attachSession);
   mountReputationRoutes(router, cluster);
   mountHuntPublicRoutes(router, cluster);
+  mountPetPublicRoutes(router, cluster);
 
   // Everything past here needs a signed-in wallet.
   const guarded = express.Router();

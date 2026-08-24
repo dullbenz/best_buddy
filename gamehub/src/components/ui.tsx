@@ -188,16 +188,16 @@ export function MilestoneBar({
   target: number | null;
   label?: string;
 }) {
-  const pct = target ? Math.min(100, (current / target) * 100) : 100;
+  // A missing target means the aggregator has not written the counter yet, not
+  // that every milestone is behind us. Filling the bar and declaring victory at
+  // four pets is worse than saying nothing.
+  const known = typeof target === "number" && target > 0;
+  const pct = known ? Math.min(100, (current / target) * 100) : 0;
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="spread">
         <span className="big-number">{commas(current)}</span>
-        {target && (
-          <span className="label">
-            next: {commas(target)}
-          </span>
-        )}
+        {known && <span className="label">next: {commas(target)}</span>}
       </div>
       <div
         className="milestone-track"

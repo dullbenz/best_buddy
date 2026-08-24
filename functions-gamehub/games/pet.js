@@ -101,6 +101,10 @@ async function pet(cluster, { wallet, uid, requestId, superPet }) {
       superPet: Boolean(superPet),
       cooldownUntil: now + cooldownMs,
       petAtMs: now,
+      // The player's own new total, so the page can show a fact instead of
+      // accumulating its own guess. A client that counts locally and also
+      // watches the live counter ends up counting the same pet twice.
+      petCount: (state.petCount || 0) + 1,
     };
   });
 
@@ -140,10 +144,17 @@ export function mountPetRoutes(app, cluster, { rateLimits }) {
     }),
   );
 
-  /**
-   * The counter, for clients that would rather ask once than subscribe — the
-   * hub itself reads the shards live.
-   */
+}
+
+/**
+ * The global counter, readable by anyone.
+ *
+ * Public because it is public information, and because the milestone bar needs
+ * it before a visitor has connected anything. It also covers the gap where the
+ * aggregator has not yet written the counter document — a fresh cluster, or the
+ * first minute of the day — which the live subscription alone cannot.
+ */
+export function mountPetPublicRoutes(app, cluster) {
   app.get(
     "/pet/state",
     handler(async (req, res) => {

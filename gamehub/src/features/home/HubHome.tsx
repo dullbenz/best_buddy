@@ -24,6 +24,7 @@ import {
   StreakFlame,
   WalletChip,
 } from "../../components/ui";
+import { ActivityFeed } from "../../components/ActivityFeed";
 import { SignInPrompt } from "../../components/HubHeader";
 import { HiddenBone } from "../hunt/hiddenBones";
 import { api, type Summary } from "../../lib/api";
@@ -90,7 +91,7 @@ const GAMES: GameCard[] = [
 export default function HubHome() {
   const { me, signedIn } = useSession();
   const { total: petTotal } = usePetTotal();
-  const feed = useFeed(8);
+  const feed = useFeed(40);
   const summary = usePoll<Summary>(() => api.summary(), 30000);
   const prizes = usePoll(() => api.prizes(), 120000);
 
@@ -194,23 +195,7 @@ export default function HubHome() {
           <span className="label">the pack, just now</span>
           <HiddenBone id="home-feed" />
         </div>
-        {feed.length === 0 ? (
-          <EmptyState message="Nobody has played yet today. Somebody has to be first." />
-        ) : (
-          <ul className="feed" style={{ marginTop: 10 }}>
-            {feed.map((event) => (
-              <li key={event.id}>
-                {event.wallet ? (
-                  <WalletChip address={event.wallet} you={event.wallet === me?.wallet} />
-                ) : (
-                  <span className="chip">pack</span>
-                )}
-                <span className="feed-text">{event.text}</span>
-                {event.points ? <span className="feed-points">+{event.points}</span> : null}
-              </li>
-            ))}
-          </ul>
-        )}
+        <ActivityFeed events={feed} you={me?.wallet} />
       </section>
 
       {prizes.data && prizes.data.paid.length > 0 && (

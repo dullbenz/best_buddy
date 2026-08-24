@@ -260,12 +260,13 @@ export const api = {
     }),
 
   /* pet */
-  pet: () => request<{ points: number; cooldownUntil: number }>("/pet", {
-    method: "POST",
-    body: { requestId: requestId() },
-  }),
+  pet: () =>
+    request<{ points: number; cooldownUntil: number; petCount: number }>("/pet", {
+      method: "POST",
+      body: { requestId: requestId() },
+    }),
   superPet: () =>
-    request<{ points: number; cooldownUntil: number }>("/pet/super", {
+    request<{ points: number; cooldownUntil: number; petCount: number }>("/pet/super", {
       method: "POST",
       body: { requestId: requestId() },
     }),

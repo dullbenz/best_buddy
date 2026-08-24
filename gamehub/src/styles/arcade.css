@@ -159,6 +159,13 @@
 
 /* ------------------------------------------------------- buddy, front view */
 
+/* Round the focus ring: the shared square outline drew a hard box tight around
+   Buddy's head and read as the artwork being cropped. */
+.pet-zone button:focus-visible {
+  outline-offset: 8px;
+  border-radius: 999px;
+}
+
 .buddy-face {
   display: block;
   overflow: visible;
@@ -213,7 +220,10 @@
 
 .face-tongue {
   fill: #e8737f;
-  transform-origin: 50px 66px;
+  /* Percentages, not pixels: `transform-box: fill-box` above measures the
+     origin from this path's own bounding box, so a user-space coordinate like
+     "50px 66px" lands far below the chin and the tongue floats off the face. */
+  transform-origin: 50% 0%;
   /* Rises with the happiness value the page passes in. */
   transform: scaleY(calc(0.25 + var(--happy, 0) * 0.75));
   opacity: calc(0.25 + var(--happy, 0) * 0.75);
@@ -626,6 +636,10 @@
   display: grid;
   place-items: center;
   padding: 10px;
+  /* Shrink to Buddy. As a full-width grid container the staker ring below drew
+     a stadium around the entire stage instead of a halo around the dog. */
+  width: fit-content;
+  margin-inline: auto;
 }
 
 .cooldown-ring {
@@ -777,6 +791,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* "×7" after a collapsed run of identical events. */
+.feed-run {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  margin-left: 6px;
 }
 
 .feed-points {
