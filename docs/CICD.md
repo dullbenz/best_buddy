@@ -109,8 +109,12 @@ This is the credential GitHub uses to publish. Do it in **Cloud Shell** (the
 console's own IAM form is easy to get wrong:
 
 ```bash
-P=influential-bit-411408; SA=github-deploy@$P.iam.gserviceaccount.com; gcloud iam service-accounts create github-deploy --display-name="GitHub Actions deploy" --project=$P; for R in firebase.admin cloudfunctions.admin iam.serviceAccountUser artifactregistry.admin run.admin cloudbuild.builds.editor; do gcloud projects add-iam-policy-binding $P --member="serviceAccount:$SA" --role="roles/$R" --condition=None -q >/dev/null; done; gcloud iam service-accounts keys create ~/sa-key.json --iam-account=$SA && cloudshell download ~/sa-key.json
-```
+P=influential-bit-411408; SA=github-deploy@$P.iam.gserviceaccount.com; gcloud iam service-accounts create github-deploy --display-name="GitHub Actions deploy" --project=$P; for R in firebase.admin cloudfunctions.admin iam.serviceAccountUser artifactregistry.admin run.admin cloudbuild.builds.editor cloudscheduler.admin; do gcloud projects add-iam-policy-binding $P --member="serviceAccount:$SA" --role="roles/$R" --condition=None -q >/dev/null; done; gcloud iam service-accounts keys create ~/sa-key.json --iam-account=$SA && cloudshell download ~/sa-key.json
+`cloudscheduler.admin` is the one that is easy to miss, and it fails late: the
+functions themselves deploy fine and only the scheduled ones fall over, with a
+403 on `cloudscheduler.jobs.update`. The game hub's five jobs need it. It was
+added after the fact on 2026-08-24; a service account created before then will
+not have it.```
 
 Then, locally:
 
