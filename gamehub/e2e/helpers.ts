@@ -21,6 +21,21 @@ export function makeWallet(): TestWallet {
   };
 }
 
+/**
+ * The wallet that actually holds a stake on devnet, if the suite was given it.
+ *
+ * Perk gating is a fact about the chain, so it can only be tested against a
+ * wallet that really has staked. Absent the secret the perk tests skip rather
+ * than pretend: the emulator's stake stub reports every wallet as staked, so
+ * running them locally would assert the stub, not the gate.
+ */
+export function stakedWallet(): TestWallet | null {
+  const secret = process.env.E2E_STAKED_WALLET_SECRET;
+  if (!secret) return null;
+  const keypair = nacl.sign.keyPair.fromSecretKey(bs58.decode(secret));
+  return { address: bs58.encode(Buffer.from(keypair.publicKey)), secret };
+}
+
 /** Inject a wallet, then load a page. Must happen before the app boots. */
 export async function visit(page: Page, path: string, wallet?: TestWallet) {
   if (wallet) {

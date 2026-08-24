@@ -7,7 +7,7 @@
  */
 import { test, expect } from "@playwright/test";
 
-import { connect, forceJob, makeWallet, signIn, visit } from "./helpers";
+import { connect, forceJob, makeWallet, signIn, stakedWallet, visit } from "./helpers";
 
 test.describe("the hub", () => {
   test("@smoke the arcade renders for a visitor with no wallet", async ({ page }) => {
@@ -195,6 +195,54 @@ test.describe("ranks and prizes", () => {
     await page.goto(`/wallet/${wallet.address}`);
     await expect(page.getByText(/good boy points/i)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/pets given/i)).toBeVisible();
+  });
+});
+
+/**
+ * Stake-gated perks.
+ *
+ * These read real chain state, so they only run where there is a chain: the
+ * staging tier, given a wallet that genuinely holds a stake. Locally the
+ * emulator stub reports every wallet as staked, which would make the "locked"
+ * half assert the stub rather than the gate — so both halves skip instead.
+ */
+test.describe("stake-gated perks", () => {
+  test.skip(
+    !process.env.E2E_STAKED_WALLET_SECRET,
+    "needs E2E_STAKED_WALLET_SECRET — a devnet wallet holding a stake",
+  );
+
+  test("a wallet with no stake is offered the upsell, not the perk", async ({ page }) => {
+    await visit(page, "/pet", makeWallet());
+    await signIn(page);
+
+    await expect(page.getByRole("link", { name: /stake to unlock/i }).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("button", { name: /super pet/i })).toHaveCount(0);
+
+    // And the server refuses it even if the button were reachable.
+    const response = await page.request.post("/api/pet/super", {
+      data: { requestId: `e2e-${Date.now()}` },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test("a staked wallet gets Super Pet and the Golden Bone", async ({ page }) => {
+    const staked = stakedWallet()!;
+
+    await visit(page, "/pet", staked);
+    await signIn(page);
+    await expect(page.getByRole("button", { name: /super pet/i })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("link", { name: /stake to unlock/i })).toHaveCount(0);
+
+    await page.goto("/fetch");
+    // The round is opened in golden mode, which the stage announces.
+    await expect(page.locator(".stage-note", { hasText: /golden bone/i })).toBeVisible({
+      timeout: 20_000,
+    });
   });
 });
 
