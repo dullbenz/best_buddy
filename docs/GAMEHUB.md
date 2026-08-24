@@ -320,6 +320,32 @@ rehearsal. Production leaves it at 1.
 
 ---
 
+## 8a. One-time IAM the hub needs
+
+Two grants that are easy to miss, because in both cases everything else deploys
+and works, and only one narrow thing fails:
+
+**`roles/cloudscheduler.admin` on the deploy service account.** Without it the
+API and the gate deploy fine and the five scheduled jobs fail with a 403 on
+`cloudscheduler.jobs.update`.
+
+**`roles/iam.serviceAccountTokenCreator` on the functions' runtime service
+account, granted on itself.** Minting a Firebase custom token signs a blob, and
+without this every `/api/auth/verify` returns a 500 with
+`Permission 'iam.serviceAccounts.signBlob' denied` in the logs — sign-in is the
+only thing broken, so the hub looks healthy until someone tries to play.
+
+```bash
+P=influential-bit-411408
+NUM=$(gcloud projects describe $P --format='value(projectNumber)')
+gcloud iam service-accounts add-iam-policy-binding \
+  $NUM-compute@developer.gserviceaccount.com \
+  --member="serviceAccount:$NUM-compute@developer.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountTokenCreator" --project=$P
+```
+
+---
+
 ## 9. Environments
 
 | | Staging | Production |
