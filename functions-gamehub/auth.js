@@ -175,6 +175,30 @@ export function mountAuthRoutes(app, cluster) {
       res.json({ token, wallet, cluster, admin: isAdmin });
     }),
   );
+
+  /**
+   * A session without a wallet.
+   *
+   * Playing a quiz needs no key, so guests get the same custom-token pipes as
+   * wallets, minus the signature. The id is minted fresh every time: accepting
+   * a client-supplied guest id would let anyone sign in as any guest, and a
+   * lost guest identity loses nothing money-adjacent — creator payouts ride
+   * the payout address on the trick, never the session. Same-device
+   * continuity comes from the Firebase SDK persisting the session it traded
+   * this token for.
+   */
+  app.post(
+    "/auth/guest",
+    handler(async (req, res) => {
+      const playerId = `g:${randomBytes(16).toString("hex")}`;
+      const token = await getAuth().createCustomToken(`${cluster}:${playerId}`, {
+        cluster,
+        guest: true,
+        admin: false,
+      });
+      res.json({ token, playerId, cluster, guest: true });
+    }),
+  );
 }
 
 /**
@@ -205,12 +229,43 @@ export function requireSession(cluster) {
       throw unauthorized("SESSION_INVALID", "Your sign-in expired. Sign in again.");
     }
 
-    const [tokenCluster, wallet] = String(decoded.uid).split(":");
+    // Split at the first colon only: a guest uid is `{cluster}:g:{hex}`, so
+    // the player key itself contains a colon and a naive split would collapse
+    // every guest into the single identity "g".
+    const uid = String(decoded.uid);
+    const splitAt = uid.indexOf(":");
+    const tokenCluster = splitAt === -1 ? "" : uid.slice(0, splitAt);
+    const wallet = splitAt === -1 ? "" : uid.slice(splitAt + 1);
     if (tokenCluster !== cluster || !wallet) {
       throw unauthorized("WRONG_CLUSTER", "That sign-in belongs to a different network.");
     }
 
-    req.session = { uid: decoded.uid, wallet, cluster, admin: decoded.admin === true };
+    // For a guest, `wallet` carries the `g:{hex}` player id. Keeping it in the
+    // same field is deliberate: it is the key the rate limiter and the trick
+    // boards use, and base58 has no colon, so the two can never collide.
+    req.session = {
+      uid: decoded.uid,
+      wallet,
+      cluster,
+      admin: decoded.admin === true,
+      guest: decoded.guest === true,
+    };
+    next();
+  });
+}
+
+/**
+ * Refuse guests.
+ *
+ * The six fixed games key their state and points by wallet address and feed it
+ * to stake lookups that parse it as a public key — a guest id would throw
+ * there, or worse, quietly mint records under a key nothing else can read.
+ */
+export function requireWallet() {
+  return handler(async (req, res, next) => {
+    if (req.session?.guest) {
+      throw forbidden("GUEST_NOT_ALLOWED", "This one needs a wallet. Guests can play community tricks.");
+    }
     next();
   });
 }

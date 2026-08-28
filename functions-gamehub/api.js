@@ -15,7 +15,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 
 import { assertCluster, col, doc, dayId, weekId, boardId, readConfig } from "./db.js";
 import { errorHandler, handler, rateLimit } from "./middleware.js";
-import { mountAuthRoutes, requireAdmin, requireSession } from "./auth.js";
+import { mountAuthRoutes, requireAdmin, requireSession, requireWallet } from "./auth.js";
 import { mountPetRoutes, mountPetPublicRoutes } from "./games/pet.js";
 import { mountFetchRoutes } from "./games/fetch.js";
 import { mountRunnerRoutes } from "./games/runner.js";
@@ -104,6 +104,9 @@ export function makeApi(cluster) {
     game: rateLimit(cluster, { scope: "game", limit: 60, windowMs: 60000, by: "wallet" }),
     pet: rateLimit(cluster, { scope: "pet", limit: 40, windowMs: 60000, by: "wallet" }),
     huntAnswer: rateLimit(cluster, { scope: "huntAnswer", limit: 8, windowMs: 3600000, by: "wallet" }),
+    // Minting a guest is one token, no writes, but ids are free to make — the
+    // hourly cap is what keeps one machine from minting an audience.
+    guest: rateLimit(cluster, { scope: "guest", limit: 30, windowMs: 3600000, by: "ip" }),
   };
 
   router.get(
@@ -191,6 +194,7 @@ export function makeApi(cluster) {
   // middleware in registration order, so a limiter added afterwards never runs.
   router.use("/auth/challenge", rateLimits.challenge);
   router.use("/auth/verify", rateLimits.verify);
+  router.use("/auth/guest", rateLimits.guest);
   mountAuthRoutes(router, cluster);
 
   /**
@@ -214,13 +218,30 @@ export function makeApi(cluster) {
   mountPetPublicRoutes(router, cluster);
   mountNameRoutes(router);
 
-  // Everything past here needs a signed-in wallet.
-  const guarded = express.Router();
-  guarded.use(requireSession(cluster));
+  // Everything past here needs a session — a signed-in wallet or a guest.
+  const sessionOnly = express.Router();
+  sessionOnly.use(requireSession(cluster));
 
-  guarded.get(
+  sessionOnly.get(
     "/me",
     handler(async (req, res) => {
+      if (req.session.guest) {
+        // A guest has no profile, no stake, no perks — just an identity the
+        // community trick boards can key on. Skipping the stake lookup is
+        // load-bearing: it parses its argument as a public key.
+        res.json({
+          wallet: null,
+          playerId: req.session.wallet,
+          guest: true,
+          cluster,
+          admin: false,
+          profile: null,
+          stake: null,
+          perks: { goldenBone: false, superPet: false, extraShovels: 0 },
+        });
+        return;
+      }
+
       const wallet = req.session.wallet;
       const [profile, stake, config] = await Promise.all([
         profileFor(cluster, wallet),
@@ -229,6 +250,8 @@ export function makeApi(cluster) {
       ]);
       res.json({
         wallet,
+        playerId: wallet,
+        guest: false,
         cluster,
         admin: req.session.admin,
         profile,
@@ -247,6 +270,11 @@ export function makeApi(cluster) {
     }),
   );
 
+  // The six fixed games stay wallet-only: their state and points are keyed by
+  // wallet address, and their stake perks parse it as a public key.
+  const guarded = express.Router();
+  guarded.use(requireSession(cluster), requireWallet());
+
   mountPetRoutes(guarded, cluster, { rateLimits });
   mountFetchRoutes(guarded, cluster, { rateLimits });
   mountRunnerRoutes(guarded, cluster, { rateLimits });
@@ -261,6 +289,7 @@ export function makeApi(cluster) {
   // wallet session, so they are mounted ahead of the session gate.
   if (cluster === "devnet") mountTestRoutes(router, cluster);
 
+  router.use(sessionOnly);
   router.use(guarded);
   router.use(adminRouter);
 

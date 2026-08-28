@@ -96,7 +96,9 @@ export function mountHuntPublicRoutes(app, cluster) {
         return;
       }
 
-      const wallet = req.session?.wallet || null;
+      // Guests browse a hunt like any visitor: no shovels to count, and their
+      // id is not a public key, so it must never reach the stake lookup below.
+      const wallet = req.session && !req.session.guest ? req.session.wallet : null;
       const [shovels, found] = await Promise.all([
         wallet ? shovelState(cluster, wallet, config) : null,
         wallet
