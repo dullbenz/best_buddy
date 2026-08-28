@@ -29,6 +29,7 @@ import { aggregatePets } from "./games/pet.js";
 import { expireStaleChallenges } from "./games/tournament.js";
 import { runHuntLifecycle } from "./games/hunt.js";
 import { accrueStakingPoints } from "./games/reputation.js";
+import { approvedTricks, shortlistTricks, featureTrick } from "./games/tricks.js";
 
 /** How many entries of a sealed board are frozen into its meta document. */
 const SEAL_DEPTH = 100;
@@ -128,6 +129,16 @@ export async function expireStaleRuns(cluster) {
  * the repo alongside the payout receipts, so anyone can check that the wallets
  * that were paid are the wallets that won.
  */
+/**
+ * The identity of a payout list. `scripts/gamehub-payout.ts` recomputes this
+ * over the snapshot it is handed and refuses a mismatch, so anything that
+ * changes a cycle's winners must move the hash with them — which is why this
+ * is a function and not three inline lines.
+ */
+export function computeArtifactSha(cluster, cycle, winners) {
+  return createHash("sha256").update(JSON.stringify({ cluster, cycle, winners })).digest("hex");
+}
+
 export async function runWeeklyRollover(cluster, at = new Date()) {
   const config = await readConfig(cluster);
   const closingWeek = weekId(new Date(at.getTime() - 86400000));
@@ -158,6 +169,42 @@ export async function runWeeklyRollover(cluster, at = new Date()) {
     await openBoard(cluster, boardId(game, "weekly", openingWeek), { endsAtIso: nextBoundary });
   }
 
+  // Community tricks: seal the featured race, crown next week's trick from
+  // this week's ratings, and put its creator on the prize list. The winner
+  // row rides the same array as the game winners, so it lands inside the
+  // artifact hash below with nothing extra to remember.
+  const tricksBoard = boardId("tricks", "weekly", closingWeek);
+  await sealBoard(cluster, tricksBoard);
+  boards.push(tricksBoard);
+  const shortlist = shortlistTricks(await approvedTricks(cluster), {
+    week: closingWeek,
+    config,
+  });
+  const pick = shortlist[0] || null;
+  if (pick) {
+    await featureTrick(cluster, {
+      week: openingWeek,
+      trickId: pick.trickId,
+      shortlist,
+      prizeCycle: closingWeek,
+      decidedBy: "auto",
+    });
+    const prizes = config.prizeTable?.["tricks:weekly"] || [];
+    if (prizes.length) {
+      winners.push({
+        wallet: pick.payoutWallet,
+        board: tricksBoard,
+        game: "tricks",
+        position: 1,
+        points: pick.scoreX100,
+        prizeBuddy: prizes[0],
+        trickId: pick.trickId,
+        createdByPlayer: pick.createdByPlayer,
+      });
+    }
+  }
+  await openBoard(cluster, boardId("tricks", "weekly", openingWeek), { endsAtIso: nextBoundary });
+
   const artifact = {
     cluster,
     cycle: closingWeek,
@@ -168,9 +215,7 @@ export async function runWeeklyRollover(cluster, at = new Date()) {
   };
   // Hash the winners, not the wrapper: the generation timestamp changing must
   // not change the identity of the payout list.
-  const artifactSha256 = createHash("sha256")
-    .update(JSON.stringify({ cluster, cycle: closingWeek, winners }))
-    .digest("hex");
+  const artifactSha256 = computeArtifactSha(cluster, closingWeek, winners);
 
   await doc(cluster, "prizeCycles", closingWeek).set(
     {

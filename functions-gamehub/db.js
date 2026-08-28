@@ -130,11 +130,14 @@ export const DEFAULT_CONFIG = {
     { days: 7, multiplierX100: 150 },
     { days: 1, multiplierX100: 100 },
   ],
-  /** Weekly prize table, per board, in whole $BUDDY. */
+  /** Weekly prize table, per board, in whole $BUDDY. The tricks entry is the
+   *  creator's reward for Game of the Week — one row, because the winner is a
+   *  trick, not a leaderboard. An empty list disables a board's prizes. */
   prizeTable: {
     "fetch:weekly": [250000, 150000, 100000, 50000, 50000],
     "pet:weekly": [250000, 150000, 100000, 50000, 50000],
     "runner:weekly": [250000, 150000, 100000, 50000, 50000],
+    "tricks:weekly": [100000],
   },
   /** Staging can run a week in an hour; production never does. */
   cycleAcceleration: 1,
@@ -154,7 +157,17 @@ export const DEFAULT_CONFIG = {
 
 export async function readConfig(cluster) {
   const snapshot = await root(cluster).get();
-  return { ...DEFAULT_CONFIG, ...(snapshot.exists ? snapshot.data() : {}) };
+  const stored = snapshot.exists ? snapshot.data() : {};
+  return {
+    ...DEFAULT_CONFIG,
+    ...stored,
+    // The prize table merges per board rather than shadowing wholesale: a
+    // cluster that patched its table before a new board existed would
+    // otherwise lose that board's default forever — and lose it again on
+    // every later patch that doesn't restate it. To intentionally turn a
+    // board's prizes off, set its value to [].
+    prizeTable: { ...DEFAULT_CONFIG.prizeTable, ...(stored.prizeTable || {}) },
+  };
 }
 
 /** Streak multiplier as an integer percentage (100 = 1.0x). */

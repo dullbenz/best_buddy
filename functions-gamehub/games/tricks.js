@@ -30,6 +30,10 @@ import {
   tooMany,
 } from "../middleware.js";
 import { parseAddress } from "../auth.js";
+// Circular with jobs.js (which imports the judging helpers above) — safe
+// because both sides export hoisted function declarations used at request
+// time, never during module initialisation.
+import { computeArtifactSha } from "../jobs.js";
 import { normalizeAnswer, hashSecret, newSalt } from "./hunt.js";
 import {
   TRICKS_SIM_VERSION,
@@ -221,6 +225,84 @@ function grade(template, privateItems, answers) {
 function revealAnswers(template, privateItems) {
   if (template === "quiz") return privateItems.map((item) => item.answerIndex);
   return privateItems.map((item) => item.display);
+}
+
+/**
+ * A trick's standing, as an integer rating out of 500.
+ *
+ * A Bayesian mean damped toward the middle by rating volume: three 5.0s from
+ * three friends must not beat forty 4.6s. The prior weighs like five full
+ * ratings of 3.0 across both dimensions.
+ */
+const RATING_PRIOR_WEIGHT = 10;
+const RATING_PRIOR_MEAN_X100 = 300;
+export function trickScoreX100(data) {
+  const observations = (data.ratingCount || 0) * 2;
+  const sum = (data.originalitySum || 0) + (data.funSum || 0);
+  return Math.floor(
+    (RATING_PRIOR_WEIGHT * RATING_PRIOR_MEAN_X100 + sum * 100) /
+      (RATING_PRIOR_WEIGHT + observations),
+  );
+}
+
+/**
+ * Rank the tricks eligible to be featured, best first. Pure, so the weekly
+ * job and its tests judge with the same arithmetic.
+ */
+export function shortlistTricks(datas, { week, config }) {
+  return datas
+    .map((data) => {
+      const stats = data.weeklyStats?.[week] || {};
+      return {
+        trickId: data.trickId,
+        title: data.title,
+        payoutWallet: data.payoutWallet,
+        createdByPlayer: data.createdByPlayer,
+        scoreX100: trickScoreX100(data),
+        plays: stats.plays || 0,
+        raters: stats.raters || 0,
+        ratingCount: data.ratingCount || 0,
+        eligible:
+          data.status === "approved" &&
+          !data.featuredWeek &&
+          (stats.plays || 0) >= config.tricksMinPlaysToFeature &&
+          (stats.raters || 0) >= config.tricksMinRatersToFeature,
+      };
+    })
+    .filter((candidate) => candidate.eligible)
+    .sort(
+      (a, b) =>
+        b.scoreX100 - a.scoreX100 || b.plays - a.plays || a.trickId.localeCompare(b.trickId),
+    );
+}
+
+/** Every approved trick's data, for the weekly judging. */
+export async function approvedTricks(cluster) {
+  // 500 covers years of weekly approvals; if the shelf ever outgrows it, the
+  // shortlist quietly judging a subset would be worse than this failing loud.
+  const snapshot = await col(cluster, "tricks")
+    .where("status", "==", "approved")
+    .limit(500)
+    .get();
+  if (snapshot.size === 500) throw new Error("approvedTricks hit its 500 cap; page the judging");
+  return snapshot.docs.map((entry) => entry.data());
+}
+
+/** Crown one trick for a week: the featured doc plus the flag on the trick. */
+export async function featureTrick(cluster, { week, trickId, shortlist, prizeCycle, decidedBy }) {
+  await Promise.all([
+    doc(cluster, "featuredTricks", week).set({
+      week,
+      trickId,
+      // Which prizeCycles doc carries this pick's creator reward — the
+      // feature-override needs to know which snapshot to amend.
+      prizeCycle: prizeCycle || null,
+      shortlist: shortlist || [],
+      decidedBy: decidedBy || "auto",
+      decidedAt: FieldValue.serverTimestamp(),
+    }),
+    doc(cluster, "tricks", trickId).set({ featuredWeek: week }, { merge: true }),
+  ]);
 }
 
 /** Day-rolled per-player tricks state, mirroring fetch's day fields. */
@@ -732,6 +814,102 @@ export function mountTricksAdminRoutes(app, cluster) {
         }),
       );
       res.json({ pending: withAnswers });
+    }),
+  );
+
+  app.post(
+    "/admin/tricks/feature/:weekId",
+    handler(async (req, res) => {
+      const week = req.params.weekId;
+      if (!/^\d{4}-W\d{2}$/.test(week)) {
+        throw badRequest("BAD_WEEK", "Weeks look like 2026-W35.");
+      }
+      const trickId = requireTrickId(req.body?.trickId);
+      const config = await readConfig(cluster);
+
+      const result = await db().runTransaction(async (tx) => {
+        const [trickSnapshot, featuredSnapshot] = await Promise.all([
+          tx.get(doc(cluster, "tricks", trickId)),
+          tx.get(doc(cluster, "featuredTricks", week)),
+        ]);
+        if (!trickSnapshot.exists) throw notFound("NO_TRICK", "No such trick.");
+        const trick = trickSnapshot.data();
+        if (trick.status !== "approved") {
+          throw conflict("NOT_APPROVED", "Only an approved trick can be featured.");
+        }
+
+        const featured = featuredSnapshot.exists ? featuredSnapshot.data() : null;
+        const previousId = featured?.trickId || null;
+        if (previousId === trickId) return { week, trickId, unchanged: true };
+
+        const prizeCycle = featured?.prizeCycle || null;
+        let cycleSnapshot = null;
+        if (prizeCycle) {
+          cycleSnapshot = await tx.get(doc(cluster, "prizeCycles", prizeCycle));
+        }
+        // A paid snapshot is a historical record with published receipts;
+        // overriding the pick after the money moved is not an edit, it is a
+        // new decision that has to be argued in the open.
+        if (cycleSnapshot?.exists && cycleSnapshot.data().status === "paid") {
+          throw conflict("CYCLE_PAID", "That week's snapshot is already paid.");
+        }
+
+        tx.set(
+          doc(cluster, "featuredTricks", week),
+          {
+            week,
+            trickId,
+            prizeCycle,
+            shortlist: featured?.shortlist || [],
+            decidedBy: "admin",
+            overriddenBy: req.session.wallet,
+            decidedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: false },
+        );
+        if (previousId) {
+          tx.set(doc(cluster, "tricks", previousId), { featuredWeek: null }, { merge: true });
+        }
+        tx.set(doc(cluster, "tricks", trickId), { featuredWeek: week }, { merge: true });
+
+        let rewroteCycle = false;
+        if (cycleSnapshot?.exists) {
+          const cycle = cycleSnapshot.data();
+          const board = boardId("tricks", "weekly", prizeCycle);
+          const others = (cycle.winners || []).filter((winner) => winner.game !== "tricks");
+          const previousRow = (cycle.winners || []).find((winner) => winner.game === "tricks");
+          const prizeBuddy =
+            previousRow?.prizeBuddy ?? (config.prizeTable?.["tricks:weekly"] || [])[0] ?? 0;
+          const winners = [
+            ...others,
+            {
+              wallet: trick.payoutWallet,
+              board,
+              game: "tricks",
+              position: 1,
+              points: trickScoreX100(trick),
+              prizeBuddy,
+              trickId,
+              createdByPlayer: trick.createdByPlayer,
+            },
+          ];
+          tx.update(doc(cluster, "prizeCycles", prizeCycle), {
+            winners,
+            totalBuddy: winners.reduce((sum, winner) => sum + winner.prizeBuddy, 0),
+            // The payout script refuses a snapshot whose hash does not match
+            // its winners, so the hash moves with them or the cycle is
+            // unpayable.
+            artifactSha256: computeArtifactSha(cluster, prizeCycle, winners),
+            overriddenBy: req.session.wallet,
+            overriddenAt: FieldValue.serverTimestamp(),
+          });
+          rewroteCycle = true;
+        }
+
+        return { week, trickId, previousTrickId: previousId, prizeCycle, rewroteCycle };
+      });
+
+      res.json(result);
     }),
   );
 
