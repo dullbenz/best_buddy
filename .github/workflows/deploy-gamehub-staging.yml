@@ -175,6 +175,10 @@ jobs:
           E2E_BASIC_USER: ${{ secrets.STAGING_USER || 'buddy' }}
           E2E_BASIC_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
           GAMEHUB_TEST_KEY: ${{ secrets.GAMEHUB_TEST_KEY }}
+          # Optional: an allowlisted admin wallet lets the tricks smoke drive
+          # the full weekly cycle. Absent, that test skips rather than fails.
+          E2E_ADMIN_WALLET_SECRET: ${{ secrets.E2E_ADMIN_WALLET_SECRET }}
+          E2E_FIREBASE_API_KEY: ${{ vars.FIREBASE_WEB_API_KEY }}
         run: npm run e2e:smoke
 
       - uses: actions/upload-artifact@v7

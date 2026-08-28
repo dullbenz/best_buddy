@@ -201,9 +201,33 @@ export async function forceJob(
   page: Page,
   job: "force-daily-rollover" | "force-weekly-rollover",
   testKey = process.env.GAMEHUB_TEST_KEY || "local-test-key",
+  at?: string,
 ) {
   return page.request.post(`/api/test/${job}`, {
     headers: { "x-test-key": testKey, "content-type": "application/json" },
-    data: {},
+    data: at ? { at } : {},
   });
+}
+
+/**
+ * An `at` for the weekly rollover whose closing week is the current ISO week
+ * on any weekday — so plays and ratings made just now count toward the pick.
+ */
+export function weeklyRolloverAt(): Date {
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 86400000);
+  return weekIdOf(yesterday) === weekIdOf(now) ? now : new Date(now.getTime() + 86400000);
+}
+
+/** ISO-8601 week id, Monday-based — mirrors db.js and src/lib/period.ts. */
+export function weekIdOf(at: Date): string {
+  const date = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+  const dayOfWeek = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - dayOfWeek + 3);
+  const isoYear = date.getUTCFullYear();
+  const firstThursday = new Date(Date.UTC(isoYear, 0, 4));
+  const firstDayOfWeek = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayOfWeek + 3);
+  const week = 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 86400000));
+  return `${isoYear}-W${String(week).padStart(2, "0")}`;
 }

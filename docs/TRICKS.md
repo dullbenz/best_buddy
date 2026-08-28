@@ -1,13 +1,14 @@
 # New Tricks — creator-made games
 
-**Status: design RFC, not implemented.** This document proposes the hub's
-seventh game: a workshop where the community teaches Buddy new tricks —
-players author small games from fixed templates, everyone else plays and
-rates them, and the best one each week becomes the Game of the Week with a
-prize for its creator.
+**Status: implemented on staging.** This document is the design record for
+the hub's seventh game: a workshop where the community teaches Buddy new
+tricks — players author small games from fixed templates, everyone else
+plays and rates them, and the best one each week becomes the Game of the
+Week with a prize for its creator.
 
-It is written against the code as it stands (see `docs/GAMEHUB.md` for the
-hub itself). Section 10 lists exactly which existing files change.
+Operations live in `docs/GAMEHUB.md` §6a. Where implementation taught the
+design something, this document says what shipped, not what was first
+imagined; the notable corrections are flagged inline as **as built**.
 
 ---
 
@@ -103,12 +104,24 @@ POST /api/auth/guest        (rate-limited per IP, same limiter as challenge)
   → client signInWithCustomToken, same as the wallet flow
 ```
 
-The client remembers its guest id in localStorage and re-mints on a new
-device; the Firebase SDK keeps the session alive in between. Minting through
-our own endpoint rather than Firebase anonymous auth is deliberate: staging
-and production share one Auth instance, and embedding the cluster in the uid
-is what lets `requireSession` reject cross-cluster tokens today. Guest uids
-keep that invariant.
+Guest ids are minted fresh, every time — **as built**, there is no re-mint
+from localStorage: accepting a client-supplied guest id would let anyone
+sign in as any guest, and a lost guest identity loses nothing
+money-adjacent. Same-device continuity is the Firebase SDK persisting the
+session it traded the token for. Minting through our own endpoint rather
+than Firebase anonymous auth is deliberate: staging and production share one
+Auth instance, and embedding the cluster in the uid is what lets
+`requireSession` reject cross-cluster tokens today. Guest uids keep that
+invariant.
+
+**As built, two long-standing assumptions had to move for guests to exist.**
+Both the server (`auth.js`) and the client (`auth.tsx`) split uids on every
+colon — `devnet:g:abc` destructured its wallet to `"g"`, which would have
+collapsed every guest into one identity; the split now cuts at the first
+colon only. And the client signed the session out whenever the wallet
+adapter reported disconnected, which for a guest is always. The six fixed
+games sit behind a `requireWallet()` gate because their state is
+wallet-keyed and their stake lookups parse the id as a public key.
 
 The player key throughout tricks is a **playerId**: a base58 wallet address
 for signed-in wallets, `g:{hex}` for guests. The two cannot collide (base58
@@ -158,8 +171,13 @@ never client-chosen, so there is nothing to squat. Validation is strict and
 boring: template must be one of the three, every string length-capped,
 counts within template bounds, the payout address must decode. The payload
 then splits, hunt-style: prompts and options into `tricks/{id}` with
-`status: "pending"`, answers into `tricksPrivate/{id}` as salted hashes (or
-private indices, for quiz). `createdByPlayer` records who to talk to;
+`status: "pending"`, answers into `tricksPrivate/{id}`. **As built**, the
+private doc keeps the plaintext answer beside the salt and hash — a hash
+alone cannot reveal the answers when an attempt finishes, and cannot derive
+a scramble's letters at start time. The load-bearing property holds either
+way: answers never reach the bundle or any client-readable document; what
+is given up versus hunts is only leak-resistance against a direct read of a
+collection nothing can read. `createdByPlayer` records who to talk to;
 `payoutWallet` records who gets paid. They are allowed to differ — an
 address that only ever receives money proves nothing and needs to prove
 nothing.
@@ -234,8 +252,10 @@ POST /api/tricks/:id/rate    { originality: 4, fun: 5, requestId }
 
 Three gates, all cheap:
 
-1. **You rate what you finished.** The endpoint requires a `trickPlays`
-   document for this player and trick. No play, no opinion.
+1. **You rate what you finished.** The endpoint requires a scored attempt
+   for this player and trick — **as built**, the gate is the
+   `trickPlayerStats/{trickId}__{playerId}` doc a scored submit writes,
+   because a doc read needs no query and no index. No play, no opinion.
 2. **One rating per player per trick**, enforced the way hunt claims enforce
    one claim — the rating's document id is `{trickId}__{playerId}`, so a
    second write is an overwrite of your own opinion, not a second vote.
@@ -260,16 +280,20 @@ in `functions-gamehub/jobs.js`) — no new scheduled function, no new IAM:
 1. **Seal** `tricks:weekly:{closing week}` alongside the other weekly boards.
 2. **Shortlist** approved tricks with at least `tricksMinPlaysToFeature`
    plays by at least `tricksMinRatersToFeature` distinct raters this window
-   (both config). Rank by mean rating damped toward the middle by rating
-   count — a Bayesian mean, so three 5.0s from three friends do not beat
-   forty 4.6s.
+   (both config). **As built**, "this window" is fed by `weeklyStats` — the
+   play and rate transactions also increment `{weekId: {plays, raters}}` on
+   the trick doc, so the rollover judges from data that already exists
+   rather than scanning collections. Rank by mean rating damped toward the
+   middle by rating count — a Bayesian mean, so three 5.0s from three
+   friends do not beat forty 4.6s.
 3. **Feature** the top-ranked trick that has not been featured before:
    write `featuredTricks/{next weekId}` with the trick, the shortlist, and
    the aggregates that decided it. "What is featured right now" is then the
    same one-document query pattern hunts already use for `activeHunt()`.
 4. **Reward** — append a winner row for the trick's `payoutWallet` to
    `prizeCycles/{week}` with board `tricks:weekly:{week}` and the amount
-   from `config.prizeTable["tricks:weekly"]`.
+   from `config.prizeTable["tricks:weekly"]`. The row rides the same array
+   as the game winners, so it lands inside `artifactSha256` by construction.
 
 From there the money path is exactly §4 of `docs/GAMEHUB.md`: the snapshot
 is fetched, committed to `gamehub/public/receipts/`, proposed from the
@@ -278,7 +302,13 @@ that loop are the sybil backstop: a featured trick whose forty raters were
 born yesterday is visible in the snapshot review, and the shortlist stored
 beside the pick is the audit trail for choosing the runner-up instead. An
 admin override (`POST /api/admin/tricks/feature/:weekId`) exists for exactly
-that intervention, before payment, in the open.
+that intervention, before payment, in the open. **As built**, the override
+also rewrites the affected snapshot's tricks winner row and recomputes
+`artifactSha256` through the same helper the rollover uses — the payout
+script refuses a snapshot whose hash does not match its winners, so the hash
+moves with them or the cycle is unpayable — and it refuses outright once a
+cycle is `paid`: a paid snapshot is a record with published receipts, not a
+draft.
 
 Prizes for the *players* of the featured week's board are deliberately not
 in v1 — creator reward first, and the featured board race already pays in
@@ -298,14 +328,18 @@ All under `gamehub/{cluster}/…`, like everything else.
 | `trickPlays` | `{trickId}__{playerId}__{day}` | Score, ticks, submittedAt — attempt gate and rating gate |
 | `trickRatings` | `{trickId}__{playerId}` | The two dimensions, playerId, createdAt |
 | `trickReports` | `{trickId}__{playerId}` | One flag per player; the count drives auto-pause |
-| `featuredTricks` | weekId | The featured trick, the shortlist it beat, the aggregates that decided it |
+| `featuredTricks` | weekId | The featured trick, the shortlist it beat, which prize cycle carries its reward |
+| `tricksState` | playerId | Day-rolled submission count and GBP awarded today (per player, wallets and guests alike) |
+| `trickPlayerStats` | `{trickId}__{playerId}` | Lifetime plays and last score per player per trick — the rating and report gates read this |
 
-`firestore.rules` additions, alongside the existing named allowances:
-`tricks/{id}` readable when `resource.data.status == "approved"` (clients
-must query with that filter, which the shelf does anyway), and
-`featuredTricks/{week}` readable. Everything else stays under the default
-deny; ratings and plays are served through the API and the aggregates on the
-public doc.
+**As built, `firestore.rules` gains nothing.** Every tricks read goes
+through the API. Three reasons, the last decisive: a conditional rule
+(`status == "approved"`) forces every client list query to restate the
+filter and creates a second read path to keep consistent; the rules file is
+uniformly unconditional one-liners today and the first conditional rule is
+a new idiom for no gain; and the staging deploy workflow's `--only` list
+ships `firestore:indexes` but not `firestore:rules`, so a rules change
+could not even reach staging through the `develop` pipeline.
 
 Indexes: `tricks` on `status + approvedAt desc` (the shelf), `status +
 ratingCount desc` (the shortlist), and `trickPlays` on `trickId + day` if
@@ -321,6 +355,7 @@ One new module, `functions-gamehub/games/tricks.js`, exporting
 | Route | Session | Does |
 |---|---|---|
 | `GET  /api/tricks` | none | The shelf: approved tricks, featured first |
+| `GET  /api/tricks/mine` | any | The creator's own submissions, whatever their state |
 | `GET  /api/tricks/:id` | none | One public doc |
 | `POST /api/auth/guest` | none (IP-limited) | Mints a guest session |
 | `POST /api/tricks/submit` | any | Author a trick (§4) |

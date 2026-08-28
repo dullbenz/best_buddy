@@ -51,6 +51,10 @@ jobs:
           # A devnet wallet that already holds a stake, for the perk-gate tests.
           # Everything else signs with a throwaway key generated in the page.
           E2E_STAKED_WALLET_SECRET: ${{ secrets.E2E_STAKED_WALLET_SECRET }}
+          # Optional: an allowlisted admin wallet lets the tricks smoke drive
+          # the full weekly cycle. Absent, that test skips rather than fails.
+          E2E_ADMIN_WALLET_SECRET: ${{ secrets.E2E_ADMIN_WALLET_SECRET }}
+          E2E_FIREBASE_API_KEY: ${{ vars.FIREBASE_WEB_API_KEY }}
         run: |
           if [ -n "${{ inputs.grep }}" ]; then
             npx playwright test --project=staging --grep "${{ inputs.grep }}"

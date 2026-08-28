@@ -1,7 +1,7 @@
 # The game hub
 
-`gamehub.mybestbuddy.fun` — six games, a points ledger, and a weekly prize cycle
-paid by hand from the Squads vault.
+`gamehub.mybestbuddy.fun` — seven games, a points ledger, and a weekly prize
+cycle paid by hand from the Squads vault.
 
 This document is for whoever operates it: how the pieces fit, how to run a prize
 cycle, how to author a hunt, and how to test the whole thing before it ships.
@@ -17,9 +17,11 @@ cycle, how to author a hunt, and how to test the whole thing before it ships.
 | Shared | `game-core/` — the deterministic simulations both sides run. |
 | Data | Firestore, under `gamehub/{cluster}/…` |
 
-Six games: **Pet the Dog**, **Daily Fetch**, **Buddy vs. The Rugs**, **Bone
-Hunt**, **Fetch Tournament**, and **Best Boy** (the reputation layer that ties
-the other five together).
+Seven games: **Pet the Dog**, **Daily Fetch**, **Buddy vs. The Rugs**, **Bone
+Hunt**, **Fetch Tournament**, **New Tricks** (the community's own quizzes,
+scrambles and riddles — authored as data, reviewed by an admin, crowned
+weekly; design record in `TRICKS.md`, operations in §6a), and **Best Boy**
+(the reputation layer that ties the rest together).
 
 ### Three things that shape every decision here
 
@@ -144,7 +146,9 @@ Once a week, end to end:
 **1. Monday 00:05 UTC — the job seals the week.** `gamehubWeekly` freezes the
 top of each weekly board into `leaderboardMeta`, applies the prize table from the
 config document, and writes `prizeCycles/{cycle}` with the winners and a hash.
-Later scores cannot change a sealed board.
+Later scores cannot change a sealed board. A tricks row may be among the
+winners — the crowned creator's payout address, carrying a `trickId` — and it
+is paid exactly like every other row.
 
 **2. Fetch the snapshot.**
 
@@ -212,6 +216,7 @@ the document in Firestore. They can be diffed.
 | Pet the Dog | Nothing but a request | Enforces the cooldown against its own clock, inside a transaction |
 | Bone Hunt | A bone code or a puzzle answer | Compares salted hashes it holds in a collection no client can read |
 | Tournament | Aim and power | Same as fetch, against a seed shared by both players |
+| New Tricks | Answers and per-item times | Grades against a private answer doc, scores with the shared sim, and refuses claimed times that don't account for the wall clock it measured |
 | Best Boy | Nothing | Points only ever arrive through the games above and the daily staking job |
 
 The simulations live once, in `game-core/`, and are copied into the functions by
@@ -283,6 +288,63 @@ Hunts open and close on their own within five minutes of their times
 
 ---
 
+## 6a. Community tricks
+
+Tricks are the one game the community authors itself: a quiz, a word
+scramble, or an emoji riddle, submitted as data from the shelf page at
+`/tricks` — by a wallet session or a guest — with a pasted payout address.
+Nothing a creator submits is code, and answers live in `tricksPrivate`,
+which nothing but the functions can read. `TRICKS.md` is the full design
+record; this section is what an operator needs.
+
+**The review queue is the moderation model.** Every submission lands
+`pending` and is invisible until approved:
+
+```
+GET  /api/admin/tricks/pending                     (admin wallet session)
+POST /api/admin/tricks/:id/approve | reject | remove | reinstate
+```
+
+The queue includes each trick's answers — a quiz is only judgeable with its
+key. `remove` is the takedown; `reinstate` recovers a paused or removed
+trick and resets its report count. Players who finished a trick can flag
+it, and `tricksReportsToPause` distinct flags pull it off the shelf at 3am
+without waiting for anyone; an admin then confirms or reinstates.
+
+**The weekly crowning rides `gamehubWeekly`.** The rollover seals
+`tricks:weekly:{week}`, shortlists the approved tricks that cleared
+`tricksMinPlaysToFeature` plays and `tricksMinRatersToFeature` distinct
+raters that week, ranks them by a count-damped rating mean, features the
+winner for the coming week, and appends its creator's payout address to the
+prize snapshot — the row carries `trickId`, and the ordinary §4 runbook
+pays it with everything else. A week with nothing eligible crowns nothing
+and pays nothing.
+
+**Overriding the pick:**
+
+```
+POST /api/admin/tricks/feature/:weekId   { "trickId": "…" }
+```
+
+Use it before payment, in the open — it swaps the featured doc, rewrites
+the snapshot's tricks winner row, and recomputes `artifactSha256` so the
+payout script still accepts the cycle. It refuses a cycle already marked
+paid. The same call bootstraps the first-ever featured week, before any
+rollover has run.
+
+**Guests.** `POST /api/auth/guest` mints a real session with no wallet;
+guests play, rate, author, and appear on trick boards as `guest`, but never
+touch the GBP ledger — `players/` and `profiles/` stay wallet-keyed. Guest
+minting is IP-limited.
+
+**The e2e smoke can drive the whole cycle** (author → approve → play → rate
+→ forced rollover → featured + winner row) when two optional repo secrets
+exist: `E2E_ADMIN_WALLET_SECRET` (an allowlisted devnet admin wallet) and
+the `FIREBASE_WEB_API_KEY` var it exchanges tokens with. Absent, that test
+skips — the `stakedWallet()` doctrine.
+
+---
+
 ## 7. Scheduled jobs
 
 Each exists twice, once per cluster. All UTC.
@@ -291,7 +353,7 @@ Each exists twice, once per cluster. All UTC.
 |---|---|---|
 | `gamehubPetAggregate` | every minute | Sums the 20 counter shards, fires milestones |
 | `gamehubDaily` | `0 0 * * *` | Seals yesterday's boards, opens today's, expires abandoned games |
-| `gamehubWeekly` | `5 0 * * 1` | Seals the week, cuts the prize snapshot |
+| `gamehubWeekly` | `5 0 * * 1` | Seals the week, crowns the trick of the week, cuts the prize snapshot |
 | `gamehubStakeSnapshot` | `30 0 * * *` | Credits a day of staking points, refreshes stored ranks |
 | `gamehubHuntLifecycle` | every 5 min | Opens and closes hunts |
 
@@ -313,7 +375,16 @@ POST /api/admin/config  { "config": { "petCooldownMs": 3000 } }
 
 Unknown keys are rejected rather than stored, so a typo cannot quietly become a
 setting nothing reads. Point values, cooldowns, daily allowances, rank
-thresholds, milestones and the prize table all live here.
+thresholds, milestones, the prize table and the tricks knobs
+(`tricksSubmissionsPerDay`, `tricksAttemptsPerTrickPerDay`,
+`tricksPointsCapPerDay`, `tricksMinPlaysToFeature`,
+`tricksMinRatersToFeature`, `tricksReportsToPause`, `tricksPendingCap`) all
+live here.
+
+One key merges differently: **the prize table merges per board** when read,
+so a cluster that patched its table before a new board existed still gets
+that board's default — and keeps it through later patches that don't restate
+it. To turn a board's prizes off on purpose, set its entry to `[]`.
 
 `cycleAcceleration` exists so staging can run a "week" in an hour during a
 rehearsal. Production leaves it at 1.
