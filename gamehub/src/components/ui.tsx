@@ -63,10 +63,21 @@ export function WalletChip({
   you?: boolean;
   link?: boolean;
 }) {
-  // Hooks run before the early return below, so this is declared unconditionally.
-  const name = useName(address);
+  // Guest ids (`g:…`) name nobody: no profile page to link, no pump.fun name
+  // to look up. Base58 has no colon, so the check cannot misfire on a wallet.
+  const isGuest = Boolean(address?.startsWith("g:"));
+  // Hooks run before the early returns below, so this is declared unconditionally.
+  const name = useName(isGuest ? null : address);
 
   if (!address) return <span className="muted">—</span>;
+  if (isGuest) {
+    return (
+      <span className="wallet-chip">
+        <span className="wallet-chip-address">guest</span>
+        {you && <span className="wallet-chip-you">you</span>}
+      </span>
+    );
+  }
 
   const inner = (
     <>

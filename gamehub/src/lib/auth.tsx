@@ -29,14 +29,18 @@ import { auth, firebaseReady } from "./firebase";
 type SessionState = {
   /** The connected wallet, whether or not it has signed in. */
   wallet: string | null;
-  /** True once a wallet has a live hub session. */
+  /** True once a wallet or a guest has a live hub session. */
   signedIn: boolean;
   signingIn: boolean;
+  /** The session's player key: a wallet address, or `g:{hex}` for a guest. */
+  playerId: string | null;
+  isGuest: boolean;
   me: Me | null;
   error: string | null;
   /** Set when a session expired mid-session and needs one click to restore. */
   needsReauth: boolean;
   signIn: () => Promise<boolean>;
+  signInAsGuest: () => Promise<boolean>;
   signOutOfHub: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -50,6 +54,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const [signedIn, setSignedIn] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsReauth, setNeedsReauth] = useState(false);
@@ -79,17 +85,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (signedIn) hadSession.current = true;
   }, [signedIn]);
 
-  // Restore a session the SDK still holds after a reload.
+  // Restore a session the SDK still holds after a reload. Guests come back
+  // this way too — their continuity IS the SDK's persistence, since a guest
+  // id is minted fresh and never re-derivable.
   useEffect(() => {
     if (!firebaseReady()) return undefined;
     return onIdTokenChanged(auth(), (user) => {
       if (!user) {
         setSignedIn(false);
+        setPlayerId(null);
+        setIsGuest(false);
         setMe(null);
         return;
       }
-      const [, tokenWallet] = String(user.uid).split(":");
-      signedInWallet.current = tokenWallet;
+      // Cut at the first colon only: the uid is `{cluster}:{playerId}` and a
+      // guest's player id (`g:{hex}`) itself contains a colon.
+      const uid = String(user.uid);
+      const tokenPlayer = uid.slice(uid.indexOf(":") + 1);
+      const guest = tokenPlayer.startsWith("g:");
+      signedInWallet.current = guest ? null : tokenPlayer;
+      setPlayerId(tokenPlayer);
+      setIsGuest(guest);
       setSignedIn(true);
       setNeedsReauth(false);
     });
@@ -113,22 +129,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
    * session attached — the next score would be recorded to the wrong wallet.
    */
   useEffect(() => {
-    if (!signedIn || !wallet) return;
+    if (!signedIn || !wallet || isGuest) return;
     if (signedInWallet.current && signedInWallet.current !== wallet) {
       void signOut(auth());
       setSignedIn(false);
       setMe(null);
       setNeedsReauth(true);
     }
-  }, [wallet, signedIn]);
+  }, [wallet, signedIn, isGuest]);
 
   useEffect(() => {
-    if (!connected && signedIn) {
+    // A guest is permanently "disconnected" as far as the wallet adapter is
+    // concerned; without the guard this effect would sign every guest out on
+    // arrival.
+    if (!connected && signedIn && !isGuest) {
       void signOut(auth());
       setSignedIn(false);
       setMe(null);
     }
-  }, [connected, signedIn]);
+  }, [connected, signedIn, isGuest]);
 
   const signIn = useCallback(async () => {
     if (!wallet || !signMessage) {
@@ -164,9 +183,38 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [wallet, signMessage]);
 
+  /**
+   * A session without a wallet: the server mints a fresh guest identity and
+   * the same custom-token exchange signs it in. No prompt, no signature —
+   * which is the entire point.
+   */
+  const signInAsGuest = useCallback(async () => {
+    if (!firebaseReady()) {
+      setError("The hub is not configured for sign-in yet.");
+      return false;
+    }
+    setSigningIn(true);
+    setError(null);
+    try {
+      const minted = await api.guestSession();
+      await signInWithCustomToken(auth(), minted.token);
+      setSignedIn(true);
+      setNeedsReauth(false);
+      setMe(await api.me());
+      return true;
+    } catch (caught: any) {
+      setError(caught?.message || "Couldn't start a guest session. Try again.");
+      return false;
+    } finally {
+      setSigningIn(false);
+    }
+  }, []);
+
   const signOutOfHub = useCallback(async () => {
     if (firebaseReady()) await signOut(auth());
     setSignedIn(false);
+    setPlayerId(null);
+    setIsGuest(false);
     setMe(null);
     setNeedsReauth(false);
   }, []);
@@ -176,14 +224,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       wallet,
       signedIn,
       signingIn,
+      playerId,
+      isGuest,
       me,
       error,
       needsReauth,
       signIn,
+      signInAsGuest,
       signOutOfHub,
       refresh,
     }),
-    [wallet, signedIn, signingIn, me, error, needsReauth, signIn, signOutOfHub, refresh],
+    [wallet, signedIn, signingIn, playerId, isGuest, me, error, needsReauth, signIn, signInAsGuest, signOutOfHub, refresh],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

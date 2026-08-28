@@ -15,10 +15,11 @@ export const TABS = [
   "hunt",
   "runner",
   "tournament",
+  "tricks",
   "prizes",
 ] as const;
 
-export type Tab = (typeof TABS)[number] | "profile";
+export type Tab = (typeof TABS)[number] | "profile" | "trick";
 
 export type Route = { tab: Tab; param?: string };
 
@@ -30,11 +31,18 @@ const SLUGS: Record<string, Tab> = {
   hunt: "hunt",
   runner: "runner",
   tournament: "tournament",
+  tricks: "tricks",
   prizes: "prizes",
 };
 
 function looksLikeAddress(value: string) {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
+}
+
+/** Trick ids are server-minted 12-byte hex — the guard must match exactly,
+ *  because anything that falls through is silently rewritten to the arcade. */
+function looksLikeTrickId(value: string) {
+  return /^[0-9a-f]{24}$/.test(value);
 }
 
 export function parseRoute(pathname: string): Route {
@@ -44,6 +52,9 @@ export function parseRoute(pathname: string): Route {
   if (first === "wallet" && second && looksLikeAddress(second)) {
     return { tab: "profile", param: second };
   }
+  if (first === "tricks" && second && looksLikeTrickId(second)) {
+    return { tab: "trick", param: second };
+  }
 
   const tab = SLUGS[first ?? ""];
   return tab ? { tab } : { tab: "arcade" };
@@ -51,6 +62,7 @@ export function parseRoute(pathname: string): Route {
 
 export function pathFor(tab: Tab, param?: string): string {
   if (tab === "profile") return `/wallet/${param}`;
+  if (tab === "trick") return `/tricks/${param}`;
   return tab === "arcade" ? "/" : `/${tab}`;
 }
 

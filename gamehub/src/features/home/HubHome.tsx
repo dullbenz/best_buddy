@@ -27,7 +27,8 @@ import {
 import { ActivityFeed } from "../../components/ActivityFeed";
 import { SignInPrompt } from "../../components/HubHeader";
 import { HiddenBone } from "../hunt/hiddenBones";
-import { api, type Summary } from "../../lib/api";
+import { api, type Summary, type TrickShelf } from "../../lib/api";
+import { TrickStats } from "../tricks/common";
 import { useSession } from "../../lib/auth";
 import { useFeed, usePetTotal } from "../../lib/live";
 import { commas } from "../../lib/format";
@@ -94,6 +95,7 @@ export default function HubHome() {
   const feed = useFeed(40);
   const summary = usePoll<Summary>(() => api.summary(), 30000);
   const prizes = usePoll(() => api.prizes(), 120000);
+  const tricks = usePoll<TrickShelf>(() => api.tricks(), 120000);
 
   const nextCycleEnd = nextWeeklyBoundary();
 
@@ -119,9 +121,11 @@ export default function HubHome() {
         </span>
       </a>
 
-      {/* Your standing, or an invitation to have one. */}
+      {/* Your standing, or an invitation to have one. A guest session has no
+          profile, and the invitation is the honest card for it: guests play
+          everything, and signing in is what starts the counting. */}
       <section className="card">
-        {signedIn && me ? (
+        {signedIn && me && me.profile ? (
           <div className="stack" style={{ gap: 12 }}>
             <div className="spread">
               <div className="row">
@@ -189,6 +193,62 @@ export default function HubHome() {
           </a>
         ))}
       </div>
+
+      {/* Community tricks: the data-driven shelf beside the six fixed cards. */}
+      {tricks.data && (tricks.data.featured?.trick || tricks.data.tricks.length > 0) && (
+        <section className="card">
+          <div className="spread">
+            <span className="label">new tricks · made by the community</span>
+            <a
+              href="/tricks"
+              onClick={(event) => {
+                event.preventDefault();
+                navigate("tricks");
+              }}
+              className="label"
+            >
+              see the shelf →
+            </a>
+          </div>
+          <div className="stack" style={{ gap: 8, marginTop: 10 }}>
+            {tricks.data.featured?.trick && (
+              <a
+                href={`/tricks/${tricks.data.featured.trickId}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigate("trick", tricks.data!.featured!.trickId);
+                }}
+                className="spread"
+              >
+                <span>
+                  <span className="chip" style={{ marginRight: 8 }}>
+                    game of the week
+                  </span>
+                  <strong>{tricks.data.featured.trick.title}</strong>
+                </span>
+                <TrickStats summary={tricks.data.featured.trick} />
+              </a>
+            )}
+            {tricks.data.tricks
+              .filter((trick) => trick.trickId !== tricks.data?.featured?.trickId)
+              .slice(0, 4)
+              .map((trick) => (
+                <a
+                  key={trick.trickId}
+                  href={`/tricks/${trick.trickId}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigate("trick", trick.trickId);
+                  }}
+                  className="spread"
+                >
+                  <strong>{trick.title}</strong>
+                  <TrickStats summary={trick} />
+                </a>
+              ))}
+          </div>
+        </section>
+      )}
 
       <section className="card" aria-live="polite">
         <div className="spread">

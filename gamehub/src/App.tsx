@@ -21,6 +21,8 @@ const HuntPage = lazy(() => import("./features/hunt/HuntPage"));
 const TournamentPage = lazy(() => import("./features/tournament/TournamentPage"));
 const PrizesPage = lazy(() => import("./features/prizes/PrizesPage"));
 const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
+const TricksPage = lazy(() => import("./features/tricks/TricksPage"));
+const TrickPlayPage = lazy(() => import("./features/tricks/TrickPlayPage"));
 
 const TITLES: Record<string, string> = {
   arcade: "Buddy Game Hub",
@@ -30,6 +32,8 @@ const TITLES: Record<string, string> = {
   hunt: "Bone Hunt · Buddy Game Hub",
   runner: "Buddy vs. The Rugs · Buddy Game Hub",
   tournament: "Fetch Tournament · Buddy Game Hub",
+  tricks: "New Tricks · Buddy Game Hub",
+  trick: "New Tricks · Buddy Game Hub",
   prizes: "Prizes · Buddy Game Hub",
   profile: "Profile · Buddy Game Hub",
 };
@@ -60,6 +64,8 @@ export default function App() {
           {route.tab === "ranks" && <RanksPage />}
           {route.tab === "hunt" && <HuntPage />}
           {route.tab === "tournament" && <TournamentPage />}
+          {route.tab === "tricks" && <TricksPage />}
+          {route.tab === "trick" && <TrickPlayPage trickId={route.param!} />}
           {route.tab === "prizes" && <PrizesPage />}
           {route.tab === "profile" && <ProfilePage address={route.param!} />}
         </Suspense>

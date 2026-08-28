@@ -42,18 +42,26 @@ export function HubHeader() {
           </span>
         )}
 
-        {signedIn && me && (
+        {signedIn && me && me.profile && me.wallet && (
           <a
             className="pill"
             href={`/wallet/${me.wallet}`}
             onClick={(event) => {
               event.preventDefault();
-              navigate("profile", me.wallet);
+              navigate("profile", me.wallet!);
             }}
             style={{ padding: "0 8px 0 4px" }}
           >
             <RankBadge rank={me.profile.rank} />
           </a>
+        )}
+
+        {signedIn && me?.guest && (
+          // Guests earn no rank, so this pill is their whole header presence —
+          // and the readiness signal the e2e suite waits on.
+          <span className="pill" data-testid="guest-badge">
+            guest
+          </span>
         )}
 
         <a className="hub-btn" href={MAIN_SITE}>
@@ -85,8 +93,8 @@ export function HubHeader() {
  * Guests can play every game; this appears at the moment a score would be
  * recorded, which is the moment the ask makes sense.
  */
-export function SignInPrompt({ reason }: { reason: string }) {
-  const { wallet, signedIn, signingIn, signIn, error, needsReauth } = useSession();
+export function SignInPrompt({ reason, allowGuest = false }: { reason: string; allowGuest?: boolean }) {
+  const { wallet, signedIn, signingIn, signIn, signInAsGuest, error, needsReauth } = useSession();
 
   if (signedIn && !needsReauth) return null;
 
@@ -99,11 +107,18 @@ export function SignInPrompt({ reason }: { reason: string }) {
             ? "Your sign-in expired."
             : wallet
               ? reason
-              : `${reason} Connect a wallet to start.`}
+              : allowGuest
+                ? `${reason} Connect a wallet — or just play as a guest.`
+                : `${reason} Connect a wallet to start.`}
       </span>
       {wallet && (
         <button className="btn" onClick={() => void signIn()} disabled={signingIn}>
           {signingIn ? "check your wallet…" : needsReauth ? "sign in again" : "sign in"}
+        </button>
+      )}
+      {allowGuest && !needsReauth && (
+        <button className="btn" onClick={() => void signInAsGuest()} disabled={signingIn}>
+          play as a guest
         </button>
       )}
     </div>

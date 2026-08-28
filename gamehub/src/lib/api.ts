@@ -161,11 +161,14 @@ export type Profile = {
 };
 
 export type Me = {
-  wallet: string;
+  /** Null for a guest session — guests have a playerId and nothing else. */
+  wallet: string | null;
+  playerId: string;
+  guest: boolean;
   cluster: string;
   admin: boolean;
-  profile: Profile;
-  stake: { staked: boolean; totalAmount: string; lockupCount: number; source: string };
+  profile: Profile | null;
+  stake: { staked: boolean; totalAmount: string; lockupCount: number; source: string } | null;
   perks: { goldenBone: boolean; superPet: boolean; extraShovels: number };
 };
 
@@ -236,6 +239,67 @@ export type HuntView = {
   found: string[];
 };
 
+export type TrickTemplate = "quiz" | "scramble" | "riddle";
+
+export type TrickSummary = {
+  trickId: string;
+  template: TrickTemplate;
+  title: string;
+  intro: string;
+  status: string;
+  createdByPlayer: string;
+  payoutWallet: string;
+  itemCount: number;
+  playCount: number;
+  ratingCount: number;
+  originalitySum: number;
+  funSum: number;
+  featuredWeek: string | null;
+  approvedAtMs: number | null;
+};
+
+/** One authored item's public half — which fields exist depends on the template. */
+export type TrickItem = {
+  prompt?: string;
+  options?: string[];
+  hint?: string | null;
+  length?: number;
+  emoji?: string;
+};
+
+export type TrickShelf = {
+  week: string;
+  featured: { trickId: string; board: string; trick: TrickSummary | null } | null;
+  tricks: TrickSummary[];
+  limits: { attemptsPerTrickPerDay: number; submissionsPerDay: number; pointsCapPerDay: number };
+};
+
+export type TrickDetail = {
+  trick: TrickSummary & { items: TrickItem[] };
+  you: { playedToday: boolean; scoredToday: boolean; rated: boolean; isCreator: boolean } | null;
+};
+
+export type TrickStart = {
+  playId: string;
+  seed: string;
+  simVersion: number;
+  itemCount: number;
+  /** Scramble only: the seed-derived letters, one entry per item. */
+  extras: { letters: string }[] | null;
+  resumed: boolean;
+};
+
+export type TrickResult = {
+  score: number;
+  perItem: number[];
+  correct: boolean[];
+  /** The reveal: option indices for a quiz, the words/answers otherwise. */
+  answers: (string | number)[];
+  pointsAwarded: number;
+  capped: boolean;
+  board: string;
+};
+
 /* -------------------------------- endpoints ------------------------------ */
 
 export const api = {
@@ -262,6 +326,12 @@ export const api = {
     request<{ token: string; wallet: string; admin: boolean }>("/auth/verify", {
       method: "POST",
       body: { wallet, nonce, signature },
+      auth: false,
+    }),
+
+  guestSession: () =>
+    request<{ token: string; playerId: string; guest: true }>("/auth/guest", {
+      method: "POST",
       auth: false,
     }),
 
@@ -385,6 +455,40 @@ export const api = {
       throwsPerMatch: number;
     }>("/tournament/mine"),
 
+  /* tricks */
+  tricks: () => request<TrickShelf>("/tricks", { auth: false }),
+  // Session attached when there is one: creators see their own pending
+  // tricks, and `you` reports played/rated state.
+  trick: (trickId: string) => request<TrickDetail>(`/tricks/${trickId}`),
+  trickAuthor: (payload: {
+    template: TrickTemplate;
+    title: string;
+    intro: string;
+    payoutWallet: string;
+    items: unknown[];
+  }) =>
+    request<{ trickId: string; status: string }>("/tricks/submit", {
+      method: "POST",
+      body: { ...payload, requestId: requestId() },
+    }),
+  trickStart: (trickId: string) =>
+    request<TrickStart>(`/tricks/${trickId}/start`, { method: "POST" }),
+  trickPlay: (trickId: string, answers: (string | number)[], ticks: number[]) =>
+    request<TrickResult>(`/tricks/${trickId}/submit`, {
+      method: "POST",
+      body: { answers, ticks, requestId: requestId() },
+    }),
+  trickRate: (trickId: string, originality: number, fun: number) =>
+    request<{ rated: boolean; originality: number; fun: number; changed: boolean }>(
+      `/tricks/${trickId}/rate`,
+      { method: "POST", body: { originality, fun, requestId: requestId() } },
+    ),
+  trickReport: (trickId: string, reason?: string) =>
+    request<{ reported: boolean; repeated: boolean }>(`/tricks/${trickId}/report`, {
+      method: "POST",
+      body: { reason: reason || null, requestId: requestId() },
+    }),
+
   /* prizes */
   prizes: () =>
     request<{
@@ -392,7 +496,13 @@ export const api = {
       awaitingPayment: { cycle: string; winners: number; totalBuddy: number }[];
       paid: {
         cycle: string;
-        winners: { wallet: string; game: string; position: number; prizeBuddy: number }[];
+        winners: {
+          wallet: string;
+          game: string;
+          position: number;
+          prizeBuddy: number;
+          trickId?: string;
+        }[];
         totalBuddy: number;
         txSignatures: string[];
         receiptUrl: string | null;
