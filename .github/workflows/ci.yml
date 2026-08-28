@@ -240,7 +240,7 @@ jobs:
           {
             echo "GAMEHUB_SERVER_RPC_URL=https://api.devnet.solana.com"
             echo "GAMEHUB_PROGRAM_ID=5rqxrosd3X6cqc9u7e4gjZHadUCroyFJZiVDTcwTsynp"
-            echo "GAMEHUB_ADMIN_WALLETS="
+            echo "GAMEHUB_ADMIN_WALLETS=2MC7qzgi1txEvEFb5y1g1zUS7FWNSNTwgH3LYZLNdEwS"
             echo "GAMEHUB_TEST_KEY=ci-test-key"
             echo "COMMIT_SHA=${{ github.sha }}"
             echo "GAMEHUB_STAKE_STUB=*"

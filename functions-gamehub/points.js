@@ -64,21 +64,35 @@ export function awardPoints(tx, cluster, award) {
 
   for (const board of boards) {
     if (!board) continue;
-    tx.set(
-      col(cluster, "leaderboards").doc(board).collection("entries").doc(wallet),
-      {
-        wallet,
-        points: FieldValue.increment(gained),
-        plays: FieldValue.increment(1),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+    creditBoard(tx, cluster, { board, player: wallet, points: gained });
   }
 
   if (feed) publishFeed(tx, cluster, { wallet, game, ...feed });
 
   return gained;
+}
+
+/**
+ * One board entry, credited.
+ *
+ * Split out of `awardPoints` so community tricks can put a guest on a trick
+ * board without minting `players/` and `profiles/` documents for an identity
+ * that has no ledger. The entry's key stays in the `wallet` field — for a
+ * guest it carries the `g:{hex}` player id — so every consumer of a board
+ * (`topOfBoard`, `boardPosition`, the seal job, the client table) reads both
+ * kinds of entry the same way.
+ */
+export function creditBoard(tx, cluster, { board, player, points }) {
+  tx.set(
+    col(cluster, "leaderboards").doc(board).collection("entries").doc(player),
+    {
+      wallet: player,
+      points: FieldValue.increment(points),
+      plays: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
 /**

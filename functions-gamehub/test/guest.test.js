@@ -79,12 +79,13 @@ test("admin endpoints are closed to guests", async () => {
   assert.equal(pending.status, 403);
 });
 
-// Last on purpose: it exhausts the per-IP mint budget for this emulator run,
-// and every earlier test mints guests from the same address.
+// Runs against the mainnet-shaped export: rate buckets are per cluster, and
+// exhausting the devnet bucket would starve the other suites, which mint
+// their guests from this same IP in parallel processes.
 test("guest minting is rate-limited per IP", async () => {
   let limited = null;
-  for (let attempt = 0; attempt < 35; attempt += 1) {
-    const minted = await call("/auth/guest", { method: "POST" });
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const minted = await call("/auth/guest", { method: "POST", base: MAINNET_BASE });
     if (minted.status === 429) {
       limited = minted;
       break;

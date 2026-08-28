@@ -86,3 +86,20 @@ export async function signInAsGuest({ base = BASE } = {}) {
   assert.equal(minted.status, 200, JSON.stringify(minted.body));
   return { playerId: minted.body.playerId, token: await exchangeCustomToken(minted.body.token) };
 }
+
+/**
+ * The fixed test-admin wallet.
+ *
+ * Its keypair comes from a public seed, which is fine because being an admin
+ * is not a property of the key: it is membership in GAMEHUB_ADMIN_WALLETS,
+ * and only the emulator env files list this address. Deriving a real keypair
+ * and walking the real challenge/verify path means the suite exercises
+ * requireAdmin itself rather than a side door built for tests.
+ */
+export function adminKeypair() {
+  return nacl.sign.keyPair.fromSeed(Buffer.from("buddy-gamehub-test-admin-0000001"));
+}
+
+export async function signInAsAdmin({ base = BASE } = {}) {
+  return signIn({ base, keypair: adminKeypair() });
+}

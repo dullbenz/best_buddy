@@ -138,6 +138,18 @@ export const DEFAULT_CONFIG = {
   },
   /** Staging can run a week in an hour; production never does. */
   cycleAcceleration: 1,
+  /* Community tricks. Submissions and attempts are per UTC day; the GBP cap
+   * keeps a hundred quizzes from out-earning Daily Fetch; the feature
+   * minimums are the floor under "best trick of the week"; the report
+   * threshold is how many distinct players it takes to pull a trick off the
+   * shelf at 3am without waiting for an admin. */
+  tricksSubmissionsPerDay: 1,
+  tricksPendingCap: 5,
+  tricksAttemptsPerTrickPerDay: 1,
+  tricksPointsCapPerDay: 500,
+  tricksMinPlaysToFeature: 10,
+  tricksMinRatersToFeature: 5,
+  tricksReportsToPause: 3,
 };
 
 export async function readConfig(cluster) {

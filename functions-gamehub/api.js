@@ -21,6 +21,11 @@ import { mountFetchRoutes } from "./games/fetch.js";
 import { mountRunnerRoutes } from "./games/runner.js";
 import { mountTournamentRoutes } from "./games/tournament.js";
 import { mountHuntRoutes, mountHuntPublicRoutes } from "./games/hunt.js";
+import {
+  mountTricksPublicRoutes,
+  mountTricksRoutes,
+  mountTricksAdminRoutes,
+} from "./games/tricks.js";
 import { mountReputationRoutes, profileFor } from "./games/reputation.js";
 import { mountAdminRoutes } from "./admin.js";
 import { mountNameRoutes } from "./names.js";
@@ -217,6 +222,7 @@ export function makeApi(cluster) {
   mountHuntPublicRoutes(router, cluster);
   mountPetPublicRoutes(router, cluster);
   mountNameRoutes(router);
+  mountTricksPublicRoutes(router, cluster);
 
   // Everything past here needs a session — a signed-in wallet or a guest.
   const sessionOnly = express.Router();
@@ -270,6 +276,9 @@ export function makeApi(cluster) {
     }),
   );
 
+  // Community tricks take any session: a guest can author, play and rate.
+  mountTricksRoutes(sessionOnly, cluster, { rateLimits });
+
   // The six fixed games stay wallet-only: their state and points are keyed by
   // wallet address, and their stake perks parse it as a public key.
   const guarded = express.Router();
@@ -284,6 +293,7 @@ export function makeApi(cluster) {
   const adminRouter = express.Router();
   adminRouter.use(requireSession(cluster), requireAdmin());
   mountAdminRoutes(adminRouter, cluster);
+  mountTricksAdminRoutes(adminRouter, cluster);
 
   // Test routes carry their own key check and must be reachable without a
   // wallet session, so they are mounted ahead of the session gate.
