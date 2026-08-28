@@ -121,6 +121,15 @@ test("authoring validates and lands as pending, invisible and unplayable", async
   const stored = await devnetDoc("tricks", trickId).get();
   assert.ok(!JSON.stringify(stored.data().items).includes("answer"));
   assert.equal(stored.data().items[0].options.length, 3);
+
+  // The creator's own list carries the pending trick; a stranger's doesn't.
+  const mine = await call("/tricks/mine", { token: creator.token });
+  assert.equal(mine.status, 200);
+  assert.ok(mine.body.tricks.some((trick) => trick.trickId === trickId));
+  const theirs = await call("/tricks/mine", { token: player.token });
+  assert.ok(!theirs.body.tricks.some((trick) => trick.trickId === trickId));
+  const signedOut = await call("/tricks/mine");
+  assert.equal(signedOut.status, 401);
 });
 
 test("one submission a day, and the pending queue is capped", async () => {

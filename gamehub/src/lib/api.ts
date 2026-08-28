@@ -457,6 +457,7 @@ export const api = {
 
   /* tricks */
   tricks: () => request<TrickShelf>("/tricks", { auth: false }),
+  trickMine: () => request<{ tricks: TrickSummary[] }>("/tricks/mine"),
   // Session attached when there is one: creators see their own pending
   // tricks, and `you` reports played/rated state.
   trick: (trickId: string) => request<TrickDetail>(`/tricks/${trickId}`),

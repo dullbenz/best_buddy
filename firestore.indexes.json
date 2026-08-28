@@ -57,6 +57,20 @@
       ]
     },
     {
+      "collectionGroup": "tricks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdByPlayer",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtMs",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "challenges",
       "queryScope": "COLLECTION",
       "fields": [

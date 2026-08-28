@@ -5,7 +5,7 @@
  * whose games are documents, not deploys. Guests browse freely and can play
  * with one click; nothing on this page needs a wallet.
  */
-import React from "react";
+import React, { useState } from "react";
 
 import { GameShell } from "../../components/GameShell";
 import { SignInPrompt } from "../../components/HubHeader";
@@ -14,7 +14,8 @@ import { api, type TrickShelf, type TrickSummary } from "../../lib/api";
 import { useSession } from "../../lib/auth";
 import { usePoll } from "../../lib/poll";
 import { navigate } from "../../router";
-import { TrickStats } from "./common";
+import { AuthorForm } from "./AuthorForm";
+import { TEMPLATE_LABELS, TrickStats } from "./common";
 
 function TrickCard({ trick, featured = false }: { trick: TrickSummary; featured?: boolean }) {
   return (
@@ -41,9 +42,34 @@ function TrickCard({ trick, featured = false }: { trick: TrickSummary; featured?
   );
 }
 
+/** The creator's own submissions, whatever state they are in. */
+function MineStrip({ reloadKey }: { reloadKey: number }) {
+  const mine = usePoll(() => api.trickMine(), 120000, [reloadKey]);
+  if (!mine.data?.tricks.length) return null;
+  return (
+    <section className="card" style={{ marginTop: 14 }}>
+      <span className="label">your tricks</span>
+      <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+        {mine.data.tricks.map((trick) => (
+          <div key={trick.trickId} className="spread">
+            <span>
+              <strong>{trick.title}</strong>{" "}
+              <span className="label">{TEMPLATE_LABELS[trick.template]}</span>
+            </span>
+            <span className="chip">{trick.status}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function TricksPage() {
   const { signedIn } = useSession();
   const shelf = usePoll<TrickShelf>(() => api.tricks(), 60000, [signedIn]);
+  const [authoring, setAuthoring] = useState(false);
+  const [submittedId, setSubmittedId] = useState<string | null>(null);
+  const [mineReload, setMineReload] = useState(0);
 
   const featured = shelf.data?.featured?.trick || null;
   const rest = (shelf.data?.tricks || []).filter(
@@ -95,10 +121,41 @@ export default function TricksPage() {
         </div>
       )}
 
-      {/* Authoring lands here next: the submission form replaces this note. */}
-      <p className="label" style={{ marginTop: 18 }}>
-        want to teach Buddy one of your own? trick submissions open right here soon.
-      </p>
+      <div style={{ marginTop: 18 }}>
+        {submittedId && (
+          <div className="banner">
+            <span>
+              Submitted — your trick is <strong>pending review</strong>. It reaches the shelf when
+              an admin approves it.
+            </span>
+          </div>
+        )}
+
+        {!signedIn && (
+          <p className="label">
+            want to teach Buddy one of your own? sign in or continue as a guest above, then the
+            form opens here.
+          </p>
+        )}
+
+        {signedIn && !authoring && (
+          <button className="btn btn-primary" onClick={() => setAuthoring(true)}>
+            teach Buddy a trick
+          </button>
+        )}
+
+        {signedIn && authoring && (
+          <AuthorForm
+            onSubmitted={(trickId) => {
+              setSubmittedId(trickId);
+              setAuthoring(false);
+              setMineReload((count) => count + 1);
+            }}
+          />
+        )}
+
+        {signedIn && <MineStrip reloadKey={mineReload} />}
+      </div>
     </GameShell>
   );
 }

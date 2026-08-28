@@ -28,6 +28,7 @@ import {
   requireRequestId,
   runIdempotent,
   tooMany,
+  unauthorized,
 } from "../middleware.js";
 import { parseAddress } from "../auth.js";
 // Circular with jobs.js (which imports the judging helpers above) — safe
@@ -353,6 +354,24 @@ export function mountTricksPublicRoutes(app, cluster) {
           pointsCapPerDay: config.tricksPointsCapPerDay,
         },
       });
+    }),
+  );
+
+  // Registered before /tricks/:trickId so the literal wins the match. It
+  // lives on the public router because sessions attach opportunistically
+  // there; without one it refuses rather than listing nothing.
+  app.get(
+    "/tricks/mine",
+    handler(async (req, res) => {
+      if (!req.session?.wallet) {
+        throw unauthorized("NO_SESSION", "Sign in to see your own tricks.");
+      }
+      const mine = await col(cluster, "tricks")
+        .where("createdByPlayer", "==", req.session.wallet)
+        .orderBy("createdAtMs", "desc")
+        .limit(20)
+        .get();
+      res.json({ tricks: mine.docs.map((entry) => summarize(entry.data())) });
     }),
   );
 
