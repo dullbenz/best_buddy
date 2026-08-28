@@ -10,3 +10,4 @@ export { createRng } from "./rng.js";
 export { SIM_VERSION } from "./version.js";
 export { simulateThrow, FETCH_GRADES, describeField } from "./fetch-sim.js";
 export { simulateRun, RUNNER_ACTIONS, RUNNER_LIMITS } from "./runner-sim.js";
+export { TRICKS_SIM_VERSION, TRICKS_LIMITS, scrambleWord, clampTicks, scoreTrick } from "./tricks-sim.js";
